@@ -1,19 +1,19 @@
-import { resolveOperationalBranch } from "@/server/auth/barber-branch-access";
+import { resolveOperationalBranch } from "@/server/auth/branch-access";
 import { BranchError } from "@/server/services/branch.service";
 import { branchApiError } from "@/server/services/branch-api";
 import { requireStaffUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { attendanceActionSchema } from "@/server/schemas/attendance.schema";
 import { actOnTodayAttendance, AttendanceConflict } from "@/server/services/attendance.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ barberId: string }> }) {
   const user = await requireStaffUser();
   if (user instanceof Response) return user;
-  const rawId = (await params).barberId;
-  const barberId = Number(rawId);
-  if (!/^\d+$/.test(rawId) || !Number.isSafeInteger(barberId) || barberId < 1)
+  const barberId = parseRouteId((await params).barberId);
+  if (barberId === null)
     return Response.json({ success: false, message: "Invalid barber id" }, { status: 400 });
   let body: unknown;
   try { body = await request.json(); }

@@ -1,10 +1,11 @@
-import { withAuthorizedBarber } from "@/server/auth/barber-branch-access";
+import { withAuthorizedBarber } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
 import { z } from "zod";
 import { requireStaffUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { barberStatusSchema } from "@/server/schemas/sprint.schema";
 import { updateBarberStatus } from "@/server/services/barber.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,8 @@ const statusUpdateSchema = z.object({ status: barberStatusSchema }).strict();
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await requireStaffUser();
   if (actor instanceof Response) return actor;
-  const rawId = (await params).id;
-  const id = Number(rawId);
-  if (!/^\d+$/.test(rawId) || !Number.isSafeInteger(id) || id < 1)
+  const id = parseRouteId((await params).id);
+  if (id === null)
     return Response.json({ success: false, message: "Invalid barber id" }, { status: 400 });
   let body: unknown;
   try { body = await request.json(); }

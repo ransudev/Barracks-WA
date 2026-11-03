@@ -1,6 +1,5 @@
 import type { Pool } from "pg";
-import type { BranchActor } from "@/server/auth/barber-branch-access";
-import { requireManagementReport, resolveReportBranches } from "@/server/auth/report-branch-access";
+import { requireManagementReport, resolveReportBranches, type BranchActor } from "@/server/auth/branch-access";
 
 export async function getDashboardReport(db: Pool, actor: BranchActor, rawBranch: string | null = null) {
   requireManagementReport(actor);

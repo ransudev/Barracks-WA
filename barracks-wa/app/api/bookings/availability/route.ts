@@ -1,4 +1,4 @@
-import { visitBranch, visitBranchError } from "@/server/auth/visit-branch-access";
+import { visitBranch, visitBranchError } from "@/server/auth/branch-access";
 import { requireRoles } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { availabilityQuerySchema } from "@/server/schemas/schedule.schema";

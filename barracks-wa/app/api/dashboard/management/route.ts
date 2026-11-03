@@ -1,5 +1,5 @@
 import { requireManagementUser } from "@/server/auth/require-role";
-import { resolveReportBranches } from "@/server/auth/report-branch-access";
+import { resolveReportBranches } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
 import { pool } from "@/server/db/pool";
 import type { ManagementDashboardData } from "@/app/types/dashboard";

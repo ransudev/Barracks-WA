@@ -4,18 +4,14 @@ import { requireManagementUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { attendanceCorrectionSchema } from "@/server/schemas/attendance.schema";
 import { attendanceBranches, AttendanceConflict, correctAttendance, listAttendanceCorrections } from "@/server/services/attendance.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
-
-function readId(raw: string): number | null {
-  const id = Number(raw);
-  return /^\d+$/.test(raw) && Number.isSafeInteger(id) && id > 0 ? id : null;
-}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireManagementUser();
   if (user instanceof Response) return user;
-  const id = readId((await params).id);
+  const id = parseRouteId((await params).id);
   if (id === null) return Response.json({ success: false, message: "Invalid attendance id" }, { status: 400 });
   try { return Response.json({ success: true, corrections: await listAttendanceCorrections(pool, id, await attendanceBranches(pool, user, request)) }); }
   catch (error) {
@@ -28,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireManagementUser();
   if (user instanceof Response) return user;
-  const id = readId((await params).id);
+  const id = parseRouteId((await params).id);
   if (id === null) return Response.json({ success: false, message: "Invalid attendance id" }, { status: 400 });
   let body: unknown;
   try { body = await request.json(); }

@@ -1,4 +1,4 @@
-import { inventoryBranch, inventoryBranchError } from "@/server/auth/inventory-branch-access";
+import { branchErrorResponse, resolveOperationalBranch, branchIdParam } from "@/server/auth/branch-access";
 import { requireManagementUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { inventoryCreateSchema } from "@/server/schemas/sprint2.schema";
@@ -10,10 +10,10 @@ export async function GET(request: Request) {
   const staff = await requireManagementUser();
   if (staff instanceof Response) return staff;
   try {
-    const branchId = await inventoryBranch(pool, staff, request);
+    const branchId = await resolveOperationalBranch(pool, staff, branchIdParam(request));
     return Response.json({ success: true, items: await listInventory(pool, branchId) });
   } catch (error) {
-    const branchError = inventoryBranchError(error); if (branchError) return branchError;
+    const branchError = branchErrorResponse(error); if (branchError) return branchError;
     console.error("Unable to list inventory", error);
     return Response.json({ success: false, message: "Unable to load inventory" }, { status: 500 });
   }
@@ -31,9 +31,9 @@ export async function POST(request: Request) {
     return Response.json({ success: false, message: "Invalid inventory information", errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
   try {
-    return Response.json({ success: true, item: await createInventoryItem(pool, parsed.data, await inventoryBranch(pool, staff, request)) }, { status: 201 });
+    return Response.json({ success: true, item: await createInventoryItem(pool, parsed.data, await resolveOperationalBranch(pool, staff, branchIdParam(request))) }, { status: 201 });
   } catch (error) {
-    const branchError = inventoryBranchError(error); if (branchError) return branchError;
+    const branchError = branchErrorResponse(error); if (branchError) return branchError;
     if (error instanceof Error && error.message === "SUPPLIER_UNAVAILABLE") {
       return Response.json({ success: false, message: "Supplier is inactive or unavailable" }, { status: 400 });
     }

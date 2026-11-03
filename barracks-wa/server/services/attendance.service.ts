@@ -1,5 +1,4 @@
-import { listAccessibleBranches, requireBranchAccess } from "@/server/auth/branch-access";
-import { resolveOperationalBranch, type BranchActor } from "@/server/auth/barber-branch-access";
+import { listAccessibleBranches, requireBranchAccess, resolveOperationalBranch, type BranchActor } from "@/server/auth/branch-access";
 import { BranchError } from "@/server/services/branch.service";
 import type { UserRole } from "@/server/schemas/user.schema";
 import type { PoolClient } from "pg";

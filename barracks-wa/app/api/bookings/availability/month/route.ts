@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { visitBranch, visitBranchError } from "@/server/auth/visit-branch-access";
+import { visitBranch, visitBranchError } from "@/server/auth/branch-access";
 import { requireRolesUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { AvailabilityError, getMonthAvailability } from "@/server/services/booking-availability.service";

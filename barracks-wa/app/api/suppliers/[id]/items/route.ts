@@ -1,18 +1,18 @@
 import { z } from "zod";
-import { resolveOperationalBranch } from "@/server/auth/barber-branch-access";
+import { resolveOperationalBranch } from "@/server/auth/branch-access";
 import { requireManagementUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { branchApiError } from "@/server/services/branch-api";
 import { setSupplierItems } from "@/server/services/supplier.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
-const parseId = (raw: string) => /^\d+$/.test(raw) && Number(raw) > 0 ? Number(raw) : null;
 const schema = z.object({ inventoryItemIds: z.array(z.number().int().positive()).max(500) }).strict();
 
 // Assign the inventory items this supplier provides in the selected branch.
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await requireManagementUser(); if (actor instanceof Response) return actor;
-  const id = parseId((await params).id); if (!id) return Response.json({ success: false, message: "Invalid supplier id" }, { status: 400 });
+  const id = parseRouteId((await params).id); if (!id) return Response.json({ success: false, message: "Invalid supplier id" }, { status: 400 });
   let body: unknown; try { body = await request.json(); } catch { return Response.json({ success: false, message: "Invalid item selection" }, { status: 400 }); }
   const parsed = schema.safeParse(body);
   if (!parsed.success) return Response.json({ success: false, message: "Invalid item selection" }, { status: 400 });

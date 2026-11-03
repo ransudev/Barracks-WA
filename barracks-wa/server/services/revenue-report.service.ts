@@ -1,6 +1,5 @@
 import type { Pool } from "pg";
-import type { BranchActor } from "@/server/auth/barber-branch-access";
-import { requireManagementReport, resolveReportBranches } from "@/server/auth/report-branch-access";
+import { requireManagementReport, resolveReportBranches, type BranchActor } from "@/server/auth/branch-access";
 
 export type RevenueRange = { from: string; to: string };
 export type RevenueTotals = { grossSales: number; refundedAmount: number; voidedAmount: number; reversedAmount: number; netRevenue: number; transactionCount: number };

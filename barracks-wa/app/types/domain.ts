@@ -58,18 +58,6 @@ export type Customer = {
   tone: Tone;
 };
 
-export type QueueEntry = {
-  id: number;
-  customer: string;
-  initials: string;
-  service: string;
-  barber: string;
-  status: "Waiting" | "In chair" | "Ready";
-  wait: string;
-  joined: string;
-  tone: Tone;
-};
-
 export type Booking = {
   id: string;
   time: string;
@@ -81,16 +69,6 @@ export type Booking = {
   price: number;
   status: "Completed" | "Upcoming" | "Cancelled";
   tone: Tone;
-};
-
-export type InventoryItem = {
-  id: string;
-  name: string;
-  category: "Supplies" | "Equipment" | "Products";
-  current: number;
-  minimum: number;
-  maximum: number;
-  unitCost: number;
 };
 
 export type Service = {
@@ -114,30 +92,6 @@ export type Transaction = {
   method: string;
   amount: number;
   status: string;
-};
-
-export type StaffMember = {
-  id: string;
-  name: string;
-  initials: string;
-  role: "Administrator" | "Front Desk";
-  email: string;
-  phone: string;
-  status: "Active" | "On leave" | "Disabled";
-  joined: string;
-  tone: Tone;
-};
-
-export type RevenueDay = {
-  day: string;
-  value: number;
-};
-
-export type RevenueByService = {
-  label: string;
-  value: number;
-  percent: number;
-  tone: Tone;
 };
 
 export type NavigationItem = {

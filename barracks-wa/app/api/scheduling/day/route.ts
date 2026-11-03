@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireStaffUser } from "@/server/auth/require-role";
-import { resolveOperationalBranch } from "@/server/auth/barber-branch-access";
+import { resolveOperationalBranch } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
 import { pool } from "@/server/db/pool";
 import { listShopHours, listBranchDaySchedules } from "@/server/services/schedule.service";

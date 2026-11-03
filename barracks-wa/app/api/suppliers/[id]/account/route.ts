@@ -3,9 +3,9 @@ import { emailSchema } from "@/server/schemas/user.schema";
 import { requireAdministrator } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { hashPassword } from "@/server/services/password.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
-const parseId = (raw: string) => /^\d+$/.test(raw) && Number(raw) > 0 ? Number(raw) : null;
 const schema = z.object({
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
@@ -15,7 +15,7 @@ const schema = z.object({
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireAdministrator(); if (denied) return denied;
-  const supplierId = parseId((await params).id); if (!supplierId) return Response.json({success:false,message:"Invalid supplier id"},{status:400});
+  const supplierId = parseRouteId((await params).id); if (!supplierId) return Response.json({success:false,message:"Invalid supplier id"},{status:400});
   let body: unknown; try { body = await request.json(); } catch { return Response.json({success:false,message:"Invalid supplier account information"},{status:400}); }
   const parsed = schema.safeParse(body); if (!parsed.success) return Response.json({success:false,message:"Invalid supplier account information"},{status:400});
   const client = await pool.connect();

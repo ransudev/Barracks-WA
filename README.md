@@ -197,12 +197,13 @@ Client components call same-origin `/api/...` endpoints. They never connect to P
 
 ```text
 React UI
-  -> app/data/ seed content
-  -> component state or usePersistentState
-  -> browser localStorage for retained prototype modules
+  -> app/data/landing.ts static marketing content
+  -> component state
 ```
 
-The current sprint pages use the API for customers, barbers, inventory, suppliers, restocks, inventory and revenue reporting, services, bookings, staff accounts, supplier accounts, and customer sessions. Front Desk Payments loads eligible visits for checkout and transaction history; Management Transactions loads history and financial actions without checkout controls. The reference lookup supplies persisted receipt details for both checkout printing and later reprints. The landing page still consumes static marketing content from `app/data/landing.ts`. Booking creation and editing load services from PostgreSQL and store name, price, and numeric duration snapshots with an expected end time and optional notes. `app/data/services.ts` is reference data only.
+The only browser storage is the light/dark theme preference and the customer's remembered booking branch.
+
+The current sprint pages use the API for customers, barbers, inventory, suppliers, restocks, inventory and revenue reporting, services, bookings, staff accounts, supplier accounts, and customer sessions. Front Desk Payments loads eligible visits for checkout and transaction history; Management Transactions loads history and financial actions without checkout controls. The reference lookup supplies persisted receipt details for both checkout printing and later reprints. The landing page still consumes static marketing content from `app/data/landing.ts`. Booking creation and editing load services from PostgreSQL and store name, price, and numeric duration snapshots with an expected end time and optional notes.
 
 ### Runtime composition
 
@@ -250,8 +251,8 @@ The current sprint pages use the API for customers, barbers, inventory, supplier
     │   │   ├── operations/            # shared card/list/drawer operational primitives
     │   │   └── ui/                    # buttons, fields, panels, dialogs, badges, icons
     │   ├── constants/                 # navigation and role options
-    │   ├── data/                      # landing content and legacy prototype seed data
-    │   ├── hooks/                     # drawer transitions, scroll locking, and legacy persistence
+    │   ├── data/                      # landing content and inventory catalog images
+    │   ├── hooks/                     # drawer transitions and scroll locking
     │   ├── lib/                       # frontend API wrapper and response types
     │   ├── pages/                     # public, auth, customer, supplier, staff, and admin screens
     │   │   └── public/landing-motion.css # landing-page scroll motion and entrance choreography
@@ -265,7 +266,7 @@ The current sprint pages use the API for customers, barbers, inventory, supplier
     │   └── favicon.ico
     ├── public/                        # logo, branch imagery, and static assets
     ├── server/
-    │   ├── auth/                      # session lookup and role guards
+    │   ├── auth/                      # session lookup, role guards, and branch access
     │   ├── db/                        # PostgreSQL pool and SQL migrations
     │   ├── schemas/                   # Zod schemas and validation formatting
     │   └── services/                  # database-facing domain and session services
@@ -301,7 +302,7 @@ The current sprint pages use the API for customers, barbers, inventory, supplier
 | Admin sales reports | `app/pages/admin/RevenueReports.tsx` — sales/reversal cards, calendar-first daily activity and a line chart, service/barber/payment bars, and expandable exact figures | `/api/reports/revenue` |
 | Supplier portal | `app/pages/supplier/SupplierPortal.tsx` — profile, supplied items, open requests, delivery history, and account settings | `/api/supplier/me`, `/api/restocks`, `/api/supplier/account` |
 
-Legacy prototype screens such as `ReportsPage` and settings pages remain available as source references but are not active destinations in the sprint view switchboard; the `/admin/reports` destination renders `ManagementReports` with sales and inventory sections. `ServicesManagement` is available at `/admin/services` to managers and administrators. `QueuePage` and the staff `PaymentPage` are active PostgreSQL-backed shop-floor destinations.
+The unused prototype report and settings screens, with their static seed data, have been removed; the `/admin/reports` destination renders `ManagementReports` with sales and inventory sections. `ServicesManagement` is available at `/admin/services` to managers and administrators. `QueuePage` and the staff `PaymentPage` are active PostgreSQL-backed shop-floor destinations.
 
 Management Reports uses one period toolbar for both sections, with Today, This week (Monday onward), This month, Last 30 days, and custom inclusive dates in Manila time. Switching sections preserves the applied period. Sales highlights show the busiest checkout day, highest net-revenue service, and average gross checkout value. Daily activity opens on the calendar, with a Line chart toggle. The line chart switches between gross sales, net revenue, and transaction count; long periods use up to 60 equal-sized date buckets. Selecting a point or calendar date shows exact sales and reversal totals; the calendar supports month navigation within the selected period. Missing daily activity is shown as zero. Negative net revenue stays visible below zero and in red calendar cells. Service/barber bars rank net revenue; payment bars show gross sales and their share of gross sales. All breakdowns remain accessible in expandable tables.
 
@@ -585,7 +586,6 @@ The sprint backend is intentionally partial. The main remaining seams are:
 - Dashboard and customer/barber summaries cover the sprint entities but do not yet form a complete reporting model.
 - Inventory movements and restock receiving are transactional and auditable; broader stock-use workflows and concurrency coverage remain to be expanded.
 - There is no payment processor, notification delivery, calendar sync, email confirmation, rate limiting, MFA, or observability layer.
-- Some inactive legacy prototypes, including payment and report references, still use seed data or `localStorage`; those paths should not be treated as production persistence.
 - The repository has schema/UI/API tests and PostgreSQL integration tests. When tests are explicitly requested, run them only against the loopback disposable-database environment required by `tests/helpers/database.ts`, with TLS disabled and schema-creation privilege; never point the suite at a hosted shop database. Database cases without a configured connection are skipped. A browser automation test runner and visual regression suite are not configured, so the final browser smoke evidence is run manually against the local dev server.
 
 The recommended evolution is incremental: add later tender, item, discount, and partial refund workflows, persist settings, and expand automated coverage, observability, rate limiting, and deployment documentation.
@@ -632,7 +632,7 @@ Migration `009_services_booking_foundation.sql` adds service descriptions and in
 
 Migration `022_multi_branch_foundation.sql` adds `branches` and `user_branches`. The current shop is `Main Branch` (`MAIN`); existing non-deleted Managers and Front Desk accounts receive a primary Main Branch assignment. Administrators remain global and have no memberships. Customers and suppliers cannot be assigned. Memberships are unique per user/branch, and a partial unique index enforces at most one primary per user. Role changes out of Manager/Front Desk and account deletion remove memberships. New staff accounts require explicit assignment; membership does not change existing operational permissions.
 
-Backend helpers in `server/auth/branch-access.ts` list accessible branches, check/require membership, and retrieve the primary branch. Administrators can access every existing branch; Managers and Front Desk can access assigned branches. Inactive branches retain their memberships; operational status enforcement is deferred. A user may have no primary, including after removing their primary assignment. Branch identity is independent of the existing inventory branch text labels. No operational data or behavior is scoped by these tables in Phase 1.
+Backend helpers in `server/auth/branch-access.ts` list accessible branches, check/require membership, and retrieve the primary branch. Later phases keep every branch-isolation helper in this one module: operational, customer, and report branch resolution, barber/inventory ownership locks, and the shared `BranchError` HTTP response. Dynamic route IDs are parsed by `server/schemas/route-id.ts`, which rejects values outside the PostgreSQL integer range. Administrators can access every existing branch; Managers and Front Desk can access assigned branches. Inactive branches retain their memberships; operational status enforcement is deferred. A user may have no primary, including after removing their primary assignment. Branch identity is independent of the existing inventory branch text labels. No operational data or behavior is scoped by these tables in Phase 1.
 
 Branch APIs use existing HTTP-only sessions and server role guards: Administrator-only `GET/POST /api/branches` (list includes eligible staff), `PATCH /api/branches/:id` (details or `status: active/inactive`), `GET/POST /api/branches/:id/assignments`, and `DELETE/PATCH /api/branches/:id/assignments/:userId` (PATCH accepts `isPrimary: true`). Duplicate codes/memberships return 409. Primary changes run in a transaction with a user-row lock. `GET /api/branch-context` is available to staff and returns only accessible branches and a nullable primary. Shared `Branch`/`BranchAssignment`/`BranchContext` types and `resolveBranchSelection` provide the minimum future selector foundation; no global selector or operational branch filtering is enabled.
 

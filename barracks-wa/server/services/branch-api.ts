@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BranchError } from "@/server/services/branch.service";
+import { branchErrorResponse } from "@/server/auth/branch-access";
 import { formatValidationErrors } from "@/server/schemas/user.schema";
 
 export async function readBranchInput<T>(request: Request, schema: z.ZodType<T>): Promise<T | Response> {
@@ -10,7 +10,8 @@ export async function readBranchInput<T>(request: Request, schema: z.ZodType<T>)
   return parsed.success ? parsed.data : Response.json({ success: false, message: "Check the branch information", errors: formatValidationErrors(parsed.error) }, { status: 400 });
 }
 export function branchApiError(error: unknown): Response {
-  if (error instanceof BranchError) return Response.json({ success: false, message: error.message }, { status: error.status });
+  const branchResponse = branchErrorResponse(error);
+  if (branchResponse) return branchResponse;
   if (error && typeof error === "object" && "code" in error) {
     if (error.code === "23505") return Response.json({ success: false, message: "Branch code or staff assignment already exists" }, { status: 409 });
     if (error.code === "23514") return Response.json({ success: false, message: error && "message" in error && typeof error.message === "string" ? error.message : "Invalid branch or staff assignment" }, { status: 400 });

@@ -9,17 +9,14 @@ import {
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
 import { deleteCustomer, findCustomerById, updateCustomer } from "@/server/services/customer.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
-
-function parseId(rawId: string): number | null {
-  return /^\d+$/.test(rawId) && Number(rawId) > 0 ? Number(rawId) : null;
-}
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorizationResponse = await requireStaff();
   if (authorizationResponse) return authorizationResponse;
-  const id = parseId((await params).id);
+  const id = parseRouteId((await params).id);
   if (!id) return Response.json({ success: false, message: "Invalid customer id" }, { status: 400 });
 
   try {
@@ -35,7 +32,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorizationResult = await requireStaffUser();
   if (authorizationResult instanceof Response) return authorizationResult;
-  const id = parseId((await params).id);
+  const id = parseRouteId((await params).id);
   if (!id) return Response.json({ success: false, message: "Invalid customer id" }, { status: 400 });
 
   let body: unknown;
@@ -75,7 +72,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorizationResponse = await requireAdministrator();
   if (authorizationResponse) return authorizationResponse;
-  const id = parseId((await params).id);
+  const id = parseRouteId((await params).id);
   if (!id) return Response.json({ success: false, message: "Invalid customer id" }, { status: 400 });
 
   try {

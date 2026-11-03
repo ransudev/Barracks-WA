@@ -1,21 +1,17 @@
-import { withAuthorizedBarber } from "@/server/auth/barber-branch-access";
-import { requireBranchAccess } from "@/server/auth/branch-access";
+import { withAuthorizedBarber, requireBranchAccess } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
 import { requireAdministrator, requireManagementUser, requireStaffUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { barberSchema, barberStaffSchema, formatValidationErrors } from "@/server/schemas/sprint.schema";
 import { BarberMoveConflict, deleteBarber, findBarberById, updateBarber } from "@/server/services/barber.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
-
-function parseId(rawId: string): number | null {
-  return /^\d+$/.test(rawId) && Number(rawId) > 0 ? Number(rawId) : null;
-}
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await requireStaffUser();
   if (actor instanceof Response) return actor;
-  const id = parseId((await params).id);
+  const id = parseRouteId((await params).id);
   if (!id) return Response.json({ success: false, message: "Invalid barber id" }, { status: 400 });
   try {
     const barber = await withAuthorizedBarber(pool, actor, id, (client) => findBarberById(client, id));
@@ -31,7 +27,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const actor = await requireManagementUser();
   if (actor instanceof Response) return actor;
-  const id = parseId((await params).id);
+  const id = parseRouteId((await params).id);
   if (!id) return Response.json({ success: false, message: "Invalid barber id" }, { status: 400 });
   let body: unknown;
   try { body = await request.json(); } catch {
@@ -55,7 +51,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorizationResponse = await requireAdministrator();
   if (authorizationResponse) return authorizationResponse;
-  const id = parseId((await params).id);
+  const id = parseRouteId((await params).id);
   if (!id) return Response.json({ success: false, message: "Invalid barber id" }, { status: 400 });
   try {
     const result = await deleteBarber(pool, id);

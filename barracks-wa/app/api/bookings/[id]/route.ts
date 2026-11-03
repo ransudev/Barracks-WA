@@ -1,4 +1,4 @@
-import { authorizeVisit, visitBranchError } from "@/server/auth/visit-branch-access";
+import { requireBranchAccess, visitBranchError } from "@/server/auth/branch-access";
 import { canManageBooking, type BookingAction } from "@/app/constants/roles";
 import { requireRolesUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
@@ -34,7 +34,7 @@ async function authorizeBookingAction(
   }
 
   if (actor.role !== "customer") {
-    try { await authorizeVisit(pool, actor, booking.branchId); }
+    try { await requireBranchAccess(pool, actor, booking.branchId); }
     catch (error) { const response = visitBranchError(error); if (response) return response; throw error; }
   }
   return { booking, customerId };

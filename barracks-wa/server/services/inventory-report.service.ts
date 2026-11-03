@@ -1,6 +1,5 @@
 import type { Pool } from "pg";
-import type { BranchActor } from "@/server/auth/barber-branch-access";
-import { requireManagementReport, resolveReportBranches } from "@/server/auth/report-branch-access";
+import { requireManagementReport, resolveReportBranches, type BranchActor } from "@/server/auth/branch-access";
 
 function dateOnly(date: Date): string { return date.toISOString().slice(0, 10); }
 function manilaBoundary(date: Date): Date { return new Date(`${dateOnly(date)}T00:00:00+08:00`); }

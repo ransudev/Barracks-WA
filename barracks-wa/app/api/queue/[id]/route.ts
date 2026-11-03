@@ -1,4 +1,4 @@
-import { authorizeVisit, visitBranchError } from "@/server/auth/visit-branch-access";
+import { requireBranchAccess, visitBranchError, type BranchActor } from "@/server/auth/branch-access";
 import { requireRolesUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { queueChangeSchema } from "@/server/schemas/queue.schema";
@@ -7,13 +7,13 @@ import { QueueLifecycleError, transitionQueue } from "@/server/services/queue-li
 import { assignQueueBarber, findQueueEntry, QueueServiceError, updateWalkInStatus } from "@/server/services/queue.service";
 
 export const runtime = "nodejs";
-async function change(id: number, body: unknown, actor: import("@/server/auth/barber-branch-access").BranchActor) {
+async function change(id: number, body: unknown, actor: BranchActor) {
   const parsed = queueChangeSchema.safeParse(body);
   if (!parsed.success) return Response.json({ success: false, message: "Invalid queue change" }, { status: 400 });
   try {
     const current = await findQueueEntry(pool, id);
     if (!current) return Response.json({ success: false, message: "Queue entry not found" }, { status: 404 });
-    await authorizeVisit(pool, actor, current.branchId);
+    await requireBranchAccess(pool, actor, current.branchId);
     if ("barberId" in parsed.data) return Response.json({ success: true, entry: await assignQueueBarber(pool, id, parsed.data.barberId) });
     transitionQueue({ status: current.status, barberId: current.barberId, startedAt: current.startedAt, completedAt: current.completedAt }, { status: parsed.data.status });
     if (current.bookingId !== null) {

@@ -1,5 +1,4 @@
-import { visitBranch } from "@/server/auth/visit-branch-access";
-import { resolveOperationalBranch } from "@/server/auth/barber-branch-access";
+import { visitBranch, resolveOperationalBranch } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
 import { requireRolesUser, requireManagementUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";

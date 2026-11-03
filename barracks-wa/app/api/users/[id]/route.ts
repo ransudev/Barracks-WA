@@ -18,17 +18,19 @@ import {
   updateStaffUserSchema,
   userLifecycleSchema,
 } from "@/server/schemas/user.schema";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
 
 function parseUserId(rawId: string): number | Response {
-  if (!/^\d+$/.test(rawId) || Number(rawId) < 1) {
+  const id = parseRouteId(rawId);
+  if (id === null) {
     return Response.json(
       { success: false, message: "Invalid user id" },
       { status: 400 },
     );
   }
-  return Number(rawId);
+  return id;
 }
 
 async function findTarget(id: number, actorId: number): Promise<PublicUser | Response> {

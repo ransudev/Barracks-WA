@@ -3,13 +3,13 @@ import { pool } from "@/server/db/pool";
 import { restockStatusSchema } from "@/server/schemas/sprint2.schema";
 import { updateSupplierRestockStatus } from "@/server/services/restock.service";
 import { supplierIdForUser } from "@/server/services/supplier.service";
+import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
-const parseId = (raw: string) => /^\d+$/.test(raw) && Number(raw) > 0 ? Number(raw) : null;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireSupplierUser(); if (user instanceof Response) return user;
-  const id = parseId((await params).id); if (!id) return Response.json({success:false,message:"Invalid restock id"},{status:400});
+  const id = parseRouteId((await params).id); if (!id) return Response.json({success:false,message:"Invalid restock id"},{status:400});
   const supplierId = await supplierIdForUser(pool,user.id); if (!supplierId) return Response.json({success:false,message:"Supplier account is not linked"},{status:403});
   let body: unknown; try { body = await request.json(); } catch { return Response.json({success:false,message:"Invalid status"},{status:400}); }
   const parsed = restockStatusSchema.safeParse(body); if (!parsed.success) return Response.json({success:false,message:"Invalid status"},{status:400});

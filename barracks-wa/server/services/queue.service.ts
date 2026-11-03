@@ -1,7 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import { createHash } from "node:crypto";
-import type { BranchActor } from "@/server/auth/barber-branch-access";
-import { lockOperationalActor, requireTransactionBranch } from "@/server/auth/transaction-branch-access";
+import { lockOperationalActor, requireBranchAccess, type BranchActor } from "@/server/auth/branch-access";
 import { BarberOperationalAvailabilityError, getBarberOperationalAvailability, requireBarberOperationalAvailability } from "@/server/services/barber-operational-availability.service";
 import { initialQueueStatus, QueueLifecycleError, transitionQueue, type QueueState, type QueueStatus } from "@/server/services/queue-lifecycle";
 
@@ -144,7 +143,7 @@ export async function confirmNextCustomerAssignment(db: Pool, barberId: number, 
     const authorizedActor = await lockOperationalActor(client, actor);
     const current = await lockQueueEntry(client, entryId);
     const visit = (await findQueueEntry(client, entryId))!;
-    await requireTransactionBranch(client, authorizedActor, visit.branchId);
+    if (authorizedActor) await requireBranchAccess(client, authorizedActor, visit.branchId);
     if (current.booking_id !== null || current.status !== "waiting" || current.barber_id !== null)
       throw new QueueServiceError("conflict", "This suggestion changed. Find the next customer again.");
     transitionQueue(queueState(current), { barberId });
@@ -266,7 +265,7 @@ export async function updateWalkInStatus(db: Pool, id: number, status: QueueStat
     const authorizedActor = await lockOperationalActor(client, actor);
     const current = await lockQueueEntry(client, id);
     const entry = (await findQueueEntry(client, id))!;
-    await requireTransactionBranch(client, authorizedActor, entry.branchId);
+    if (authorizedActor) await requireBranchAccess(client, authorizedActor, entry.branchId);
     transitionQueue(queueState(current), { status });
     if (current.booking_id !== null) throw new QueueServiceError("conflict", "Manage appointment status from Bookings.");
     let serviceStartedAt: string | undefined;

@@ -1,6 +1,4 @@
-import { resolveCustomerBranch } from "@/server/auth/visit-branch-access";
-import type { BranchActor } from "@/server/auth/barber-branch-access";
-import { lockOperationalActor, requireTransactionBranch } from "@/server/auth/transaction-branch-access";
+import { resolveCustomerBranch, lockOperationalActor, requireBranchAccess, type BranchActor } from "@/server/auth/branch-access";
 import type { Pool, PoolClient } from "pg";
 import { findServiceById } from "@/server/services/service.service";
 import { findAvailableBarbers, isBookingSlotAvailable } from "@/server/services/booking-availability.service";
@@ -272,7 +270,7 @@ export async function updateBooking(
     await client.query("SELECT id FROM bookings WHERE id=$1 FOR UPDATE", [id]);
     const existing = await findBookingById(client, id);
     if (!existing) { await client.query("ROLLBACK"); return null; }
-    await requireTransactionBranch(client, authorizedActor, existing.branchId);
+    if (authorizedActor) await requireBranchAccess(client, authorizedActor, existing.branchId);
     if (scope?.customerId && existing.customerId !== scope.customerId) {
       throw new BookingServiceError("forbidden", "You can only manage your own bookings");
     }

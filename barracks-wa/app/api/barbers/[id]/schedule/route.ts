@@ -2,7 +2,7 @@ import { requireManagementUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import { weeklyScheduleSchema, unavailabilitySchema } from "@/server/schemas/schedule.schema";
 import { addBarberUnavailability, listBarberSchedules, listBarberUnavailability, removeBarberUnavailability, saveBarberSchedule } from "@/server/services/schedule.service";
-import { withAuthorizedBarber } from "@/server/auth/barber-branch-access";
+import { withAuthorizedBarber } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
 
 export const runtime = "nodejs";

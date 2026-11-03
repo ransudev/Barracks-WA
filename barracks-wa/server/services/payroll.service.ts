@@ -150,8 +150,11 @@ export async function mutatePayroll(db: Db, actor: Actor, input: PayrollCommand)
         AND e.earned_at>=($2::date::timestamp AT TIME ZONE 'Asia/Manila') AND e.earned_at<($3::date::timestamp AT TIME ZONE 'Asia/Manila')
         AND NOT EXISTS(SELECT 1 FROM payroll_record_entries x WHERE x.commission_entry_id=e.id) ORDER BY e.barber_id,e.id FOR UPDATE OF e`, [input.branchId,period.start,period.end])).rows;
       const changed = new Set<string>();
-      for (const entry of entries) {
-        let record = (await client.query("SELECT * FROM payroll_records WHERE payroll_period_id=$1 AND barber_id=$2 AND supplemental_to IS NULL FOR UPDATE", [p.id,entry.barber_id])).rows[0];
+      // Resolve each barber's target record once, then attach all their entries in one insert.
+      const entryIdsByBarber = new Map<number, string[]>();
+      for (const entry of entries) entryIdsByBarber.set(entry.barber_id, [...(entryIdsByBarber.get(entry.barber_id) ?? []), entry.id]);
+      for (const [barberId, entryIds] of entryIdsByBarber) {
+        let record = (await client.query("SELECT * FROM payroll_records WHERE payroll_period_id=$1 AND barber_id=$2 AND supplemental_to IS NULL FOR UPDATE", [p.id,barberId])).rows[0];
         const parent = record;
         if (record && record.status==='pending_approval') continue; // Return to Draft to incorporate late entries.
         if (record && ['approved','paid'].includes(record.status)) {
@@ -159,8 +162,8 @@ export async function mutatePayroll(db: Db, actor: Actor, input: PayrollCommand)
           if (record?.status==='pending_approval') continue;
         }
         if (!record) record = (await client.query(`INSERT INTO payroll_records(payroll_period_id,branch_id,barber_id,supplemental_to,barber_name,branch_name)
-          SELECT $1,$2,b.id,$4,concat_ws(' ',b.first_name,b.last_name),br.name FROM barbers b JOIN branches br ON br.id=$2 WHERE b.id=$3 RETURNING *`, [p.id,input.branchId,entry.barber_id,parent?.id ?? null])).rows[0];
-        await client.query("INSERT INTO payroll_record_entries(payroll_record_id,commission_entry_id) VALUES($1,$2) ON CONFLICT DO NOTHING", [record.id,entry.id]);
+          SELECT $1,$2,b.id,$4,concat_ws(' ',b.first_name,b.last_name),br.name FROM barbers b JOIN branches br ON br.id=$2 WHERE b.id=$3 RETURNING *`, [p.id,input.branchId,barberId,parent?.id ?? null])).rows[0];
+        await client.query("INSERT INTO payroll_record_entries(payroll_record_id,commission_entry_id) SELECT $1,unnest($2::bigint[]) ON CONFLICT DO NOTHING", [record.id,entryIds]);
         changed.add(record.id);
       }
       for (const id of changed) { await recalculate(client,id); await audit(client,id,actor.id,'generate'); }
