@@ -3,7 +3,7 @@ import test, { mock } from "node:test";
 import { getInventoryReport } from "@/server/services/inventory-report.service";
 import { getDashboardReport } from "@/server/services/dashboard-report.service";
 import { BranchError } from "@/server/services/branch.service";
-import type { BranchActor } from "@/server/auth/barber-branch-access";
+import type { BranchActor } from "@/server/auth/branch-access";
 import type { Pool } from "pg";
 import { getRevenueReport, summarizeRevenueEvents } from "@/server/services/revenue-report.service";
 import { applyMigrations } from "@/server/db/migrate";
