@@ -9,8 +9,9 @@ test("every route has a view-access group and Management navigation matches its 
   assert.deepEqual(Object.keys(viewAccessGroups).sort(), Object.keys(viewPaths).sort());
   assert.deepEqual(frontDeskNavigation.map((item) => item.id), ["staff-dashboard", "queue", "bookings", "payments", "customers", "barbers"]);
   assert.equal(frontDeskNavigation.find((item) => item.id === "barbers")?.label, "Barber Floor");
-  assert.deepEqual(managementNavigation.map((item) => item.id), ["admin-dashboard", "admin-branches", "staff-management", "admin-customers", "admin-barbers", "admin-attendance", "admin-payroll", "admin-suppliers", "admin-restocks", "admin-reports", "payments", "admin-inventory", "admin-services"]);
-  assert.equal(managementNavigation.find((item) => item.id === "payments")?.label, "Transactions");
+  assert.deepEqual(managementNavigation.map((item) => item.id), ["admin-dashboard", "staff-dashboard", "bookings", "queue", "payments", "admin-customers", "staff-management", "admin-barbers", "barbers", "admin-attendance", "admin-payroll", "admin-services", "admin-reports", "admin-branches", "admin-inventory", "admin-suppliers", "admin-restocks"]);
+  assert.equal(managementNavigation.find((item) => item.id === "payments")?.label, "Payments");
+  assert.equal(managementNavigation.find((item) => item.id === "staff-dashboard")?.label, "Front Desk Today");
 });
 
 test("direct view access matches role navigation", () => {
@@ -27,13 +28,13 @@ test("direct view access matches role navigation", () => {
     ["supplier-dashboard", "manager", false],
     ["staff-dashboard", "front_desk", true],
     ["staff-dashboard", "administrator", true],
-    ["staff-dashboard", "manager", false],
+    ["staff-dashboard", "manager", true],
     ["queue", "front_desk", true],
-    ["queue", "manager", false],
+    ["queue", "manager", true],
     ["queue", "administrator", true],
     ["queue", "customer", false],
     ["barbers", "front_desk", true],
-    ["barbers", "manager", false],
+    ["barbers", "manager", true],
     ["admin-barbers", "front_desk", false],
     ["admin-barbers", "manager", true],
     ["admin-attendance", "front_desk", false],
@@ -57,8 +58,9 @@ test("direct view access matches role navigation", () => {
   for (const view of ["inventory", "staff-suppliers", "restocks", "admin-inventory", "admin-suppliers", "admin-restocks", "admin-reports", "admin-services", "admin-attendance", "staff-management"] as ViewId[]) {
     assert.equal(canAccessView(view, "front_desk"), false, view);
   }
+  // Management roles also run the daily operational pages within their branch authority.
   for (const view of ["staff-dashboard", "queue", "bookings", "customers", "barbers"] as ViewId[]) {
-    assert.equal(canAccessView(view, "manager"), false, view);
+    assert.equal(canAccessView(view, "manager"), true, view);
   }
   assert.equal(canonicalView("inventory"), "admin-inventory");
   assert.equal(canonicalView("staff-suppliers"), "admin-suppliers");
@@ -68,6 +70,7 @@ test("direct view access matches role navigation", () => {
   assert.equal(workspaceAreaForView("payments", "manager"), "admin");
   assert.equal(workspaceAreaForView("payments", "administrator"), "admin");
   assert.equal(workspaceAreaForView("admin-barbers", "manager"), "admin");
-  assert.equal(workspaceAreaForView("barbers", "administrator"), "staff");
+  assert.equal(workspaceAreaForView("barbers", "administrator"), "admin");
+  assert.equal(workspaceAreaForView("barbers", "front_desk"), "staff");
   assert.equal(requiresManagement("staff-management"), true);
 });

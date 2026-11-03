@@ -38,9 +38,10 @@ test("customer cancellation is owner-scoped and limited to confirmed bookings", 
     const otherCustomer = await book(customers[1], "13:00");
     await assert.rejects(updateBooking(db, otherCustomer.id, { status: "cancelled" }, { customerId: customers[0] }), { kind: "forbidden" });
     assert.equal((await updateBooking(db, otherCustomer.id, { status: "cancelled" }, { customerId: customers[1] }))?.status, "cancelled");
-    assert.equal(canManageBooking("front_desk", "delete"), false);
+    // Staff may remove bookings; the service keeps started/completed bookings on record.
+    assert.equal(canManageBooking("front_desk", "delete"), true);
     assert.equal(canManageBooking("front_desk", "cancel"), true);
-    assert.equal(canManageBooking("manager", "delete"), false);
+    assert.equal(canManageBooking("manager", "delete"), true);
     assert.equal(canManageBooking("administrator", "delete"), true);
   } finally { await cleanup(); }
 });
@@ -80,7 +81,7 @@ test("customer branch selection scopes bookings and availability while preservin
     const branchList = await (await customerBranches.GET()).json();
     assert.deepEqual(branchList.branches.map((branch: { id: number }) => branch.id).sort(), [main, branchA].sort());
     assert.equal((await staffContext.GET()).status, 403);
-    const input = { serviceId: "barracks-basic", barberId: a.id, date: "2099-10-05", time: "12:00", customerId: 999999 };
+    const input = { serviceId: "barracks-basic", barberId: a.id, date: "2026-11-05", time: "12:00", customerId: 999999 };
     const created = await customerBookings.POST(request(`bookings?branchId=${branchA}`, input));
     assert.equal(created.status, 201);
     const booking = (await created.json()).booking;
@@ -91,23 +92,23 @@ test("customer branch selection scopes bookings and availability while preservin
     assert.equal((await customerBookings.POST(request(`bookings?branchId=${branchA}`, { ...input, barberId: b.id, time: "13:00" }))).status, 400);
     const barberList = await (await customerBarbers.GET(request(`barbers?branchId=${branchA}`))).json();
     assert.deepEqual(barberList.barbers.map((barber: { id: number }) => barber.id), [a.id]);
-    const available = await (await customerAvailability.GET(request(`bookings/availability?branchId=${branchA}&serviceId=${input.serviceId}&date=2099-10-06`))).json();
+    const available = await (await customerAvailability.GET(request(`bookings/availability?branchId=${branchA}&serviceId=${input.serviceId}&date=2026-11-06`))).json();
     assert.equal(available.slots[0].startTime, "12:00");
     assert.ok(available.slots.every((slot: { startTime: string; endTime: string }) => slot.startTime >= "12:00" && slot.endTime <= "16:00"));
-    assert.equal((await customerAvailability.GET(request(`bookings/availability?branchId=${branchA}&serviceId=${input.serviceId}&date=2099-10-06&barberId=${b.id}`))).status, 404);
-    const anyBarberBooking = await customerBookings.POST(request(`bookings?branchId=${branchA}`, { ...input, barberId: null, date: "2099-10-07" }));
-    assert.equal(anyBarberBooking.status, 201);
-    assert.equal((await anyBarberBooking.json()).booking.barberId, a.id);
+    assert.equal((await customerAvailability.GET(request(`bookings/availability?branchId=${branchA}&serviceId=${input.serviceId}&date=2026-11-06&barberId=${b.id}`))).status, 404);
+    // Customers must choose a specific barber; Any Available Barber is staff-only.
+    const anyBarberBooking = await customerBookings.POST(request(`bookings?branchId=${branchA}`, { ...input, barberId: null, date: "2026-11-07" }));
+    assert.equal(anyBarberBooking.status, 400);
     const availableHours = await (await customerHours.GET(request(`shop-hours?branchId=${branchA}`))).json();
     assert.equal(availableHours.hours[0].openTime, "12:00");
-    await db.query("UPDATE shop_operating_hours SET is_closed=true WHERE branch_id=$1 AND day_of_week=EXTRACT(DOW FROM DATE '2099-10-06')", [branchA]);
-    assert.deepEqual((await (await customerAvailability.GET(request(`bookings/availability?branchId=${branchA}&serviceId=${input.serviceId}&date=2099-10-06`))).json()).slots, []);
+    await db.query("UPDATE shop_operating_hours SET is_closed=true WHERE branch_id=$1 AND day_of_week=EXTRACT(DOW FROM DATE '2026-11-06')", [branchA]);
+    assert.deepEqual((await (await customerAvailability.GET(request(`bookings/availability?branchId=${branchA}&serviceId=${input.serviceId}&date=2026-11-06`))).json()).slots, []);
     for (const invalid of [inactive, 2147483647, "bad", "", "99999999999999999999"]) {
       assert.equal((await customerBookings.POST(request(`bookings?branchId=${invalid}`, input))).status, 400);
       assert.equal((await customerBarbers.GET(request(`barbers?branchId=${invalid}`))).status, 400);
       assert.equal((await customerHours.GET(request(`shop-hours?branchId=${invalid}`))).status, 400);
       assert.equal((await customerServices.GET(request(`services?branchId=${invalid}`))).status, 400);
-      assert.equal((await customerAvailability.GET(request(`bookings/availability?branchId=${invalid}&serviceId=${input.serviceId}&date=2099-10-06`))).status, 400);
+      assert.equal((await customerAvailability.GET(request(`bookings/availability?branchId=${invalid}&serviceId=${input.serviceId}&date=2026-11-06`))).status, 400);
     }
     await assert.rejects(createBooking(db, { ...input, customerId, branchId: inactive }), /active branch/);
     // A later selection affects new booking reads, never the ownership of ID edits or history.
@@ -121,7 +122,7 @@ test("customer branch selection scopes bookings and availability while preservin
     assert.equal(history.bookings.find((row: { id: number }) => row.id === booking.id).branchId, branchA);
     await db.query("UPDATE branches SET status='inactive' WHERE id=$1", [branchA]);
     assert.equal((await (await customerBookings.GET(request("bookings"))).json()).bookings.find((row: { id: number }) => row.id === booking.id).branchName, "Branch A");
-    assert.equal((await customerBookingItem.PUT(request(`bookings/${booking.id}`, { serviceId: input.serviceId, barberId: a.id, date: "2099-10-08", time: "14:00" }), { params: Promise.resolve({ id: String(booking.id) }) })).status, 409);
+    assert.equal((await customerBookingItem.PUT(request(`bookings/${booking.id}`, { serviceId: input.serviceId, barberId: a.id, date: "2026-11-08", time: "14:00" }), { params: Promise.resolve({ id: String(booking.id) }) })).status, 409);
     assert.equal((await customerBookingItem.PATCH(request(`bookings/${booking.id}`, { status: "cancelled" }), { params: Promise.resolve({ id: String(booking.id) }) })).status, 200);
   } finally { await cleanup(); }
 });

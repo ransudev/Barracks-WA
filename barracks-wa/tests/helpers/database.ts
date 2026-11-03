@@ -7,6 +7,26 @@ const ssl = process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } 
 
 export const databaseConfigured = Boolean(connectionString);
 
+// Service code reads the JavaScript clock (booking window, past slots, Manila
+// "today"). Keep it on the same anchored, advancing instant as the schema clock
+// so fixtures do not drift as real time passes.
+const RealDate = Date;
+function pinJavaScriptClock(clock: string): () => void {
+  const previous = globalThis.Date;
+  const instant = RealDate.parse(clock);
+  const origin = RealDate.now();
+  const now = () => instant + (RealDate.now() - origin);
+  class ClockDate extends RealDate {
+    constructor(...args: unknown[]) {
+      if (args.length === 0) super(now());
+      else super(...(args as [string | number | Date]));
+    }
+    static override now() { return now(); }
+  }
+  globalThis.Date = ClockDate as DateConstructor;
+  return () => { globalThis.Date = previous; };
+}
+
 function controlledClockQueries<T extends object>(target: T): T {
   return new Proxy(target, {
     get(object, key) {
@@ -40,6 +60,7 @@ export async function createDisposableSchema(through = Number.POSITIVE_INFINITY,
   const admin = new Pool({ connectionString, ssl, max: 2 });
   const rawDb = new Pool({ connectionString, ssl, options: `-c search_path=${schema},public,pg_catalog`, max: 10 });
   const db = clock ? controlledClockQueries(rawDb) : rawDb;
+  const restoreClock = clock ? pinJavaScriptClock(clock) : () => undefined;
   try {
     // Extensions are database-wide. Never let the first disposable schema own
     // btree_gist, since dropping it would invalidate other schema fixtures.
@@ -67,6 +88,7 @@ export async function createDisposableSchema(through = Number.POSITIVE_INFINITY,
     }
     await applyMigrations(db, through);
   } catch (error) {
+    restoreClock();
     await db.end();
     await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
     await admin.end();
@@ -76,6 +98,7 @@ export async function createDisposableSchema(through = Number.POSITIVE_INFINITY,
     db,
     schema,
     cleanup: async () => {
+      restoreClock();
       await db.end();
       try { await admin.query(`DROP SCHEMA "${schema}" CASCADE`); }
       finally { await admin.end(); }

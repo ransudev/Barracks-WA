@@ -35,7 +35,7 @@ test("barber and hours APIs enforce assigned branches, roles and IDs; Administra
       assert.equal((await collection.GET(request({}, `?branchId=${second}`))).status, 403);
       assert.equal((await item.GET(request(), foreign)).status, 403);
       assert.equal((await status.PATCH(request({ status: "busy" }), foreign)).status, 403);
-      for (const op of [() => schedule.GET(request(), foreign), () => schedule.PUT(request(shift), foreign), () => schedule.POST(request({ startsAt: "2099-10-01T10:00:00Z", endsAt: "2099-10-01T11:00:00Z", reason: "Away" }), foreign), () => schedule.DELETE(request({}, "?periodId=1"), foreign)]) assert.equal((await op()).status, 403);
+      for (const op of [() => schedule.GET(request(), foreign), () => schedule.PUT(request(shift), foreign), () => schedule.POST(request({ startsAt: "2026-11-01T10:00:00Z", endsAt: "2026-11-01T11:00:00Z", reason: "Away" }), foreign), () => schedule.DELETE(request({}, "?periodId=1"), foreign)]) assert.equal((await op()).status, 403);
       assert.equal((await hours.GET(request({}, `?branchId=${second}`))).status, 403);
       assert.equal((await hours.PUT(request({ dayOfWeek: 1, openTime: "10:00", closeTime: "18:00", isClosed: false }, `?branchId=${second}`))).status, 403);
       assert.equal((await collection.POST(request({ branchId: second, firstName: "Denied", lastName: "Test", status: "available" }))).status, 403);
@@ -91,7 +91,7 @@ test("Phase 3 visits persist branch ownership, isolate staff access and inherit 
     const staffId = Number((await db.query("INSERT INTO users(first_name,last_name,email,password_hash,role_id) VALUES('Visit','Staff','visit-staff@test.local','test',(SELECT id FROM roles WHERE name='front_desk')) RETURNING id")).rows[0].id);
     await db.query("INSERT INTO user_branches(user_id,branch_id,is_primary) VALUES($1,$2,true)", [staffId, second]);
     actor = { id: staffId, role: "front_desk" };
-    const input = { customerId, serviceId: "barracks-basic", barberId: b.id, date: "2099-10-05", time: "12:00" };
+    const input = { customerId, serviceId: "barracks-basic", barberId: b.id, date: "2026-11-05", time: "12:00" };
     const created = await bookings.POST(request(input, `?branchId=${second}`));
     assert.equal(created.status, 201);
     const booking = (await created.json()).booking;
@@ -138,7 +138,7 @@ test("Phase 4 payments inherit visit branches and enforce transaction access and
     const second = Number((await db.query("INSERT INTO branches(name,code) VALUES('Payment branch','PAY') RETURNING id")).rows[0].id);
     const barber = await createBarber(db, { branchId: second, firstName: "Payment", lastName: "Barber", status: "available" });
     const customer = Number((await db.query("INSERT INTO customers(first_name,last_name) VALUES('Payment','Customer') RETURNING id")).rows[0].id);
-    const book = Number((await db.query("INSERT INTO bookings(branch_id,customer_id,barber_id,service_id,service_name,service_price,booking_date,booking_time,status) VALUES($1,$2,$3,'barracks-basic','Saved cut',300,'2099-10-05','12:00','completed') RETURNING id", [second, customer, barber.id])).rows[0].id);
+    const book = Number((await db.query("INSERT INTO bookings(branch_id,customer_id,barber_id,service_id,service_name,service_price,booking_date,booking_time,status) VALUES($1,$2,$3,'barracks-basic','Saved cut',300,'2026-11-05','12:00','completed') RETURNING id", [second, customer, barber.id])).rows[0].id);
     const walk = Number((await db.query("INSERT INTO queue_entries(branch_id,customer_id,barber_id,service_id,status,started_at,completed_at) VALUES($1,$2,$3,'barracks-basic','completed',NOW(),NOW()) RETURNING id", [second, customer, barber.id])).rows[0].id);
     const ids: Record<string, number> = {};
     for (const role of ["manager", "front_desk", "administrator"] as const) {
@@ -168,7 +168,7 @@ test("Phase 4 payments inherit visit branches and enforce transaction access and
     }
     await assert.rejects(payment.applyFinancialAction(db, sale.reference, { action: "refund", amount: 300, reason: "Foreign branch" }, ids.manager), { kind: "forbidden" });
     const mainBarber = await createBarber(db, { branchId: main, firstName: "Main", lastName: "Payment", status: "available" });
-    const mainBook = Number((await db.query("INSERT INTO bookings(branch_id,customer_id,barber_id,service_id,service_name,service_price,booking_date,booking_time,status) VALUES($1,$2,$3,'barracks-basic','Main cut',300,'2099-10-05','13:00','completed') RETURNING id", [main, customer, mainBarber.id])).rows[0].id);
+    const mainBook = Number((await db.query("INSERT INTO bookings(branch_id,customer_id,barber_id,service_id,service_name,service_price,booking_date,booking_time,status) VALUES($1,$2,$3,'barracks-basic','Main cut',300,'2026-11-05','13:00','completed') RETURNING id", [main, customer, mainBarber.id])).rows[0].id);
     const mainSale = await payment.createTransaction(db, { visit: { bookingId: mainBook }, paymentMethod: "card" }, ids.administrator);
     actor = { id: ids.administrator, role: "administrator" };
     assert.equal((await (await paymentApi.GET(request({}, "?view=history"))).json()).total, 3);

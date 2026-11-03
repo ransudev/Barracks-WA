@@ -107,6 +107,16 @@ It expands demo rosters (three named barbers per satellite branch) and stock, ad
 
 Payroll examples include Draft, Pending Approval, Approved, and Paid records plus current-period earnings. Audit notes say **DEMO ONLY** and fictional disbursement references start `DEMO-ONLY-NO-FUNDS`. No funds are transferred. The original seed's four-barber/two-supplier showcase and the October 10, 2026 hosted expansion are historical baselines; current counts must be read from the selected database.
 
+## Before a live demonstration
+
+Operational screens use the real Asia/Manila clock, so prepare the demo database on the day:
+
+- **Hold the demo within working hours.** Starting a service requires the branch to be open and the barber to be on shift, present (not marked absent or clocked out) and free at that moment. Outside those hours the server correctly refuses with "Barber is not scheduled to work at this time". For a defense outside normal hours, set the demo branch's shop hours and the barbers' shifts in Barber Management to cover the session.
+- **Close out earlier days.** Nothing closes visits automatically. Queue entries left `waiting`, `ready` or `in_progress` stay in the Active queue, and an old `in_progress` service keeps that barber "currently serving another customer". Past appointments stay `confirmed` until staff mark them. In Queue, complete or remove leftover visits; in Bookings, mark past appointments completed, no-show or cancelled.
+- **Refresh the showcase.** Then run the additive `db:seed-working-app` (or `db:refresh-demo`) against the intended demo database to add today's queue, upcoming reservations and attendance.
+- **Record today's attendance** on Barber Floor before starting services.
+- Never run a full-reset SQL script against a demo you need: wiping accounts removes the demo logins, and the destructive `db:seed-demo` is only for a fresh disposable database.
+
 ## Troubleshooting
 
 - Use `.app` demo emails and the current environment. Do not assume an old `.local` address or published seed password matches a modified account.

@@ -14,10 +14,14 @@ const walkIn: ApiCustomer = { ...registered, id: 2, userId: null, firstName: "Ac
 
 test("appointment picker excludes accountless profiles, submits eligible selection, and blocks invalid/stale selections", async () => {
   const previous = globalThis.fetch;
-  globalThis.fetch = async () => Response.json({ success: true, slots: [{ startTime: "10:00", endTime: "10:45" }] });
+  // Submission requires the chosen time to be open in the month availability.
+  const { manilaToday } = await import("@/app/constants/booking");
+  const date = manilaToday();
+  globalThis.fetch = async (input) => Response.json({ success: true, days: new URL(String(input), "http://localhost").searchParams.get("month") === date.slice(0, 7)
+    ? [{ date, openSlots: 1, times: [{ startTime: "10:00", endTime: "10:45", available: true }] }] : [] });
   const container = document.createElement("div"); document.body.append(container);
   const root = createRoot(container);
-  let value: BookingFormValue = { customerId: "1", serviceId: "barracks-basic", barberId: "", date: "2099-10-14", time: "10:00", notes: "" };
+  let value: BookingFormValue = { customerId: "1", serviceId: "barracks-basic", barberId: "", date, time: "10:00", notes: "" };
   let submissions = 0;
   let changes: BookingFormValue[] = [];
   const render = async (customers: ApiCustomer[], hideCustomer = false) => {

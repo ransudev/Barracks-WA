@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Barracks-PWA agent instructions
 
-The stable branch is `main`. Run Git from the repository root and npm/database commands from `barracks-pwa`.
+The stable branch is `main`. Run Git from the repository root and npm/database commands from `barracks-wa`.
 
 ## Application changes
 
