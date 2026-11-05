@@ -554,6 +554,8 @@ Keep `DATABASE_URL` and all `INITIAL_ADMIN_*` values out of `NEXT_PUBLIC_*` vari
 
 ### App responsiveness
 
+A screen that fails to render or load shows a recovery message instead of a blank page: `app/components/ErrorBoundary.tsx` wraps each screen, and a failed workspace page keeps the sidebar so the user can navigate away. `app/global-error.tsx` covers failures in the root layout.
+
 Workspace and account screens load their JavaScript on demand. Internal screen navigation updates browser history immediately through Next.js's History API integration; direct URLs and browser back/forward continue to select the matching screen. The app checks the session on startup and when returning to the tab, rather than on every screen change. An unauthorized API response triggers another session check, and backend routes continue to enforce current permissions.
 
 The legacy `GET /api/reports/dashboard?branchId=...` summary remains available to administrators and managers within their branch permissions. The current management overview uses `/api/dashboard/management`, including its sales and actionable-restock aggregates. Business dates use Asia/Manila.

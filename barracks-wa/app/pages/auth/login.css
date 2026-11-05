@@ -97,22 +97,6 @@
   padding: 32px 0;
 }
 
-.login-aside__crest-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  background: rgba(220, 38, 38, 0.14);
-  border: 1px solid rgba(220, 38, 38, 0.35);
-  border-radius: 9999px;
-  color: #ef4444;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  width: fit-content;
-}
-
 .login-aside__crest h2 {
   font-family: var(--font-heading);
   font-size: 26px;
@@ -246,18 +230,6 @@
   margin-bottom: 28px;
 }
 
-.login-card__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #d2d0c8;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
 .login-card__head h1 {
   font-family: var(--font-heading);
   font-size: 26px;
@@ -362,10 +334,6 @@
   font-size: 12px;
 }
 
-.login-form__session-note {
-  color: #747670;
-}
-
 .login-form .link-button {
   background: transparent;
   border: none;
@@ -385,7 +353,6 @@
 
 /* Submit Button */
 .login-submit,
-.login-submit-btn,
 .login-form button[type="submit"] {
   width: 100%;
   height: 48px;
@@ -408,15 +375,9 @@
 }
 
 .login-submit:hover:not(:disabled),
-.login-submit-btn:hover:not(:disabled),
 .login-form button[type="submit"]:hover:not(:disabled) {
   background: linear-gradient(180deg, #f87171 0%, #ef4444 100%) !important;
   box-shadow: none;
-}
-
-.login-submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .form-error {

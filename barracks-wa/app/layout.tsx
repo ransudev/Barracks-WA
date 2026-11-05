@@ -63,14 +63,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body className="min-h-full flex flex-col">
-        {/*
-          THESIS: Barracks is a considered barbershop worth visiting, not a dashboard wearing a marketing skin.
-          OWN-WORLD: warm ivory paper, near-black editorial blocks, quiet rules, restrained green and amber signals, and photography that carries the page.
-          STORY: visitors understand the Barracks standard, browse services and barbers, find a Davao chair, and book an appointment.
-          FIRST VIEWPORT: a compact dark navbar over a cinematic, right-weighted hero with a large Barracks lockup, paired booking/service actions, and a three-part benefits rail.
-          FORM: brief-pinned reference-led editorial barbershop composition.
-          FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and the repository README
-        */}
         <BarracksApp />
         {children}
       </body>

@@ -2,10 +2,6 @@
    RESPONSIVENESS
    ========================================================================== */
 @media (max-width: 1024px) {
-  .public-site .category-ribbon__inner {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
 
   .public-site .section-craft {
     grid-template-columns: 1fr;
@@ -14,14 +10,6 @@
 
   .public-site .collage-quad {
     margin: 0 auto;
-  }
-
-  .public-site .services-grid-gogrin {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .public-site .branches-grid-gogrin {
-    grid-template-columns: 1fr;
   }
 
   .public-site .section-studio-gogrin {
@@ -76,53 +64,12 @@
     letter-spacing: 0.13em;
   }
 
-  .public-site .hero-footline {
-    right: 20px;
-    bottom: 28px;
-    left: 20px;
-    gap: 10px;
-    font-size: var(--text-2xs);
-    letter-spacing: 0.18em;
-  }
-
-  .public-site .hero-footline__rule {
-    min-width: 18px;
-  }
-
-  .public-site .hero-footline__rule--short {
-    flex-basis: 30px;
-  }
-
-  .public-site .public-nav__links,
-  .public-site .public-nav__search {
+  .public-site .public-nav__links {
     display: none;
   }
 
   .public-site .public-nav__menu-toggle {
     display: flex;
-  }
-
-  .public-site .category-ribbon {
-    margin-top: -30px;
-  }
-
-  .public-site .category-ribbon__inner {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    padding: 18px 12px;
-  }
-
-  .public-site .category-pill__circle {
-    width: 56px;
-    height: 56px;
-  }
-
-  .public-site .category-pill__label {
-    font-size: 10px;
-  }
-
-  .public-site .services-grid-gogrin {
-    grid-template-columns: 1fr;
   }
 
   .public-site .footer-top {
@@ -139,26 +86,6 @@
   .public-site .hero-gogrin {
     padding-right: 20px;
     padding-left: 20px;
-  }
-
-  .public-site .hero-gogrin__eyebrow {
-    max-width: 310px;
-    font-size: 10px;
-    letter-spacing: 0.16em;
-  }
-
-  .public-site .hero-gogrin__lead {
-    font-size: 13px;
-  }
-
-  .public-site .hero-footline {
-    gap: 7px;
-    font-size: var(--text-2xs);
-    letter-spacing: 0.12em;
-  }
-
-  .public-site .category-ribbon__inner {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .public-site .hero-gogrin__actions {

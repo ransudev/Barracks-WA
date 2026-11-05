@@ -80,20 +80,15 @@
 .checkout-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .85fr); gap: 24px; margin-bottom: 28px; align-items: stretch; }
 .eligible-visits-panel, .payment-form-panel { min-width: 0; }
 .checkout-workspace .payment-form-panel { display: flex; flex-direction: column; gap: 16px; }
-.transaction-ledger td > strong, .transaction-ledger td > small { display: block; }
-.transaction-ledger td > small { margin-top: 5px; white-space: normal; color: var(--text-soft); }
 .duration-unavailable { padding: 16px; }
 .duration-unavailable button { display: block; padding: 12px; margin: 8px 0; background: var(--surface-hover); color: var(--text); text-align: left; }
 .eligible-visit-list > button { display: flex; justify-content: space-between; gap: 16px; width: 100%; background: transparent; color: var(--text); text-align: left; padding: 20px; border-top: 1px solid var(--line); }
 .eligible-visit-list > button[aria-pressed="true"], .eligible-visit-list > button:hover { background: var(--surface-hover); }
 .eligible-visit-list small { display: block; color: var(--text-soft); margin-top: 5px; }
 .eligible-visit-list > button > strong { flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.transaction-ledger td { font-variant-numeric: tabular-nums; }
-.ledger-reference { max-width: 220px; overflow-wrap: anywhere; font-size: 11px; }
 .operational-drawer .receipt-view { margin: 0; }
 .operational-drawer .receipt-paper { width: 100%; }
 .operational-drawer :is(.financial-action-panel, .financial-audit-panel) { margin-top: 28px; }
-.overview-period { color: var(--text-soft); margin: 0 0 16px; }
 .management-activity-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; margin-bottom: 24px; }
 /* The neighboring panel sets the row height; list entries fill that space. */
 .management-attention-panel, .matched-height-panel { display: flex; flex-direction: column; min-height: 0; contain: size; }
@@ -122,8 +117,6 @@
 .overview-links { padding: 0 22px 22px; }
 .checkout-workspace .payment-form-panel > :not(.section-heading) { margin-left: 22px; margin-right: 22px; }
 .recent-transactions-panel > .button { margin: 0 22px 18px; }
-.transaction-ledger .operational-table { table-layout: auto; }
-.transaction-ledger td { white-space: normal; }
 /* Transaction calendar */
 .transaction-calendar-head { align-items: center; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; }
 .transaction-calendar-navigation { align-items: center; display: flex; gap: 6px; }

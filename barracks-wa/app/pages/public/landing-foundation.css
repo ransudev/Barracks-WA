@@ -91,10 +91,6 @@
   color: var(--color-primary-bright) !important;
 }
 
-.public-site .accent-cyan {
-  color: var(--color-secondary-bright) !important;
-}
-
 .public-site .barbershop-crest__badge {
   display: inline-flex;
   align-items: center;

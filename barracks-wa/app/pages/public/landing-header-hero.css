@@ -56,27 +56,6 @@
   gap: 16px;
 }
 
-.public-site .public-nav__search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(17, 19, 19, 0.7);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 6px 14px;
-  color: var(--color-text-dim);
-  font-size: 12px;
-}
-
-.public-site .public-nav__search input {
-  background: transparent;
-  border: 0;
-  outline: 0;
-  color: #FFFFFF;
-  font-size: 12px;
-  width: 90px;
-}
-
 .public-site .public-nav__login {
   display: inline-flex;
   align-items: center;
@@ -308,14 +287,6 @@
   width: 82px;
 }
 
-.public-site .hero-kicker__mark {
-  display: block;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: contain;
-}
-
 .public-site .hero-kicker__label {
   font-family: var(--font-headline);
   font-size: 12px;
@@ -323,18 +294,6 @@
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-primary-bright);
-}
-
-.public-site .hero-gogrin__eyebrow {
-  margin: 0 0 4px;
-  color: #aab8c4;
-  font-family: var(--font-headline);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.25em;
-  line-height: 1.4;
-  text-transform: uppercase;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.78);
 }
 
 .public-site .hero-gogrin h1 {
@@ -352,15 +311,6 @@
   display: block;
 }
 
-.public-site .hero-gogrin__lead {
-  max-width: 660px;
-  margin: 8px 0 0;
-  color: #c5d0d9;
-  font-size: clamp(14px, 1.35vw, 17px);
-  line-height: 1.65;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
-}
-
 .public-site .hero-gogrin__actions {
   display: flex;
   align-items: center;
@@ -371,42 +321,6 @@
 }
 
 /* Thin editorial rule and location stamp anchor the hero at the bottom edge. */
-.public-site .hero-footline {
-  position: absolute;
-  right: max(32px, calc((100vw - 1455px) / 2 + 8px));
-  bottom: 42px;
-  left: max(32px, calc((100vw - 1455px) / 2 + 8px));
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  color: #8296a8;
-  font-family: var(--font-headline);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.3em;
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.public-site .hero-footline__rule {
-  height: 1px;
-  flex: 1 1 auto;
-  min-width: 120px;
-  background: rgba(126, 153, 172, 0.6);
-}
-
-.public-site .hero-footline__rule--short {
-  flex: 0 0 52px;
-  min-width: 0;
-}
-
-.public-site .hero-footline b {
-  color: rgba(239, 68, 68, 0.8);
-  font-weight: 700;
-  padding: 0 2px;
-}
 
 /* Reference-led hero finish: a quiet nav over a cinematic, right-weighted
    image with a large lockup and thin editorial utility rails. */
@@ -515,22 +429,6 @@
   width: 250px;
 }
 
-.public-site .hero-footline {
-  right: max(32px, calc((100vw - 1455px) / 2 + 8px));
-  bottom: 43px;
-  left: auto;
-  width: 530px;
-}
-
-.public-site .hero-footline__rule {
-  min-width: 120px;
-  background: rgba(226, 226, 230, 0.6);
-}
-
-.public-site .hero-footline b {
-  color: rgba(226, 226, 230, 0.82);
-}
-
 @media (max-width: 768px) {
   .public-site .public-mobile-menu {
     top: 84px;
@@ -582,19 +480,6 @@
   .public-site .hero-gogrin__actions .btn-primary,
   .public-site .hero-gogrin__actions .btn-outlined {
     width: auto;
-  }
-
-  .public-site .hero-footline {
-    right: 20px;
-    bottom: 16px;
-    width: 42%;
-    gap: 10px;
-    font-size: var(--text-2xs);
-    letter-spacing: 0.16em;
-  }
-
-  .public-site .hero-footline__rule {
-    min-width: 20px;
   }
 }
 
