@@ -281,6 +281,8 @@ The current sprint pages use the API for customers, barbers, inventory, supplier
 
 ### Active page surfaces
 
+The largest screens keep their dialogs, drawers and panels in a folder beside the page: `app/pages/staff/inventory`, `queue`, `payment` and `bookings`, and `app/pages/admin/restock` and `payroll`.
+
 | Surface | Main implementation | Data path |
 | --- | --- | --- |
 | Public landing | `app/pages/public/LandingPage.tsx` and `app/pages/public/landing/*` | Static `app/data/landing.ts` and bundled imagery |
