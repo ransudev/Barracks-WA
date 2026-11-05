@@ -31,46 +31,6 @@ export type ViewId =
 
 export type ShellArea = "staff" | "admin";
 
-export type Barber = {
-  id: string;
-  name: string;
-  initials: string;
-  status: "On floor" | "On break" | "Off today";
-  tone: Tone;
-  services: number;
-  revenue: number;
-  commission: number;
-  rating: number;
-  customers: number;
-  memberSince: string;
-};
-
-export type Customer = {
-  id: string;
-  name: string;
-  initials: string;
-  phone: string;
-  email: string;
-  visits: number;
-  points: number;
-  preferredBarber: string;
-  lastVisit: string;
-  tone: Tone;
-};
-
-export type Booking = {
-  id: string;
-  time: string;
-  meridiem: string;
-  customer: string;
-  initials: string;
-  service: string;
-  barber: string;
-  price: number;
-  status: "Completed" | "Upcoming" | "Cancelled";
-  tone: Tone;
-};
-
 export type Service = {
   id: string;
   name: string;
@@ -81,17 +41,6 @@ export type Service = {
   hasHistory?: boolean;
   createdAt?: string;
   updatedAt?: string;
-};
-
-export type Transaction = {
-  id: string;
-  date: string;
-  customer: string;
-  service: string;
-  barber: string;
-  method: string;
-  amount: number;
-  status: string;
 };
 
 export type NavigationItem = {

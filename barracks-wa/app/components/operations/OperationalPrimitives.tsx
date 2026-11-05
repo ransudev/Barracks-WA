@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Badge, Button, SearchInput } from "@/app/components/ui";
-import { Icon, type IconName } from "@/app/components/ui/icons";
+import { Button, SearchInput } from "@/app/components/ui";
+import { Icon } from "@/app/components/ui/icons";
 import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useDrawerPresence } from "@/app/hooks/useDrawerPresence";
 
@@ -199,61 +199,6 @@ export function ResponsiveTable({
       {empty}
     </div>
   );
-}
-
-export function ActionMenu({
-  label = "More actions",
-  icon = "more",
-  children,
-}: {
-  label?: string;
-  icon?: IconName;
-  children: ReactNode;
-}) {
-  return (
-    <details className="operational-action-menu">
-      <summary className="icon-button icon-button--small" aria-label={label} title={label}>
-        <Icon name={icon} size={16} />
-      </summary>
-      <div className="operational-action-menu__content" role="menu">
-        {children}
-      </div>
-    </details>
-  );
-}
-
-export function ActionMenuItem({
-  children,
-  onClick,
-  danger = false,
-  disabled = false,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      className={`operational-action-menu__item ${danger ? "is-danger" : ""}`}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  );
-}
-
-export function OperationalStatusBadge({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: "neutral" | "success" | "warning" | "danger" | "info" | "purple";
-}) {
-  return <Badge tone={tone}>{children}</Badge>;
 }
 
 export function DrawerSection({

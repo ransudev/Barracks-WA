@@ -221,7 +221,7 @@ export function peekApiBody<T>(path: string): T | null {
   return (lastReads.get(path) as T | undefined) ?? null;
 }
 
-export function clearStaleReads() {
+function clearStaleReads() {
   staleReadVersion++;
   lastReads.clear();
 }

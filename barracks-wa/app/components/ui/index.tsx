@@ -366,39 +366,6 @@ export function TextField({
   );
 }
 
-export function Toggle({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label?: string;
-  description?: string;
-}) {
-  return (
-    <div className="toggle-row">
-      {(label || description) && (
-        <span>
-          <strong>{label}</strong>
-          {description && <small>{description}</small>}
-        </span>
-      )}
-      <button
-        className={`toggle ${checked ? "is-on" : ""}`}
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={() => onChange(!checked)}
-      >
-        <span />
-      </button>
-    </div>
-  );
-}
-
 export function EmptyState({
   icon = "search",
   title,
@@ -567,17 +534,6 @@ export function Tabs({
         </button>
       ))}
     </div>
-  );
-}
-
-export function ProgressBar({ value, tone = "blue" }: { value: number; tone?: Tone }) {
-  return (
-    <span className="progress">
-      <span
-        className={`progress__fill progress__fill--${tone}`}
-        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-      />
-    </span>
   );
 }
 
