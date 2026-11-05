@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { JSDOM } from "jsdom";
-import { act, createElement } from "react";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 
 const dom = new JSDOM("<!doctype html><div id=root></div>");
@@ -14,12 +14,12 @@ test("a crashing screen shows a recovery message until navigation clears it", as
   let broken = true;
   const Screen = () => {
     if (broken) throw new Error("boom");
-    return createElement("p", null, "healthy");
+    return <p>healthy</p>;
   };
   const container = document.getElementById("root")!;
   const root = createRoot(container);
   const render = (resetKey: string) => act(async () => {
-    root.render(createElement(ErrorBoundary, { resetKey, children: createElement(Screen) }));
+    root.render(<ErrorBoundary resetKey={resetKey}><Screen /></ErrorBoundary>);
   });
   try {
     await render("/staff/queue");
