@@ -107,7 +107,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .route-loading { align-items: flex-start; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 48px; background: var(--ink); }
 .route-loading .eyebrow { margin: 0 0 12px; color: var(--text-muted); font-size: 10px; font-weight: var(--weight-bold); letter-spacing: .16em; text-transform: uppercase; }
 .route-loading h1 { margin: 0; color: var(--text); font-family: var(--font-heading); font-size: 38px; letter-spacing: -.04em; line-height: 1.05; }
-.route-loading p:last-child { margin: 12px 0 0; color: var(--text-muted); font-size: 13px; }
+.route-loading p:last-of-type { margin: 12px 0 0; color: var(--text-muted); font-size: 13px; }
 .page-header { align-items: flex-end; display: flex; justify-content: space-between; gap: 30px; margin-bottom: 28px; }
 .page-header h1 { margin: 0; color: var(--text); font-family: var(--font-heading); font-size: 34px; font-weight: 700; letter-spacing: -.04em; line-height: 1.08; }
 .page-header__description { margin: 7px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }

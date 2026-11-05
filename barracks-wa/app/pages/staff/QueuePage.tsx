@@ -59,13 +59,7 @@ const scheduledTime = (entry: ApiQueueEntry) => {
   return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours >= 12 ? "PM" : "AM"}`;
 };
 
-export function QueuePage({
-  onToast,
-  canOperate = true,
-}: {
-  onToast: (message: string) => void;
-  canOperate?: boolean;
-}) {
+export function QueuePage({ onToast }: { onToast: (message: string) => void }) {
   const { branches, branchId, setBranchId, branchError, branchLoading } = useBranchContext();
   const branchControl = (
     <BranchSwitcher
@@ -81,7 +75,6 @@ export function QueuePage({
         key={branchId}
         branchId={branchId}
         onToast={onToast}
-        canOperate={canOperate}
         branchControl={branchControl}
       />
     );
@@ -100,14 +93,12 @@ export function QueuePage({
 
 function QueuePageContent({
   onToast,
-  canOperate = true,
   branchId,
   branchControl,
 }: {
   branchControl: ReactNode;
   branchId: number;
   onToast: (message: string) => void;
-  canOperate?: boolean;
 }) {
   const [queue, setQueue] = useState<ApiQueueEntry[]>([]);
   const [completed, setCompleted] = useState<ApiQueueEntry[]>([]);
@@ -455,15 +446,13 @@ function QueuePageContent({
           queueTab === "active" ? (
             <>
               <ViewToggle view={view} onChange={setView} label="Choose queue view" />
-              {canOperate && (
-                <Button
-                  icon="plus"
-                  disabled={loading || !services.some((service) => service.active)}
-                  onClick={openAddDialog}
-                >
-                  Add to queue
-                </Button>
-              )}
+              <Button
+                icon="plus"
+                disabled={loading || !services.some((service) => service.active)}
+                onClick={openAddDialog}
+              >
+                Add to queue
+              </Button>
             </>
           ) : undefined
         }
@@ -516,132 +505,124 @@ function QueuePageContent({
               accent="green"
             />
           </div>
-          {canOperate && (
-            <Panel className="queue-next-panel">
-              <div className="inventory-catalog-head">
-                <div>
-                  <span className="inventory-kicker">Front desk</span>
-                  <h2>Next Customer</h2>
-                  <p>Choose an available barber, then review the suggested customer.</p>
-                </div>
+          <Panel className="queue-next-panel">
+            <div className="inventory-catalog-head">
+              <div>
+                <span className="inventory-kicker">Front desk</span>
+                <h2>Next Customer</h2>
+                <p>Choose an available barber, then review the suggested customer.</p>
               </div>
-              <div className="queue-next__body">
-                <div className="queue-next__controls">
-                  <SelectField
-                    label="Barber"
-                    value={nextBarberId}
-                    disabled={nextBusy}
-                    onChange={(event) => {
-                      setNextBarberId(event.target.value);
-                      setNextEntry(null);
-                      setNextMessage("");
-                    }}
-                  >
-                    <option value="">Select barber</option>
-                    {availableBarbers.map((barber) => (
-                      <option key={barber.id} value={barber.id}>
-                        {barber.firstName} {barber.lastName}
-                      </option>
-                    ))}
-                  </SelectField>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      !availableBarbers.some((barber) => String(barber.id) === nextBarberId) ||
-                      nextBusy ||
-                      loading
-                    }
-                    onClick={() => void suggestNext()}
-                  >
-                    {nextBusy ? "Checking…" : "Next Customer"}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={busy || nextBusy || loading}
-                    onClick={() => void refreshAvailability()}
-                  >
-                    Refresh availability
-                  </Button>
-                </div>
-                {nextMessage && (
-                  <p className="queue-next__message" role="status">
-                    {nextMessage}
-                  </p>
-                )}
-                {nextEntry && (
-                  <div
-                    className="queue-next__suggestion"
-                    role="region"
-                    aria-label="Suggested next customer"
-                  >
-                    <div>
-                      <strong>{nextEntry.customerName}</strong>
-                      <span>
-                        {nextEntry.serviceName} ·{" "}
-                        {nextEntry.visitType === "appointment"
-                          ? "Checked-in appointment"
-                          : "Walk-in"}
-                      </span>
-                      <span className="queue-visit-type">
-                        <Badge tone={nextEntry.visitType === "appointment" ? "info" : "neutral"}>
-                          {visitLabel(nextEntry)}
-                        </Badge>
-                        {scheduledTime(nextEntry) && <span>• {scheduledTime(nextEntry)}</span>}
-                      </span>
-                    </div>
-                    <dl>
-                      <div>
-                        <dt>Joined / checked in</dt>
-                        <dd>
-                          {new Date(nextEntry.joinedAt).toLocaleString("en-PH", {
-                            timeZone: "Asia/Manila",
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Current barber</dt>
-                        <dd>{nextEntry.barberName ?? "Unassigned"}</dd>
-                      </div>
-                    </dl>
-                    {nextEntry.status === "waiting" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={nextBusy}
-                        onClick={() => void confirmNextAssignment()}
-                      >
-                        Assign barber
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setSelected(nextEntry)}
-                      >
-                        Open queue entry
-                      </Button>
-                    )}
+            </div>
+            <div className="queue-next__body">
+              <div className="queue-next__controls">
+                <SelectField
+                  label="Barber"
+                  value={nextBarberId}
+                  disabled={nextBusy}
+                  onChange={(event) => {
+                    setNextBarberId(event.target.value);
+                    setNextEntry(null);
+                    setNextMessage("");
+                  }}
+                >
+                  <option value="">Select barber</option>
+                  {availableBarbers.map((barber) => (
+                    <option key={barber.id} value={barber.id}>
+                      {barber.firstName} {barber.lastName}
+                    </option>
+                  ))}
+                </SelectField>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    !availableBarbers.some((barber) => String(barber.id) === nextBarberId) ||
+                    nextBusy ||
+                    loading
+                  }
+                  onClick={() => void suggestNext()}
+                >
+                  {nextBusy ? "Checking…" : "Next Customer"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy || nextBusy || loading}
+                  onClick={() => void refreshAvailability()}
+                >
+                  Refresh availability
+                </Button>
+              </div>
+              {nextMessage && (
+                <p className="queue-next__message" role="status">
+                  {nextMessage}
+                </p>
+              )}
+              {nextEntry && (
+                <div
+                  className="queue-next__suggestion"
+                  role="region"
+                  aria-label="Suggested next customer"
+                >
+                  <div>
+                    <strong>{nextEntry.customerName}</strong>
+                    <span>
+                      {nextEntry.serviceName} ·{" "}
+                      {nextEntry.visitType === "appointment" ? "Checked-in appointment" : "Walk-in"}
+                    </span>
+                    <span className="queue-visit-type">
+                      <Badge tone={nextEntry.visitType === "appointment" ? "info" : "neutral"}>
+                        {visitLabel(nextEntry)}
+                      </Badge>
+                      {scheduledTime(nextEntry) && <span>• {scheduledTime(nextEntry)}</span>}
+                    </span>
                   </div>
-                )}
-              </div>
-            </Panel>
-          )}
+                  <dl>
+                    <div>
+                      <dt>Joined / checked in</dt>
+                      <dd>
+                        {new Date(nextEntry.joinedAt).toLocaleString("en-PH", {
+                          timeZone: "Asia/Manila",
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Current barber</dt>
+                      <dd>{nextEntry.barberName ?? "Unassigned"}</dd>
+                    </div>
+                  </dl>
+                  {nextEntry.status === "waiting" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={nextBusy}
+                      onClick={() => void confirmNextAssignment()}
+                    >
+                      Assign barber
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setSelected(nextEntry)}
+                    >
+                      Open queue entry
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Panel>
           <Panel className="operational-panel">
             <div className="inventory-catalog-head">
               <div>
                 <span className="inventory-kicker">Live floor</span>
                 <h2>Current queue</h2>
-                <p>
-                  {canOperate
-                    ? "Open an entry to assign a barber or move it forward."
-                    : "Open an entry to view its assignment and status."}
-                </p>
+                <p>Open an entry to assign a barber or move it forward.</p>
               </div>
             </div>
             <FilterToolbar
@@ -953,9 +934,7 @@ function QueuePageContent({
               <div className="operational-drawer__rows">
                 <div className="operational-drawer__row">
                   <span>Assigned barber</span>
-                  {canOperate &&
-                  selected.bookingId === null &&
-                  ["waiting", "ready"].includes(selected.status) ? (
+                  {selected.bookingId === null && ["waiting", "ready"].includes(selected.status) ? (
                     <select
                       className="table-select"
                       value={selected.barberId ?? ""}
@@ -1004,8 +983,7 @@ function QueuePageContent({
                 <p>Manage appointment service from Bookings.</p>
               </DrawerSection>
             )}
-            {canOperate &&
-              selected.visitType === "walk_in" &&
+            {selected.visitType === "walk_in" &&
               !["completed", "removed"].includes(selected.status) && (
                 <DrawerSection eyebrow="Queue actions" title="Move customer forward">
                   <div className="operational-drawer__actions">

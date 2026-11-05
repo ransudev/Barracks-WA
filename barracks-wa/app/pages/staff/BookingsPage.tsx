@@ -110,15 +110,7 @@ const bookingPayload = (value: BookingFormValue) => ({
   notes: value.notes,
 });
 
-export function BookingsPage({
-  onToast,
-  canOperate = true,
-  canDelete = false,
-}: {
-  onToast: (message: string) => void;
-  canOperate?: boolean;
-  canDelete?: boolean;
-}) {
+export function BookingsPage({ onToast }: { onToast: (message: string) => void }) {
   const { branches, branchId, setBranchId, branchError, branchLoading } = useBranchContext();
   const branchControl = (
     <BranchSwitcher
@@ -135,8 +127,6 @@ export function BookingsPage({
         branchId={branchId}
         branchControl={branchControl}
         onToast={onToast}
-        canOperate={canOperate}
-        canDelete={canDelete}
       />
     );
   return (
@@ -163,16 +153,12 @@ export function BookingsPage({
 
 function BookingsPageContent({
   onToast,
-  canOperate = true,
-  canDelete = false,
   branchId,
   branchControl,
 }: {
   onToast: (message: string) => void;
   branchId: number;
   branchControl: ReactNode;
-  canOperate?: boolean;
-  canDelete?: boolean;
 }) {
   // Paint the last known data at once (if any), then refresh in the background.
   const [cached] = useState(() => ({
@@ -461,7 +447,7 @@ function BookingsPageContent({
     return at.toISOString().slice(11, 16);
   };
   const quickActions = (booking: ApiBooking) =>
-    canOperate && booking.status === "pending" ? (
+    booking.status === "pending" ? (
       <>
         <Button
           size="sm"
@@ -510,17 +496,13 @@ function BookingsPageContent({
               onRefresh={() => setRefreshVersion((value) => value + 1)}
             />
             {branchControl}
-            {canOperate && (
-              <Button
-                icon="plus"
-                disabled={
-                  loading || !customers.length || !services.some((service) => service.active)
-                }
-                onClick={openCreate}
-              >
-                New booking
-              </Button>
-            )}
+            <Button
+              icon="plus"
+              disabled={loading || !customers.length || !services.some((service) => service.active)}
+              onClick={openCreate}
+            >
+              New booking
+            </Button>
           </>
         }
       />
@@ -813,10 +795,10 @@ function BookingsPageContent({
                   </div>
                 </div>
               </DrawerSection>
-              {(canOperate || canDelete) && selected.status !== "completed" && (
+              {selected.status !== "completed" && (
                 <DrawerSection eyebrow="Actions" title="Manage appointment">
                   <div className="operational-drawer__actions">
-                    {canOperate && selected.status === "pending" && (
+                    {selected.status === "pending" && (
                       <>
                         <Button
                           icon="check"
@@ -842,7 +824,7 @@ function BookingsPageContent({
                         </Button>
                       </>
                     )}
-                    {canOperate && selected.status === "confirmed" && (
+                    {selected.status === "confirmed" && (
                       <>
                         <Button
                           variant="secondary"
@@ -868,7 +850,7 @@ function BookingsPageContent({
                         </Button>
                       </>
                     )}
-                    {canOperate && selected.status === "checked_in" && (
+                    {selected.status === "checked_in" && (
                       <Button
                         disabled={busy}
                         onClick={() => void updateStatus(selected, "in_progress")}
@@ -876,7 +858,7 @@ function BookingsPageContent({
                         Start Service
                       </Button>
                     )}
-                    {canOperate && selected.status === "in_progress" && (
+                    {selected.status === "in_progress" && (
                       <Button
                         disabled={busy}
                         onClick={() => void updateStatus(selected, "completed")}
@@ -884,17 +866,16 @@ function BookingsPageContent({
                         Complete
                       </Button>
                     )}
-                    {canOperate &&
-                      (selected.status === "confirmed" || selected.status === "checked_in") && (
-                        <Button
-                          variant="danger"
-                          disabled={busy}
-                          onClick={() => setPendingCancellation(selected)}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    {canDelete && deletableStatuses.includes(selected.status) && (
+                    {(selected.status === "confirmed" || selected.status === "checked_in") && (
+                      <Button
+                        variant="danger"
+                        disabled={busy}
+                        onClick={() => setPendingCancellation(selected)}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                    {deletableStatuses.includes(selected.status) && (
                       <Button
                         variant="ghost"
                         icon="trash"
@@ -905,8 +886,7 @@ function BookingsPageContent({
                       </Button>
                     )}
                   </div>
-                  {canOperate &&
-                    selected.status === "confirmed" &&
+                  {selected.status === "confirmed" &&
                     !mayMarkNoShow(selected.date, selected.time, new Date(now)) && (
                       <p className="form-hint">
                         No Show becomes available at {formatTime(noShowFrom(selected))},{" "}

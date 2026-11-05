@@ -4,6 +4,7 @@ import { AppShellSkeleton, CustomerPageSkeleton } from "@/app/components/ui/Skel
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
+import { ErrorBoundary } from "@/app/components/ErrorBoundary";
 import { AppShell } from "@/app/components/layout/AppShell";
 import { LandingPage } from "@/app/pages/public/LandingPage";
 import { PageRouter } from "@/app/pages/PageRouter";
@@ -226,31 +227,19 @@ export function BarracksApp() {
     }
   }
 
-  const waitingForSession =
-    sessionLoading && (!currentUser || !canAccessView(view, currentUser.role));
-  if (waitingForSession && view !== "landing") return <SessionLoading view={view} />;
-  if (view === "landing")
-    return (
-      <>
-        <LandingPage go={go} />
-        <Toast message={toast} onClose={() => setToast("")} />
-      </>
-    );
-  if (view === "login" && currentUser) return <SessionLoading view={view} />;
-  if (view === "login")
-    return (
-      <>
-        <LoginPage go={go} onLogin={handleLogin} />
-        <Toast message={toast} onClose={() => setToast("")} />
-      </>
-    );
+  function renderScreen() {
+    const waitingForSession =
+      sessionLoading && (!currentUser || !canAccessView(view, currentUser.role));
+    if (waitingForSession && view !== "landing") return <SessionLoading view={view} />;
+    if (view === "landing") return <LandingPage go={go} />;
+    if (view === "login" && currentUser) return <SessionLoading view={view} />;
+    if (view === "login") return <LoginPage go={go} onLogin={handleLogin} />;
 
-  if (
-    (view === "customer-dashboard" || view === "customer-profile") &&
-    currentUser?.role === "customer"
-  ) {
-    return (
-      <>
+    if (
+      (view === "customer-dashboard" || view === "customer-profile") &&
+      currentUser?.role === "customer"
+    ) {
+      return (
         <CustomerDashboard
           key={sessionScope(currentUser)}
           go={go}
@@ -258,13 +247,10 @@ export function BarracksApp() {
           onSignOut={handleSignOut}
           user={currentUser}
         />
-        <Toast message={toast} onClose={() => setToast("")} />
-      </>
-    );
-  }
-  if (view === "customer-booking" && currentUser?.role === "customer") {
-    return (
-      <>
+      );
+    }
+    if (view === "customer-booking" && currentUser?.role === "customer") {
+      return (
         <CustomerBookingPage
           key={sessionScope(currentUser)}
           go={go}
@@ -272,38 +258,26 @@ export function BarracksApp() {
           onSignOut={handleSignOut}
           user={currentUser}
         />
-        <Toast message={toast} onClose={() => setToast("")} />
-      </>
-    );
-  }
-  if (view === "supplier-dashboard" && currentUser?.role === "supplier") {
-    return (
-      <>
+      );
+    }
+    if (view === "supplier-dashboard" && currentUser?.role === "supplier") {
+      return (
         <SupplierPortal
           key={sessionScope(currentUser)}
           user={currentUser}
           onSignOut={handleSignOut}
           onToast={onToast}
         />
-        <Toast message={toast} onClose={() => setToast("")} />
-      </>
-    );
-  }
+      );
+    }
 
-  if (!currentUser)
+    if (!currentUser) return <LoginPage go={go} onLogin={handleLogin} />;
+    if (currentUser.role === "customer" || currentUser.role === "supplier")
+      return <SessionLoading view={view} />;
+    if (!canAccessView(view, currentUser.role) || canonicalView(view) !== view)
+      return <SessionLoading view={view} />;
+
     return (
-      <>
-        <LoginPage go={go} onLogin={handleLogin} />
-        <Toast message={toast} onClose={() => setToast("")} />
-      </>
-    );
-  if (currentUser.role === "customer" || currentUser.role === "supplier")
-    return <SessionLoading view={view} />;
-  if (!canAccessView(view, currentUser.role) || canonicalView(view) !== view)
-    return <SessionLoading view={view} />;
-
-  return (
-    <>
       <AppShell
         key={sessionScope(currentUser)}
         area={workspaceAreaForView(view, currentUser.role)}
@@ -313,8 +287,17 @@ export function BarracksApp() {
         currentUser={currentUser}
         onSignOut={handleSignOut}
       >
-        <PageRouter view={view} go={go} onToast={onToast} currentUser={currentUser} />
+        {/* A failed page keeps the sidebar, so the user can navigate away. */}
+        <ErrorBoundary resetKey={view}>
+          <PageRouter view={view} go={go} onToast={onToast} currentUser={currentUser} />
+        </ErrorBoundary>
       </AppShell>
+    );
+  }
+
+  return (
+    <>
+      <ErrorBoundary resetKey={pathname}>{renderScreen()}</ErrorBoundary>
       <Toast message={toast} onClose={() => setToast("")} />
     </>
   );
