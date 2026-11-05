@@ -3,92 +3,24 @@ import { ListPageSkeleton, SkeletonRows } from "@/app/components/ui/Skeletons";
 import { useBranchContext } from "@/app/utils/use-branch-context";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ApiInventoryItem, ApiSupplier } from "@/app/lib/api";
-import { apiRequest, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import {
-  Badge,
   Button,
   ConfirmDialog,
   EmptyState,
-  Modal,
   PageHeader,
   Panel,
   SelectField,
   Tabs,
-  TextField,
 } from "@/app/components/ui";
-import {
-  DetailDrawer,
-  DrawerSection,
-  FreshnessBar,
-  FilterToolbar,
-} from "@/app/components/operations/OperationalPrimitives";
-
-type RestockItem = {
-  id: number;
-  inventoryItemId: number;
-  itemName: string;
-  branch: string;
-  requestedQuantity: number;
-  deliveredQuantity: number | null;
-  unitCost: number | string | null;
-};
-type Restock = {
-  id: number;
-  supplier_id: number;
-  supplier_name: string;
-  status: "Pending" | "Accepted" | "Preparing" | "Shipped" | "Delivered" | "Received" | "Cancelled";
-  branch: string;
-  reference: string | null;
-  notes: string;
-  created_at: string;
-  received_at: string | null;
-  items: RestockItem[];
-};
-type DraftLine = { key: number; inventoryItemId: string; quantity: string; unitCost: string };
-type CreateForm = {
-  supplierId: string;
-  branch: string;
-  items: DraftLine[];
-  reference: string;
-  notes: string;
-};
-type ReceiveLine = { id: number; deliveredQuantity: string; unitCost: string };
-const emptyCreate: CreateForm = {
-  supplierId: "",
-  branch: "",
-  items: [{ key: 1, inventoryItemId: "", quantity: "1", unitCost: "" }],
-  reference: "",
-  notes: "",
-};
-function statusTone(status: Restock["status"]): "success" | "warning" | "danger" | "info" {
-  return status === "Received"
-    ? "success"
-    : status === "Cancelled"
-      ? "danger"
-      : status === "Delivered"
-        ? "info"
-        : "warning";
-}
-const stages = [
-  {
-    id: "all",
-    label: "All active",
-    statuses: ["Pending", "Accepted", "Preparing", "Shipped", "Delivered"],
-  },
-  { id: "receive", label: "Ready to receive", statuses: ["Delivered"] },
-  { id: "arrival", label: "In transit", statuses: ["Shipped"] },
-  { id: "supplier", label: "With supplier", statuses: ["Pending", "Accepted", "Preparing"] },
-];
+import { FreshnessBar, FilterToolbar } from "@/app/components/operations/OperationalPrimitives";
+import { CreateRestockDialog } from "./restock/CreateRestockDialog";
+import { stages, type Restock } from "./restock/model";
+import { ReceiveDialog } from "./restock/ReceiveDialog";
+import { RestockDrawer } from "./restock/RestockDrawer";
+import { RestockRequestRow } from "./restock/RestockRequestRow";
 
 export function RestockManagement({ onToast }: { onToast: (message: string) => void }) {
   const { branches, branchId, setBranchId, branchError, branchLoading } = useBranchContext();
@@ -164,13 +96,7 @@ function RestockContent({
   const [statusFilter, setStatusFilter] = useState("all");
   const [selected, setSelected] = useState<Restock | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateForm>(emptyCreate);
-  const [creating, setCreating] = useState(false);
   const [receiving, setReceiving] = useState<Restock | null>(null);
-  const [receiveLines, setReceiveLines] = useState<ReceiveLine[]>([]);
-  const [receiveReference, setReceiveReference] = useState("");
-  const [receiveNotes, setReceiveNotes] = useState("");
-  const [receiveSubmitting, setReceiveSubmitting] = useState(false);
   const [markingDelivered, setMarkingDelivered] = useState<number | null>(null);
   const load = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -254,101 +180,6 @@ function RestockContent({
     );
   }, [restocks, search, statusFilter, tab]);
 
-  function itemsForLine(lineKey: number) {
-    const selectedElsewhere = new Set(
-      createForm.items
-        .filter((line) => line.key !== lineKey)
-        .map((line) => Number(line.inventoryItemId)),
-    );
-    return inventory.filter(
-      (item) =>
-        item.status === "active" &&
-        item.supplierId === Number(createForm.supplierId) &&
-        item.branch === createForm.branch &&
-        !selectedElsewhere.has(item.id),
-    );
-  }
-  function openCreate() {
-    setCreateForm({
-      ...emptyCreate,
-      branch: branchName,
-      items: [{ ...emptyCreate.items[0], key: Date.now() }],
-    });
-    setCreateOpen(true);
-  }
-  function updateLine(key: number, patch: Partial<DraftLine>) {
-    setCreateForm((current) => ({
-      ...current,
-      items: current.items.map((line) => (line.key === key ? { ...line, ...patch } : line)),
-    }));
-  }
-  function chooseItem(key: number, value: string) {
-    const item = inventory.find((candidate) => candidate.id === Number(value));
-    updateLine(key, { inventoryItemId: value, unitCost: item ? String(item.unitCost) : "" });
-  }
-  function openReceive(restock: Restock) {
-    setReceiving(restock);
-    setReceiveLines(
-      restock.items.map((item) => ({
-        id: item.id,
-        deliveredQuantity: String(item.requestedQuantity),
-        unitCost:
-          item.unitCost === null || item.unitCost === undefined ? "" : String(item.unitCost),
-      })),
-    );
-    setReceiveReference(restock.reference ?? "");
-    setReceiveNotes("");
-  }
-  async function createRestock(event: FormEvent) {
-    event.preventDefault();
-    setCreating(true);
-    try {
-      const supplierId = Number(createForm.supplierId);
-      if (!supplierId || !createForm.branch) throw new Error("Choose a supplier and branch");
-      const items = createForm.items.map((line) => {
-        const quantity = Number(line.quantity);
-        const unitCost = line.unitCost.trim() ? Number(line.unitCost) : null;
-        if (!Number.isInteger(Number(line.inventoryItemId)) || Number(line.inventoryItemId) <= 0)
-          throw new Error("Choose an inventory item for every line");
-        if (!Number.isInteger(quantity) || quantity <= 0)
-          throw new Error("Requested quantities must be positive whole numbers");
-        if (unitCost !== null && (!Number.isFinite(unitCost) || unitCost < 0))
-          throw new Error("Unit costs must be non-negative amounts");
-        return {
-          inventoryItemId: Number(line.inventoryItemId),
-          requestedQuantity: quantity,
-          unitCost,
-        };
-      });
-      if (new Set(items.map((item) => item.inventoryItemId)).size !== items.length)
-        throw new Error("An item can only appear once per request");
-      const response = await apiRequest(`/api/restocks?branchId=${branchId}`, {
-        method: "POST",
-        body: JSON.stringify({
-          supplierId,
-          branch: createForm.branch,
-          reference: createForm.reference.trim() || null,
-          notes: createForm.notes.trim(),
-          items,
-        }),
-      });
-      const body = await readApiBody<{
-        success: boolean;
-        message?: string;
-        errors?: Record<string, string[]>;
-      }>(response);
-      if (!active.current) return;
-      if (!response.ok || !body?.success)
-        throw new Error(apiErrorMessage(body, "Unable to create restock request"));
-      setCreateOpen(false);
-      onToast("Restock request sent to supplier");
-      await load();
-    } catch (error) {
-      onToast(errorMessage(error, "Unable to create restock request"));
-    } finally {
-      setCreating(false);
-    }
-  }
   const [pendingCancel, setPendingCancel] = useState<Restock | null>(null);
   const [cancelling, setCancelling] = useState(false);
   async function cancelRequest(restock: Restock) {
@@ -389,174 +220,6 @@ function RestockContent({
       setMarkingDelivered(null);
     }
   }
-  async function receive(event: FormEvent) {
-    event.preventDefault();
-    if (!receiving) return;
-    setReceiveSubmitting(true);
-    try {
-      const items = receiveLines.map((line) => {
-        const deliveredQuantity = Number(line.deliveredQuantity);
-        const unitCost = line.unitCost.trim() ? Number(line.unitCost) : null;
-        if (!Number.isInteger(deliveredQuantity) || deliveredQuantity < 0)
-          throw new Error("Delivered quantities must be whole numbers");
-        if (unitCost !== null && (!Number.isFinite(unitCost) || unitCost < 0))
-          throw new Error("Unit costs must be non-negative amounts");
-        return { restockRequestItemId: line.id, deliveredQuantity, unitCost };
-      });
-      const response = await apiRequest(
-        `/api/restocks/${receiving.id}/receive?branchId=${branchId}`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            reference: receiveReference.trim() || null,
-            notes: receiveNotes.trim(),
-            items,
-          }),
-        },
-      );
-      const body = await readApiBody<{ success: boolean; message?: string }>(response);
-      if (!active.current) return;
-      if (!response.ok || !body?.success)
-        throw new Error(body?.message ?? "Unable to receive delivery");
-      setReceiving(null);
-      setSelected(null);
-      onToast("Delivery received and inventory updated");
-      await load();
-    } catch (error) {
-      onToast(errorMessage(error, "Unable to receive delivery"));
-    } finally {
-      setReceiveSubmitting(false);
-    }
-  }
-  function createFormView() {
-    return (
-      <form className="modal-form" onSubmit={createRestock}>
-        <SelectField
-          required
-          label="Supplier"
-          value={createForm.supplierId}
-          onChange={(event) =>
-            setCreateForm({
-              ...createForm,
-              supplierId: event.target.value,
-              branch: branchName,
-              items: [{ key: Date.now(), inventoryItemId: "", quantity: "1", unitCost: "" }],
-            })
-          }
-        >
-          <option value="">Choose supplier</option>
-          {suppliers
-            .filter((supplier) => supplier.status === "active")
-            .map((supplier) => (
-              <option key={supplier.id} value={supplier.id}>
-                {supplier.companyName}
-              </option>
-            ))}
-        </SelectField>
-        <TextField label="Branch" value={branchName} readOnly />
-        <div className="modal-form__section">
-          <div className="section-heading">
-            <div>
-              <h3>Request items</h3>
-              <p className="form-hint">Items are limited to this supplier and branch.</p>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon="plus"
-              onClick={() =>
-                setCreateForm((current) => ({
-                  ...current,
-                  items: [
-                    ...current.items,
-                    {
-                      key: Date.now() + current.items.length,
-                      inventoryItemId: "",
-                      quantity: "1",
-                      unitCost: "",
-                    },
-                  ],
-                }))
-              }
-            >
-              Add item
-            </Button>
-          </div>
-          {createForm.supplierId &&
-            !inventory.some(
-              (item) =>
-                item.status === "active" &&
-                item.supplierId === Number(createForm.supplierId) &&
-                item.branch === createForm.branch,
-            ) && (
-              <p className="form-error" role="status">
-                No items in this branch are assigned to this supplier yet. Open Suppliers, choose
-                this supplier, and use Assign items.
-              </p>
-            )}
-          {createForm.items.map((line, index) => (
-            <div className="form-grid form-grid--three" key={line.key}>
-              <SelectField
-                required
-                label={`Item ${index + 1}`}
-                value={line.inventoryItemId}
-                onChange={(event) => chooseItem(line.key, event.target.value)}
-              >
-                <option value="">Choose item</option>
-                {itemsForLine(line.key).map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} · {item.quantity} {item.unit}
-                  </option>
-                ))}
-              </SelectField>
-              <TextField
-                required
-                label="Quantity"
-                type="number"
-                min="1"
-                step="1"
-                value={line.quantity}
-                onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
-              />
-              <TextField
-                label="Expected unit cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={line.unitCost}
-                onChange={(event) => updateLine(line.key, { unitCost: event.target.value })}
-              />
-            </div>
-          ))}
-        </div>
-        <TextField
-          label="Reference"
-          value={createForm.reference}
-          onChange={(event) => setCreateForm({ ...createForm, reference: event.target.value })}
-        />
-        <TextField
-          label="Notes"
-          value={createForm.notes}
-          onChange={(event) => setCreateForm({ ...createForm, notes: event.target.value })}
-        />
-        <div className="modal-actions">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={creating}
-            onClick={() => setCreateOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={creating}>
-            {creating ? "Sending…" : "Send request"}
-          </Button>
-        </div>
-      </form>
-    );
-  }
-
   const displayed = visible
     .filter(
       (request) =>
@@ -568,75 +231,16 @@ function RestockContent({
         request.status === "Delivered" ? 0 : request.status === "Shipped" ? 1 : 2;
       return tab === "history" ? b.id - a.id : priority(a) - priority(b) || b.id - a.id;
     });
-  const requestRow = (restock: Restock) => (
-    <article className="restock-request-row" key={restock.id}>
-      <button
-        type="button"
-        className="restock-request-row__detail"
-        onClick={() => setSelected(restock)}
-        aria-label={`Open restock request ${restock.id}`}
-      >
-        <span className="restock-request-identity">
-          <small>Request #{restock.id}</small>
-          <strong>{restock.supplier_name}</strong>
-          <small>{restock.reference || "No reference"}</small>
-        </span>
-        <span className="restock-request-destination">
-          <small className="restock-mobile-label">Branch</small>
-          <strong>{restock.branch}</strong>
-          <small>
-            {new Date(restock.created_at).toLocaleDateString("en-PH", {
-              timeZone: "Asia/Manila",
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </small>
-        </span>
-        <span className="restock-request-items">
-          <small className="restock-mobile-label">Requested items</small>
-          {restock.items.map((item) => (
-            <span key={item.id}>
-              {item.itemName} <strong>× {item.requestedQuantity}</strong>
-            </span>
-          ))}
-        </span>
-        <span className="restock-request-status">
-          <Badge tone={statusTone(restock.status)}>{restock.status}</Badge>
-        </span>
-      </button>
-      <div className="restock-request-row__action">
-        {restock.status === "Delivered" ? (
-          <Button
-            size="sm"
-            disabled={loading || Boolean(loadError)}
-            onClick={() => openReceive(restock)}
-          >
-            Receive delivery
-          </Button>
-        ) : ["Pending", "Accepted", "Preparing", "Shipped"].includes(restock.status) ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={loading || Boolean(loadError) || markingDelivered !== null}
-            onClick={() => setPendingDelivery(restock)}
-          >
-            Confirm arrival
-          </Button>
-        ) : (
-          <Button size="sm" variant="secondary" onClick={() => setSelected(restock)}>
-            View request
-          </Button>
-        )}
-      </div>
-    </article>
-  );
   return (
     <div className="operational-workspace restock-workspace">
       <PageHeader
         title="Restock requests"
         action={
-          <Button icon="plus" disabled={loading || Boolean(loadError)} onClick={openCreate}>
+          <Button
+            icon="plus"
+            disabled={loading || Boolean(loadError)}
+            onClick={() => setCreateOpen(true)}
+          >
             New request
           </Button>
         }
@@ -740,183 +344,58 @@ function RestockContent({
               </div>
               <span>Next action</span>
             </div>
-            {displayed.map(requestRow)}
+            {displayed.map((restock) => (
+              <RestockRequestRow
+                key={restock.id}
+                restock={restock}
+                actionsDisabled={loading || Boolean(loadError)}
+                confirmDisabled={loading || Boolean(loadError) || markingDelivered !== null}
+                onOpen={() => setSelected(restock)}
+                onReceive={() => setReceiving(restock)}
+                onConfirmArrival={() => setPendingDelivery(restock)}
+              />
+            ))}
           </div>
         )}
       </Panel>
-      <Modal
-        open={createOpen}
-        title="Create restock request"
-        onClose={() => !creating && setCreateOpen(false)}
-      >
-        {createFormView()}
-      </Modal>
-      <DetailDrawer
-        open={Boolean(selected)}
-        title={selected ? `Restock request #${selected.id}` : "Restock request"}
-        subtitle={selected ? `${selected.supplier_name} · ${selected.branch}` : undefined}
-        eyebrow="Supply workflow"
+      {createOpen && (
+        <CreateRestockDialog
+          branchId={branchId}
+          branchName={branchName}
+          suppliers={suppliers}
+          inventory={inventory}
+          onToast={onToast}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => {
+            setCreateOpen(false);
+            onToast("Restock request sent to supplier");
+            void load();
+          }}
+        />
+      )}
+      <RestockDrawer
+        selected={selected}
+        markingDelivered={markingDelivered}
+        cancelling={cancelling}
         onClose={() => setSelected(null)}
-      >
-        {selected && (
-          <>
-            <DrawerSection>
-              <div className="operational-drawer__identity">
-                <span className="supplier-card-mark supplier-card-mark--large">
-                  <span>#{selected.id}</span>
-                </span>
-                <div>
-                  <strong>{selected.supplier_name}</strong>
-                  <span>{selected.reference || "No reference"}</span>
-                </div>
-                <Badge tone={statusTone(selected.status)}>{selected.status}</Badge>
-              </div>
-            </DrawerSection>
-            <DrawerSection eyebrow="Request lines" title="Inventory requested">
-              <div className="drawer-mini-list">
-                {selected.items.map((item) => (
-                  <div key={item.id}>
-                    <strong>{item.itemName}</strong>
-                    <span>
-                      {item.requestedQuantity} requested ·{" "}
-                      {item.deliveredQuantity ?? "Not recorded"} delivered
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </DrawerSection>
-            <DrawerSection title="Request notes">
-              <p>{selected.notes || "No notes"}</p>
-            </DrawerSection>
-            <DrawerSection eyebrow="Actions" title="Move this request forward">
-              <div className="operational-drawer__actions">
-                {["Pending", "Accepted", "Preparing", "Shipped"].includes(selected.status) && (
-                  <Button
-                    variant="secondary"
-                    disabled={markingDelivered === selected.id}
-                    onClick={() => setPendingDelivery(selected)}
-                  >
-                    {markingDelivered === selected.id ? "Confirming…" : "Confirm arrival"}
-                  </Button>
-                )}
-                {selected.status === "Delivered" && (
-                  <Button icon="box" onClick={() => openReceive(selected)}>
-                    Receive delivery
-                  </Button>
-                )}
-                {!["Received", "Cancelled"].includes(selected.status) && (
-                  <Button
-                    variant="danger"
-                    disabled={cancelling}
-                    onClick={() => setPendingCancel(selected)}
-                  >
-                    Cancel request
-                  </Button>
-                )}
-              </div>
-              <ol className="restock-steps" aria-label="Restock steps">
-                {["Request sent", "Supplier preparing", "Arrived at branch", "Stock received"].map(
-                  (step, index) => {
-                    const reached =
-                      selected.status === "Cancelled"
-                        ? -1
-                        : selected.status === "Received"
-                          ? 3
-                          : selected.status === "Delivered"
-                            ? 2
-                            : ["Accepted", "Preparing", "Shipped"].includes(selected.status)
-                              ? 1
-                              : 0;
-                    return (
-                      <li key={step} className={index <= reached ? "is-done" : ""}>
-                        {step}
-                      </li>
-                    );
-                  },
-                )}
-              </ol>
-              <p className="form-hint">
-                {selected.status === "Delivered"
-                  ? "Count what arrived and record it with Receive delivery. That adds the stock to inventory."
-                  : ["Received", "Cancelled"].includes(selected.status)
-                    ? "This request is closed and kept for history."
-                    : "Suppliers with a portal login update progress themselves. If the goods have already arrived, confirm arrival here, then receive the delivery."}
-              </p>
-            </DrawerSection>
-          </>
-        )}
-      </DetailDrawer>
-      <Modal
-        open={Boolean(receiving)}
-        title={receiving ? `Receive request #${receiving.id}` : "Receive delivery"}
-        onClose={() => !receiveSubmitting && setReceiving(null)}
-      >
-        <form className="modal-form" onSubmit={receive}>
-          {receiving?.items.map((item) => {
-            const line = receiveLines.find((entry) => entry.id === item.id);
-            return (
-              <div className="form-grid form-grid--two" key={item.id}>
-                <TextField
-                  label={`${item.itemName} delivered`}
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={line?.deliveredQuantity ?? "0"}
-                  onChange={(event) =>
-                    setReceiveLines((current) =>
-                      current.map((entry) =>
-                        entry.id === item.id
-                          ? { ...entry, deliveredQuantity: event.target.value }
-                          : entry,
-                      ),
-                    )
-                  }
-                />
-                <TextField
-                  label="Unit cost"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line?.unitCost ?? ""}
-                  onChange={(event) =>
-                    setReceiveLines((current) =>
-                      current.map((entry) =>
-                        entry.id === item.id ? { ...entry, unitCost: event.target.value } : entry,
-                      ),
-                    )
-                  }
-                />
-              </div>
-            );
-          })}
-          <TextField
-            label="Reference number"
-            value={receiveReference}
-            onChange={(event) => setReceiveReference(event.target.value)}
-          />
-          <TextField
-            label="Notes"
-            value={receiveNotes}
-            onChange={(event) => setReceiveNotes(event.target.value)}
-          />
-          <p className="form-hint">
-            Receiving updates every line transactionally and cannot be repeated.
-          </p>
-          <div className="modal-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={receiveSubmitting}
-              onClick={() => setReceiving(null)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={receiveSubmitting}>
-              {receiveSubmitting ? "Receiving…" : "Confirm receiving"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        onConfirmArrival={setPendingDelivery}
+        onReceive={setReceiving}
+        onCancel={setPendingCancel}
+      />
+      {receiving && (
+        <ReceiveDialog
+          restock={receiving}
+          branchId={branchId}
+          onToast={onToast}
+          onClose={() => setReceiving(null)}
+          onReceived={() => {
+            setReceiving(null);
+            setSelected(null);
+            onToast("Delivery received and inventory updated");
+            void load();
+          }}
+        />
+      )}
       <ConfirmDialog
         open={Boolean(pendingCancel)}
         title="Cancel this restock request?"

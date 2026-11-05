@@ -1,20 +1,12 @@
 "use client";
 import { useBranchContext } from "@/app/utils/use-branch-context";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { BookingForm, type BookingFormValue } from "@/app/components/bookings/BookingForm";
-import type { Service } from "@/app/types/domain";
-import type {
-  ApiBarberAvailability,
-  ApiBooking,
-  ApiBookingStatus,
-  ApiCustomer,
-} from "@/app/lib/api";
-import { apiRequest, peekApiBody, readApiBody, errorMessage } from "@/app/lib/api";
+import type { ApiBooking, ApiBookingStatus } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { ScheduleSkeleton } from "@/app/components/ui/Skeletons";
 import {
-  Avatar,
-  Badge,
   Button,
   ConfirmDialog,
   EmptyState,
@@ -26,89 +18,23 @@ import {
   TextField,
 } from "@/app/components/ui";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
+import { dateInputValue } from "@/app/utils/format";
+import { FreshnessBar, FilterToolbar } from "@/app/components/operations/OperationalPrimitives";
+import { DaySchedule } from "@/app/components/bookings/DaySchedule";
+import { hasAppointmentCustomer } from "@/app/utils/booking-customers";
+import { AwaitingApprovalPanel } from "./bookings/AwaitingApprovalPanel";
+import { BookingCards } from "./bookings/BookingCards";
+import { BookingDetailDrawer } from "./bookings/BookingDetailDrawer";
 import {
-  createInitials,
-  dateInputValue,
-  formatCurrency,
-  formatDate,
-  formatTime,
-  formatTimeRange,
-  futureDateInputValue,
-} from "@/app/utils/format";
-import {
-  DetailDrawer,
-  DrawerSection,
-  FreshnessBar,
-  FilterToolbar,
-  RecordCard,
-  ResponsiveTable,
-  type OperationalViewMode,
-} from "@/app/components/operations/OperationalPrimitives";
-import { DaySchedule, type DayContext } from "@/app/components/bookings/DaySchedule";
-import { BOOKING_GRACE_MINUTES, mayMarkNoShow } from "@/app/constants/booking";
-import { hasAppointmentCustomer, isAppointmentCustomer } from "@/app/utils/booking-customers";
-
-const statuses: ApiBookingStatus[] = [
-  "pending",
-  "confirmed",
-  "checked_in",
-  "in_progress",
-  "completed",
-  "cancelled",
-  "rejected",
-  "no_show",
-];
-// Closed bookings no longer hold a slot; they are hidden unless the status filter asks for them.
-// Card headings are short; the drawer shows the full date with the year.
-const cardDate: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" };
-const closedStatuses: ApiBookingStatus[] = ["cancelled", "rejected", "no_show"];
-const deletableStatuses: ApiBookingStatus[] = [
-  "pending",
-  "confirmed",
-  "rejected",
-  "cancelled",
-  "no_show",
-];
-const label = (status: string) =>
-  status === "pending"
-    ? "Awaiting approval"
-    : status
-        .split("_")
-        .map((word) => word[0].toUpperCase() + word.slice(1))
-        .join(" ");
-const statusMessages: Partial<Record<ApiBookingStatus, string>> = {
-  confirmed: "Booking confirmed",
-  rejected: "Booking rejected",
-  cancelled: "Booking cancelled",
-  no_show: "Marked as no show",
-  checked_in: "Customer checked in",
-  in_progress: "Service started",
-  completed: "Service completed",
-};
-const freshForm = (customerId = ""): BookingFormValue => ({
-  customerId,
-  serviceId: "",
-  barberId: "",
-  date: futureDateInputValue(),
-  time: "",
-  notes: "",
-});
-const formFromBooking = (booking: ApiBooking): BookingFormValue => ({
-  customerId: String(booking.customerId),
-  serviceId: booking.serviceId,
-  barberId: String(booking.barberId),
-  date: booking.date,
-  time: booking.time,
-  notes: booking.notes ?? "",
-});
-const bookingPayload = (value: BookingFormValue) => ({
-  customerId: Number(value.customerId),
-  serviceId: value.serviceId,
-  barberId: value.barberId ? Number(value.barberId) : null,
-  date: value.date,
-  time: value.time,
-  notes: value.notes,
-});
+  bookingPayload,
+  closedStatuses,
+  formFromBooking,
+  freshForm,
+  label,
+  statuses,
+  statusMessages,
+} from "./bookings/model";
+import { useBookingsData } from "./bookings/useBookingsData";
 
 export function BookingsPage({ onToast }: { onToast: (message: string) => void }) {
   const { branches, branchId, setBranchId, branchError, branchLoading } = useBranchContext();
@@ -160,36 +86,24 @@ function BookingsPageContent({
   branchId: number;
   branchControl: ReactNode;
 }) {
-  // Paint the last known data at once (if any), then refresh in the background.
-  const [cached] = useState(() => ({
-    bookings: peekApiBody<{ bookings?: ApiBooking[] }>(`/api/bookings?branchId=${branchId}`)
-      ?.bookings,
-    customers: peekApiBody<{ customers?: ApiCustomer[] }>("/api/customers")?.customers,
-    barbers: peekApiBody<{ barbers?: ApiBarberAvailability[] }>(`/api/barbers?branchId=${branchId}`)
-      ?.barbers,
-    services: peekApiBody<{ services?: Service[] }>("/api/services")?.services,
-  }));
-  const hasCache = Boolean(
-    cached.bookings && cached.customers && cached.barbers && cached.services,
-  );
-  const [items, setItems] = useState<ApiBooking[]>(cached.bookings ?? []);
-  const [customers, setCustomers] = useState<ApiCustomer[]>(
-    (cached.customers ?? []).filter(isAppointmentCustomer),
-  );
-  const [barbers, setBarbers] = useState<ApiBarberAvailability[]>(cached.barbers ?? []);
-  const [services, setServices] = useState<Service[]>(cached.services ?? []);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState("open");
   const [date, setDate] = useState(dateInputValue);
   const [barberFilter, setBarberFilter] = useState("");
-  const [updatedAt, setUpdatedAt] = useState<number | null>(() => (hasCache ? Date.now() : null));
   const [dayView, setDayView] = useState(true);
-  const [context, setContext] = useState<DayContext | null>(null);
-  const [contextError, setContextError] = useState("");
-  const [refreshVersion, setRefreshVersion] = useState(0);
+  const {
+    items,
+    setItems,
+    customers,
+    barbers,
+    services,
+    loading,
+    loadError,
+    updatedAt,
+    context,
+    contextError,
+    refresh,
+  } = useBookingsData(branchId, date);
   const [search, setSearch] = useState("");
-  const [view] = useState<OperationalViewMode>("cards");
   const [selected, setSelected] = useState<ApiBooking | null>(null);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -198,103 +112,6 @@ function BookingsPageContent({
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const [pendingCancellation, setPendingCancellation] = useState<ApiBooking | null>(null);
   const [pendingDeletion, setPendingDeletion] = useState<ApiBooking | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 10_000);
-    return () => window.clearInterval(timer);
-  }, [branchId]);
-
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      setLoading(true);
-      try {
-        const [bookingResponse, customerResponse, barberResponse, serviceResponse] =
-          await Promise.all([
-            apiRequest(`/api/bookings?branchId=${branchId}`, { cache: "no-store" }),
-            apiRequest("/api/customers", { cache: "no-store" }),
-            apiRequest(`/api/barbers?branchId=${branchId}`, { cache: "no-store" }),
-            apiRequest("/api/services", { cache: "no-store" }),
-          ]);
-        const [bookings, customerData, barberData, serviceData] = await Promise.all([
-          readApiBody<{ success: boolean; bookings?: ApiBooking[]; message?: string }>(
-            bookingResponse,
-          ),
-          readApiBody<{ success: boolean; customers?: ApiCustomer[]; message?: string }>(
-            customerResponse,
-          ),
-          readApiBody<{ success: boolean; barbers?: ApiBarberAvailability[]; message?: string }>(
-            barberResponse,
-          ),
-          readApiBody<{ success: boolean; services?: Service[]; message?: string }>(
-            serviceResponse,
-          ),
-        ]);
-        if (
-          !bookingResponse.ok ||
-          !bookings?.success ||
-          !customerResponse.ok ||
-          !customerData?.success ||
-          !barberResponse.ok ||
-          !barberData?.success ||
-          !serviceResponse.ok ||
-          !serviceData?.success
-        ) {
-          throw new Error(
-            bookings?.message ??
-              customerData?.message ??
-              barberData?.message ??
-              serviceData?.message ??
-              "Unable to load bookings",
-          );
-        }
-        if (!active) return;
-        setItems(bookings.bookings ?? []);
-        setCustomers((customerData.customers ?? []).filter(isAppointmentCustomer));
-        setBarbers(barberData.barbers ?? []);
-        setServices(serviceData.services ?? []);
-        setLoadError("");
-        setUpdatedAt(Date.now());
-      } catch (error) {
-        if (active) setLoadError(errorMessage(error, "Unable to load bookings"));
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [branchId, refreshVersion]);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      try {
-        const response = await apiRequest(`/api/scheduling/day?date=${date}&branchId=${branchId}`, {
-          cache: "no-store",
-        });
-        const body = await readApiBody<DayContext & { success: boolean; message?: string }>(
-          response,
-        );
-        if (!response.ok || !body?.success)
-          throw new Error(body?.message ?? "Schedule constraints unavailable");
-        if (active) {
-          setContext(body);
-          setContextError("");
-        }
-      } catch (cause) {
-        if (active) {
-          setContext(null);
-          setContextError(errorMessage(cause, "Schedule constraints unavailable"));
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [branchId, date, refreshVersion]);
 
   const visible = useMemo(
     () =>
@@ -435,14 +252,6 @@ function BookingsPageContent({
     setDraft(formFromBooking(booking));
     setEditing(true);
   };
-  const noShowFrom = (booking: ApiBooking) => {
-    const at = new Date(
-      Date.parse(`${booking.date}T${booking.time}:00+08:00`) +
-        BOOKING_GRACE_MINUTES * 60_000 +
-        8 * 3_600_000,
-    );
-    return at.toISOString().slice(11, 16);
-  };
   const quickActions = (booking: ApiBooking) =>
     booking.status === "pending" ? (
       <>
@@ -469,16 +278,6 @@ function BookingsPageContent({
     setDraft(freshForm(String(customers[0]?.id ?? "")));
     setCreating(true);
   };
-  const tone = (status: ApiBookingStatus) =>
-    status === "completed"
-      ? "success"
-      : closedStatuses.includes(status)
-        ? "danger"
-        : status === "checked_in" || status === "pending"
-          ? "warning"
-          : status === "in_progress"
-            ? "purple"
-            : "info";
 
   return (
     <div className="operational-workspace">
@@ -490,7 +289,7 @@ function BookingsPageContent({
               updatedAt={updatedAt}
               loading={loading}
               error={loadError}
-              onRefresh={() => setRefreshVersion((value) => value + 1)}
+              onRefresh={refresh}
             />
             {branchControl}
             <Button
@@ -504,45 +303,11 @@ function BookingsPageContent({
         }
       />
       {awaiting.length > 0 && (
-        <Panel className="operational-panel bookings-approval">
-          <div className="bookings-approval__head">
-            <div>
-              <h2>Awaiting approval</h2>
-              <p>
-                {awaiting.length} customer request{awaiting.length === 1 ? "" : "s"} to confirm or
-                reject. Each request holds its time slot until you decide.
-              </p>
-            </div>
-          </div>
-          <div className="operational-card-grid">
-            {awaiting.map((booking) => (
-              <RecordCard
-                key={booking.id}
-                onOpen={() => openDetails(booking)}
-                ariaLabel={`Open booking request from ${booking.customerName}`}
-                actions={quickActions(booking)}
-              >
-                <div className="operational-card__header">
-                  <h3>
-                    {formatDate(booking.date, cardDate)} · {formatTime(booking.time)}
-                  </h3>
-                  <Badge tone="warning">Awaiting approval</Badge>
-                </div>
-                <div className="operational-card__identity">
-                  <Avatar initials={createInitials(booking.customerName)} tone="slate" size="sm" />
-                  <strong>{booking.customerName}</strong>
-                </div>
-                <p>
-                  {booking.serviceName} · {booking.barberName}
-                </p>
-                <small>
-                  #{booking.id} · {formatCurrency(booking.price)}
-                  {booking.notes ? ` · “${booking.notes}”` : ""}
-                </small>
-              </RecordCard>
-            ))}
-          </div>
-        </Panel>
+        <AwaitingApprovalPanel
+          awaiting={awaiting}
+          quickActions={quickActions}
+          onOpen={openDetails}
+        />
       )}
       <Panel className="operational-panel bookings-panel">
         <div className="bookings-toolbar">
@@ -667,240 +432,33 @@ function BookingsPageContent({
             <p role="alert">{loadError}</p>
           ) : !visible.length ? (
             <EmptyState icon="calendar" title="No bookings found" />
-          ) : view === "cards" ? (
-            <div className="operational-card-grid">
-              {visible.map((booking) => (
-                <RecordCard
-                  key={booking.id}
-                  onOpen={() => {
-                    setSelected(booking);
-                    setEditing(false);
-                  }}
-                  ariaLabel={`Open booking for ${booking.customerName}`}
-                  actions={quickActions(booking)}
-                >
-                  <div className="operational-card__header">
-                    <h3>
-                      {date
-                        ? formatTime(booking.time)
-                        : `${formatDate(booking.date, cardDate)} · ${formatTime(booking.time)}`}
-                    </h3>
-                    <Badge tone={tone(booking.status)}>{label(booking.status)}</Badge>
-                  </div>
-                  <div className="operational-card__identity">
-                    <Avatar
-                      initials={createInitials(booking.customerName)}
-                      tone="slate"
-                      size="sm"
-                    />
-                    <strong>{booking.customerName}</strong>
-                  </div>
-                  <p>
-                    {booking.serviceName} · {booking.barberName}
-                  </p>
-                  <small>
-                    #{booking.id} · {formatCurrency(booking.price)}
-                  </small>
-                </RecordCard>
-              ))}
-            </div>
           ) : (
-            <ResponsiveTable headers={["When", "Customer", "Service", "Barber", "Status"]}>
-              {visible.map((booking) => (
-                <tr
-                  key={booking.id}
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelected(booking);
-                    setEditing(false);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") setSelected(booking);
-                  }}
-                >
-                  <td>
-                    {formatDate(booking.date)} · {formatTime(booking.time)}
-                  </td>
-                  <td>{booking.customerName}</td>
-                  <td>{booking.serviceName}</td>
-                  <td>{booking.barberName}</td>
-                  <td>
-                    <Badge tone={tone(booking.status)}>{label(booking.status)}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </ResponsiveTable>
+            <BookingCards
+              bookings={visible}
+              showDate={!date}
+              quickActions={quickActions}
+              onOpen={openDetails}
+            />
           )}
         </div>
       </Panel>
       <Modal open={creating} title="New booking" onClose={() => !busy && setCreating(false)}>
         {bookingForm}
       </Modal>
-      <DetailDrawer
-        open={Boolean(selected)}
-        title="Booking details"
-        subtitle={selected ? `${selected.customerName} · #${selected.id}` : undefined}
-        eyebrow="Appointment"
+      <BookingDetailDrawer
+        selected={selected}
+        editing={editing}
+        form={bookingForm}
+        busy={busy}
         onClose={() => {
           setSelected(null);
           setEditing(false);
         }}
-      >
-        {selected &&
-          (editing ? (
-            <DrawerSection eyebrow="Edit appointment" title="Update booking">
-              {bookingForm}
-            </DrawerSection>
-          ) : (
-            <>
-              <DrawerSection>
-                <div className="operational-drawer__identity">
-                  <Avatar initials={createInitials(selected.customerName)} tone="slate" size="lg" />
-                  <div>
-                    <strong>{selected.customerName}</strong>
-                    <span>{selected.customerEmail}</span>
-                  </div>
-                  <Badge tone={tone(selected.status)}>{label(selected.status)}</Badge>
-                </div>
-              </DrawerSection>
-              <DrawerSection eyebrow="Appointment facts" title="Schedule snapshot">
-                <div className="operational-drawer__facts">
-                  <div>
-                    <span>When</span>
-                    <strong>
-                      {formatDate(selected.date)} ·{" "}
-                      {formatTimeRange(selected.time, selected.endTime)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Service</span>
-                    <strong>
-                      {selected.serviceName} · {selected.durationMinutes ?? "?"} min
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Barber</span>
-                    <strong>{selected.barberName}</strong>
-                  </div>
-                  <div>
-                    <span>Price</span>
-                    <strong>{formatCurrency(selected.price)}</strong>
-                  </div>
-                  <div>
-                    <span>Notes</span>
-                    <strong>{selected.notes || "None"}</strong>
-                  </div>
-                </div>
-              </DrawerSection>
-              {selected.status !== "completed" && (
-                <DrawerSection eyebrow="Actions" title="Manage appointment">
-                  <div className="operational-drawer__actions">
-                    {selected.status === "pending" && (
-                      <>
-                        <Button
-                          icon="check"
-                          disabled={busy}
-                          onClick={() => void updateStatus(selected, "confirmed")}
-                        >
-                          Confirm
-                        </Button>
-                        <Button
-                          variant="danger"
-                          icon="x"
-                          disabled={busy}
-                          onClick={() => void updateStatus(selected, "rejected")}
-                        >
-                          Reject
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          disabled={busy}
-                          onClick={() => openEdit(selected)}
-                        >
-                          Edit
-                        </Button>
-                      </>
-                    )}
-                    {selected.status === "confirmed" && (
-                      <>
-                        <Button
-                          variant="secondary"
-                          disabled={busy}
-                          onClick={() => openEdit(selected)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          disabled={busy}
-                          onClick={() => void updateStatus(selected, "checked_in")}
-                        >
-                          Check In
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          disabled={
-                            busy || !mayMarkNoShow(selected.date, selected.time, new Date(now))
-                          }
-                          onClick={() => void updateStatus(selected, "no_show")}
-                        >
-                          Mark No Show
-                        </Button>
-                      </>
-                    )}
-                    {selected.status === "checked_in" && (
-                      <Button
-                        disabled={busy}
-                        onClick={() => void updateStatus(selected, "in_progress")}
-                      >
-                        Start Service
-                      </Button>
-                    )}
-                    {selected.status === "in_progress" && (
-                      <Button
-                        disabled={busy}
-                        onClick={() => void updateStatus(selected, "completed")}
-                      >
-                        Complete
-                      </Button>
-                    )}
-                    {(selected.status === "confirmed" || selected.status === "checked_in") && (
-                      <Button
-                        variant="danger"
-                        disabled={busy}
-                        onClick={() => setPendingCancellation(selected)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                    {deletableStatuses.includes(selected.status) && (
-                      <Button
-                        variant="ghost"
-                        icon="trash"
-                        disabled={busy}
-                        onClick={() => setPendingDeletion(selected)}
-                      >
-                        Remove booking
-                      </Button>
-                    )}
-                  </div>
-                  {selected.status === "confirmed" &&
-                    !mayMarkNoShow(selected.date, selected.time, new Date(now)) && (
-                      <p className="form-hint">
-                        No Show becomes available at {formatTime(noShowFrom(selected))},{" "}
-                        {BOOKING_GRACE_MINUTES} minutes after the appointment starts.
-                      </p>
-                    )}
-                  {closedStatuses.includes(selected.status) && (
-                    <p className="form-hint">
-                      This booking no longer holds its time slot. Remove it to clear it from the
-                      list.
-                    </p>
-                  )}
-                </DrawerSection>
-              )}
-            </>
-          ))}
-      </DetailDrawer>
+        onUpdateStatus={updateStatus}
+        onEdit={openEdit}
+        onCancel={setPendingCancellation}
+        onRemove={setPendingDeletion}
+      />
       <ConfirmDialog
         open={Boolean(pendingCancellation)}
         title="Cancel this booking?"
