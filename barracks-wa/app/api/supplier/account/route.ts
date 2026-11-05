@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { requireSupplierUser } from "@/server/auth/require-role";
+import { getSessionToken } from "@/server/auth/session";
 import { pool } from "@/server/db/pool";
+import { inTransaction } from "@/server/db/transaction";
 import { hashPassword, verifyPassword } from "@/server/services/password.service";
+import { deleteOtherSessions } from "@/server/services/session.service";
 
 export const runtime = "nodejs";
 
@@ -45,7 +48,11 @@ export async function PATCH(request: Request) {
     }
 
     const passwordHash = await hashPassword(parsed.data.newPassword);
-    await pool.query("UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2", [passwordHash, user.id]);
+    const currentSession = await getSessionToken();
+    await inTransaction(pool, async (client) => {
+      await client.query("UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2", [passwordHash, user.id]);
+      await deleteOtherSessions(client, user.id, currentSession);
+    });
     return Response.json({ success: true, message: "Password updated" });
   } catch (error) {
     console.error("Unable to update supplier account", error);

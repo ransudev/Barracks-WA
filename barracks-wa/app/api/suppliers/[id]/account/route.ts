@@ -41,7 +41,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     await client.query("ROLLBACK").catch(()=>undefined);
     const code = error instanceof Error ? error.message : "";
-    const message = code === "ACCOUNT_EXISTS" ? "This supplier already has an account" : code === "DUPLICATE_EMAIL" ? "That email is already in use" : code === "SUPPLIER_NOT_FOUND" ? "Supplier not found" : "Unable to create supplier account";
-    return Response.json({success:false,message},{status:400});
+    const expected: Record<string, string> = {
+      ACCOUNT_EXISTS: "This supplier already has an account",
+      DUPLICATE_EMAIL: "That email is already in use",
+      SUPPLIER_NOT_FOUND: "Supplier not found",
+    };
+    const isUniqueViolation = (error as { code?: string } | null)?.code === "23505";
+    const message = isUniqueViolation ? expected.DUPLICATE_EMAIL : expected[code];
+    if (message) return Response.json({ success: false, message }, { status: 400 });
+    console.error("Unable to create supplier account", error);
+    return Response.json({ success: false, message: "Unable to create supplier account" }, { status: 500 });
   } finally { client.release(); }
 }

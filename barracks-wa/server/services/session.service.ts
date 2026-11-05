@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Pool } from "pg";
+import type { Db } from "@/server/db/transaction";
 import type { PublicUser } from "@/server/services/user.service";
 
 export const SESSION_COOKIE_NAME = "barracks_session";
@@ -93,6 +94,13 @@ export async function findUserBySessionToken(
           : new Date(row.updated_at).toISOString(),
       }
     : null;
+}
+
+export async function deleteOtherSessions(db: Db, userId: number, keepToken?: string): Promise<void> {
+  await db.query("DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2", [
+    userId,
+    keepToken ? hashSessionToken(keepToken) : "",
+  ]);
 }
 
 export async function deleteSession(db: Pool, token: string): Promise<void> {

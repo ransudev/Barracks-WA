@@ -484,6 +484,7 @@ Session behavior:
 - Sessions expire after seven days.
 - Production cookies are `secure`, use `sameSite: lax`, and are scoped to `/`.
 - Logout deletes the database session and expires the cookie.
+- A supplier changing their password signs out their other devices and keeps the current session.
 
 Login and signup are throttled by `server/auth/auth-throttle.ts`, using counters in the `auth_attempts` table from migration 033 so all serverless instances share them. Emails and IP addresses are stored only as SHA-256 hashes.
 
@@ -601,6 +602,8 @@ npx tsc --noEmit
 npm run build
 npm run start
 ```
+
+`.github/workflows/ci.yml` runs lint, the format check, `tsc`, the tests and the build on pull requests and pushes to `main`, using a throwaway PostgreSQL database.
 
 Run Git commands, including `git diff --check`, from the repository root.
 

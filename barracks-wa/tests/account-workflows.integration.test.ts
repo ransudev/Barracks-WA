@@ -234,9 +234,15 @@ test("account routes persist signup, session, ownership, supplier linkage and pa
     assert.equal(samePassword.status, 400);
     currentHash = await disposable.db.query("SELECT password_hash FROM users WHERE id=$1", [accountUserId]);
     assert.equal(currentHash.rows[0].password_hash, originalHash);
+    // A password change signs out other devices and keeps the current session.
+    assert.equal((await login.POST(request({ email: supplierEmail, password: supplierPassword }))).status, 200);
+    const supplierSessions = async () => Number((await disposable.db.query("SELECT count(*)::int AS count FROM sessions WHERE user_id=$1", [accountUserId])).rows[0].count);
+    assert.equal(await supplierSessions(), 2);
     const changedPassword = freshPassword();
     const changed = await supplierPasswordRoute.PATCH(request({ currentPassword: supplierPassword, newPassword: changedPassword }));
     assert.equal(changed.status, 200);
+    assert.equal(await supplierSessions(), 1);
+    assert.equal((await currentUser.GET()).status, 200);
     currentHash = await disposable.db.query("SELECT password_hash FROM users WHERE id=$1", [accountUserId]);
     assert.notEqual(currentHash.rows[0].password_hash, changedPassword);
     assert.equal(await verifyPassword(changedPassword, currentHash.rows[0].password_hash), true);
