@@ -1,11 +1,11 @@
 "use client";
 import { SkeletonRows } from "@/app/components/ui/Skeletons";
-import { createPortal } from "react-dom";
+import { Receipt } from "./payment/Receipt";
+import { methodLabel, methods, money } from "./payment/labels";
 import { useBranchContext } from "@/app/utils/use-branch-context";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
-import { formatCurrency } from "@/app/utils/format";
 import {
   Badge,
   Button,
@@ -30,16 +30,7 @@ import {
 import type { EligibleVisit, TransactionRecord } from "@/server/services/payment.service";
 import type { PaymentMethod } from "@/server/schemas/payment.schema";
 
-const methods: { id: PaymentMethod; label: string }[] = [
-  { id: "cash", label: "Cash" },
-  { id: "card", label: "Card" },
-  { id: "e_wallet", label: "E-wallet" },
-  { id: "bank_transfer", label: "Bank transfer" },
-  { id: "other", label: "Other" },
-];
 const visitKey = (visit: EligibleVisit) => `${visit.visitType}:${visit.visitRecordId}`;
-const methodLabel = (method: string) => methods.find((item) => item.id === method)?.label ?? method;
-const money = (amount: number) => formatCurrency(amount);
 const manilaDate = (value: string | Date) =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Manila",
@@ -96,87 +87,6 @@ async function loadMonthHistory(
     transactions.push(...body.transactions);
   }
   return transactions;
-}
-
-function Receipt({
-  transaction,
-  onClose,
-}: {
-  transaction: TransactionRecord;
-  onClose: () => void;
-}) {
-  const paper = <ReceiptPaper transaction={transaction} />;
-  return (
-    <section className="receipt-view" aria-label="Receipt">
-      <div className="receipt-actions">
-        <Button type="button" onClick={() => window.print()}>
-          Print Receipt
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClose}>
-          Close receipt
-        </Button>
-      </div>
-      {paper}
-      {/* Printing uses a body-level copy so the rest of the app takes no space on paper. */}
-      {typeof document !== "undefined" &&
-        createPortal(
-          <div className="receipt-print-root" aria-hidden="true">
-            {paper}
-          </div>,
-          document.body,
-        )}
-    </section>
-  );
-}
-
-function ReceiptPaper({ transaction }: { transaction: TransactionRecord }) {
-  return (
-    <div className="receipt-paper">
-      <h2>Barracks</h2>
-      <p>Payment receipt</p>
-      <dl>
-        <dt>Reference</dt>
-        <dd>{transaction.reference}</dd>
-        <dt>Date/time</dt>
-        <dd>
-          {new Date(transaction.createdAt).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
-        </dd>
-        <dt>Customer</dt>
-        <dd>{transaction.customerName}</dd>
-        <dt>Service</dt>
-        <dd>{transaction.serviceName}</dd>
-        <dt>Barber</dt>
-        <dd>{transaction.barberName}</dd>
-        <dt>Cashier</dt>
-        <dd>{transaction.cashierName ?? "—"}</dd>
-        <dt>Subtotal</dt>
-        <dd>{money(transaction.subtotal)}</dd>
-        <dt>Total</dt>
-        <dd>{money(transaction.total)}</dd>
-        <dt>Payment method</dt>
-        <dd>{methodLabel(transaction.paymentMethod)}</dd>
-        {transaction.paymentMethod === "cash" && (
-          <>
-            <dt>Amount received</dt>
-            <dd>{transaction.amountReceived === null ? "—" : money(transaction.amountReceived)}</dd>
-            <dt>Change</dt>
-            <dd>{transaction.change === null ? "—" : money(transaction.change)}</dd>
-          </>
-        )}
-        <dt>Payment status</dt>
-        <dd>{transaction.paymentStatus}</dd>
-        {transaction.actions?.map((action) => (
-          <div key={action.id} className="receipt-audit-entry">
-            <dt>{action.action === "refund" ? "Refund" : "Void"}</dt>
-            <dd>
-              {money(action.amount)} · {action.reason} · {action.staffName} ·{" "}
-              {new Date(action.createdAt).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
 }
 
 export function PaymentPage({
