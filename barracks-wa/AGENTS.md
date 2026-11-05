@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Barracks-PWA agent instructions
+# Barracks-WA agent instructions
 
 The stable branch is `main`. Run Git from the repository root and npm/database commands from `barracks-wa`.
 
