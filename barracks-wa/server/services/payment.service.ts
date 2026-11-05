@@ -1,4 +1,5 @@
 import { checkBranchAccess } from "@/server/auth/branch-access";
+import type { Db } from "@/server/db/transaction";
 import type { UserRole } from "@/server/schemas/user.schema";
 import type { Pool } from "pg";
 import type { CreateTransactionInput, FinancialActionInput, PaymentMethod, PaymentStatus, TransactionHistoryInput } from "@/server/schemas/payment.schema";
@@ -63,7 +64,7 @@ function toTransaction(row: TransactionRow): TransactionRecord {
   };
 }
 
-export async function findTransactionByReference(db: Pool, reference: string, branchIds?: number[]): Promise<TransactionRecord | null> {
+export async function findTransactionByReference(db: Db, reference: string, branchIds?: number[]): Promise<TransactionRecord | null> {
   const result = await db.query<TransactionRow>(
     `SELECT t.*,p.amount_received,p.change_amount,
        (SELECT json_agg(a ORDER BY a.created_at,a.id) FROM transaction_financial_actions a WHERE a.transaction_id=t.id) AS actions
@@ -150,9 +151,10 @@ export async function applyFinancialAction(db: Pool, reference: string, input: F
        VALUES($1,$2,$3,$4,$5,$6)`, [transaction.id, input.action, input.amount, input.reason, staffId, staff.rows[0].name]);
     await client.query("UPDATE transactions SET status=$2 WHERE id=$1", [transaction.id, status]);
     await client.query("UPDATE transaction_payments SET status=$2 WHERE transaction_id=$1", [transaction.id, status]);
-    await client.query("COMMIT");
-    const updated = await findTransactionByReference(db, reference);
+    // Read on this connection so a small pool cannot wait on itself.
+    const updated = await findTransactionByReference(client, reference);
     if (!updated) throw new Error("Updated transaction missing");
+    await client.query("COMMIT");
     return updated;
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);

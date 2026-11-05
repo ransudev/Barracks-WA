@@ -18,6 +18,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const supplierId = parseRouteId((await params).id); if (!supplierId) return Response.json({success:false,message:"Invalid supplier id"},{status:400});
   let body: unknown; try { body = await request.json(); } catch { return Response.json({success:false,message:"Invalid supplier account information"},{status:400}); }
   const parsed = schema.safeParse(body); if (!parsed.success) return Response.json({success:false,message:"Invalid supplier account information"},{status:400});
+  // Hash first: this is slow and must not hold a connection or transaction open.
+  const passwordHash = await hashPassword(parsed.data.password);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -29,7 +31,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (duplicate.rows[0]) throw new Error("DUPLICATE_EMAIL");
     const role = await client.query<{id:number}>("SELECT id FROM roles WHERE name='supplier' LIMIT 1");
     if (!role.rows[0]) throw new Error("SUPPLIER_ROLE_MISSING");
-    const passwordHash = await hashPassword(parsed.data.password);
     const inserted = await client.query<{id:number}>(`INSERT INTO users
       (first_name,last_name,email,password_hash,role_id,is_verified,is_blocked)
       VALUES ($1,$2,$3,$4,$5,TRUE,FALSE) RETURNING id`,

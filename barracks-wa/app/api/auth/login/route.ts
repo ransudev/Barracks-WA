@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clearLoginAttempts, clientIp, consumeAuthAttempts, loginRules, tooManyAttempts } from "@/server/auth/auth-throttle";
 import { startSession } from "@/server/auth/session";
 import { pool } from "@/server/db/pool";
 import {
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    const ip = clientIp(request);
+    const throttle = await consumeAuthAttempts(pool, loginRules(parsed.data.email, ip));
+    if (!throttle.allowed) return tooManyAttempts(throttle.retryAfterSeconds);
+
     const account = await findUserByEmail(pool, parsed.data.email);
 
     if (!account || !(await verifyPassword(parsed.data.password, account.passwordHash))) {
@@ -52,6 +57,8 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
+
+    await clearLoginAttempts(pool, parsed.data.email, ip);
 
     if (!account.user.isVerified || account.user.isBlocked || !account.user.isActive) {
       return NextResponse.json(

@@ -314,8 +314,8 @@ All protected routes use the HTTP-only `barracks_session` cookie. JSON errors fo
 
 ### Authentication
 
-- `POST /api/auth/login` — public. Validates credentials, verifies the scrypt password hash, creates a seven-day database session, and sets the HTTP-only cookie.
-- `POST /api/auth/signup` — public. Validates customer details, creates a customer user plus linked customer record, and starts a session.
+- `POST /api/auth/login` — public. Validates credentials, verifies the scrypt password hash, creates a seven-day database session, and sets the HTTP-only cookie. Returns `429` with `Retry-After` after too many attempts.
+- `POST /api/auth/signup` — public. Validates customer details, creates a customer user plus linked customer record, and starts a session. Returns `429` with `Retry-After` after too many attempts.
 - `POST /api/auth/logout` — clears the current database session and expires the cookie.
 - `GET /api/auth/me` — returns the authenticated public user or `401` when no valid session exists.
 - `GET /api/health` — public, database-independent health response.
@@ -433,7 +433,7 @@ Accepted methods are `cash`, `card`, `e_wallet`, `bank_transfer`, and `other`. T
 
 The backend uses raw parameterized SQL through `pg`. It does not use Prisma, Drizzle, Express, Hono, or another backend framework. The same server layer works with either a local PostgreSQL database or a hosted Supabase PostgreSQL database; the active target is selected by `DATABASE_URL`, with `POSTGRES_URL` as the Vercel Supabase-integration fallback.
 
-`server/db/pool.ts` creates the PostgreSQL pool from `DATABASE_URL` or `POSTGRES_URL`, optionally enables SSL through `DATABASE_SSL`, and uses `DATABASE_POOL_MAX`, defaulting to `3` on Vercel and `10` elsewhere. Migrations are stored in `server/db/migrations/001_user_management.sql` through `032_booking_approval.sql`, and run transactionally by `scripts/db-migrate.ts` through the shared migration runner, which records each applied file in `schema_migrations` and skips it on later runs. Migration 014 reports any existing simultaneous active queue entries for manual reconciliation before creating the unique index. Migration 015 rejects inconsistent existing queue states for manual reconciliation. Migration 017 preflights duplicate transactions per booking and aborts with transaction IDs before changing schema or data; the migration runner rolls back any failed migration. Migration 018 backfills queue service name/price snapshots, enforces visit identity consistency, and checks that each transaction has exactly one tender matching the header. Migration 019 records cash received and change on tenders, backfills earlier cash payments as exact payments, and enforces cash balance checks. Migration 020 adds append-only financial actions and rejects direct edits or deletion of finalized sales and tenders; deferred checks require a full-amount audit action for every new refunded/voided status. Migration 021 adds unique barber/date attendance, ordered clock times, and a dedicated correction log; attendance references restrict deletion of barbers with history. Database integration tests create and drop their own temporary schemas; they require an exported database URL and schema creation privilege. `npm test` runs test files sequentially to keep disposable-schema pools within PostgreSQL connection limits; the queue concurrency test still sends simultaneous requests inside its test.
+`server/db/pool.ts` creates the PostgreSQL pool from `DATABASE_URL` or `POSTGRES_URL`, optionally enables SSL through `DATABASE_SSL`, and uses `DATABASE_POOL_MAX`, defaulting to `3` on Vercel and `10` elsewhere. Migrations are stored in `server/db/migrations/001_user_management.sql` through `033_auth_attempts.sql`, and run transactionally by `scripts/db-migrate.ts` through the shared migration runner, which records each applied file in `schema_migrations` and skips it on later runs. Migration 014 reports any existing simultaneous active queue entries for manual reconciliation before creating the unique index. Migration 015 rejects inconsistent existing queue states for manual reconciliation. Migration 017 preflights duplicate transactions per booking and aborts with transaction IDs before changing schema or data; the migration runner rolls back any failed migration. Migration 018 backfills queue service name/price snapshots, enforces visit identity consistency, and checks that each transaction has exactly one tender matching the header. Migration 019 records cash received and change on tenders, backfills earlier cash payments as exact payments, and enforces cash balance checks. Migration 020 adds append-only financial actions and rejects direct edits or deletion of finalized sales and tenders; deferred checks require a full-amount audit action for every new refunded/voided status. Migration 021 adds unique barber/date attendance, ordered clock times, and a dedicated correction log; attendance references restrict deletion of barbers with history. Database integration tests create and drop their own temporary schemas; they require an exported database URL and schema creation privilege. `npm test` runs test files sequentially to keep disposable-schema pools within PostgreSQL connection limits; the queue concurrency test still sends simultaneous requests inside its test.
 
 `npm test` also runs direct API authorization tests with Node's module-mock flag, checking 401/403 responses and representative allowed actions without a database. Migration 011 checks existing active barber and customer booking intervals before adding its exclusion constraints. If it finds an overlap, it reports the booking ID pairs and rolls back migration 011 without changing bookings or marking it applied. Run the read-only `barracks-wa/scripts/booking-overlap-review.sql` against the affected database to list every pair in ID order. Staff must review the appointments, agree on an explicit time or lifecycle correction, and record that decision before rerunning `npm run db:migrate`. The application never chooses a booking to cancel automatically. Migrations 012 and 013 run after the conflict has been resolved and 011 succeeds.
 
@@ -485,6 +485,17 @@ Session behavior:
 - Production cookies are `secure`, use `sameSite: lax`, and are scoped to `/`.
 - Logout deletes the database session and expires the cookie.
 
+Login and signup are throttled by `server/auth/auth-throttle.ts`, using counters in the `auth_attempts` table from migration 033 so all serverless instances share them. Emails and IP addresses are stored only as SHA-256 hashes.
+
+| Action | Counted by | Limit |
+| --- | --- | --- |
+| Login | Account and IP address | 10 attempts in 15 minutes |
+| Login | Account, from any address | 30 attempts in 15 minutes |
+| Login | IP address | 100 attempts in 15 minutes |
+| Signup | IP address | 10 attempts per hour |
+
+A correct password clears that account's counters. The IP address comes from the first `x-forwarded-for` value, which the hosting proxy must set. If the counters cannot be read, for example before migration 033 is applied, login and signup stay available and the server logs the error.
+
 Zod schemas live under `server/schemas/`:
 
 - `user.schema.ts` validates login, staff account creation/update, and lifecycle actions.
@@ -502,7 +513,9 @@ The contract is documented in `barracks-wa/.env.example`:
 ```text
 DATABASE_URL
 DATABASE_SSL
+DATABASE_SSL_CA
 DATABASE_POOL_MAX
+DATABASE_STATEMENT_TIMEOUT_MS
 INITIAL_ADMIN_FIRST_NAME
 INITIAL_ADMIN_LAST_NAME
 INITIAL_ADMIN_EMAIL
@@ -521,8 +534,21 @@ For the Vercel runtime, add these server-only variables for the intended Supabas
 ```text
 DATABASE_URL=<Supabase transaction-pooler connection string>
 DATABASE_SSL=true
+DATABASE_SSL_CA=<Supabase CA certificate in PEM format>
 DATABASE_POOL_MAX=3
 ```
+
+`DATABASE_SSL` has three modes:
+
+| Value | Behavior |
+| --- | --- |
+| `true` | Encrypts the connection and verifies the server certificate. |
+| `no-verify` | Encrypts without verifying the certificate. Use only as a temporary fallback, because the connection could be intercepted. |
+| Anything else | Does not use SSL. Intended for local PostgreSQL. |
+
+Supabase uses a private certificate authority, so `true` also needs `DATABASE_SSL_CA`. Download the certificate from the SSL settings in the project's Supabase dashboard. The variable accepts the PEM text with real line breaks or `\n` escapes. Remove any `sslmode` parameter from the connection URL, because `pg` lets it replace these settings.
+
+The pool stops waiting for a free connection after 10 seconds. Queries are limited to 30 seconds by default, or `DATABASE_STATEMENT_TIMEOUT_MS` if set. Supabase's transaction pooler ignores this limit and applies its own, which was 2 minutes when last checked. The migration runner turns the limit off for its own connection.
 
 Keep `DATABASE_URL` and all `INITIAL_ADMIN_*` values out of `NEXT_PUBLIC_*` variables. The local `.env.local` and the Vercel environment variables are separate, so local PostgreSQL remains available as a fallback and for offline development.
 
@@ -767,6 +793,8 @@ The layout redesign preserves the existing multi-branch permissions and selector
 ## Release and database safeguards
 
 Migrations 029–031 add internal database access controls, immutable visit-duration snapshots, and booking overlap protection across midnight. Migration 032 adds pending/rejected booking approval states and protects pending slot reservations. Database integration tests must use a loopback disposable database with TLS disabled. Local tests and builds do not establish production readiness; hosted behavior, deployment, and restore evidence require separate verification. Follow [local setup](running.md) before running the app or database commands.
+
+Migration 033 adds the `auth_attempts` table behind login and signup throttling.
 
 ## Operational data loading
 

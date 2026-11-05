@@ -224,6 +224,8 @@ export async function createUser(
   input: CreateUserInput & { branchIds?: number[] },
   actorId?: number,
 ): Promise<CreateUserResult> {
+  // Hash first: this is slow and must not hold a connection or transaction open.
+  const passwordHash = await hashPassword(input.password);
   const client = await db.connect();
 
   try {
@@ -258,7 +260,6 @@ export async function createUser(
       return { kind: "invalid_role" };
     }
 
-    const passwordHash = await hashPassword(input.password);
     const inserted = await client.query<{ id: number }>(
       `
         INSERT INTO users
@@ -298,6 +299,8 @@ export async function updateStaffUser(
   input: UpdateStaffUserInput,
   actorId: number,
 ): Promise<UserMutationResult> {
+  // Hash first: this is slow and must not hold a connection or transaction open.
+  const passwordHash = input.password ? await hashPassword(input.password) : null;
   const client = await db.connect();
 
   try {
@@ -338,8 +341,7 @@ export async function updateStaffUser(
       return { kind: "invalid_role" };
     }
 
-    if (input.password) {
-      const passwordHash = await hashPassword(input.password);
+    if (passwordHash) {
       await client.query(
         `
           UPDATE users

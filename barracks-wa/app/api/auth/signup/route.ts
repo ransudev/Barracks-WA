@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, consumeAuthAttempts, signupRules, tooManyAttempts } from "@/server/auth/auth-throttle";
 import { startSession } from "@/server/auth/session";
 import { pool } from "@/server/db/pool";
 import {
@@ -34,6 +35,9 @@ export async function POST(request: Request) {
   }
 
   try {
+    const throttle = await consumeAuthAttempts(pool, signupRules(clientIp(request)));
+    if (!throttle.allowed) return tooManyAttempts(throttle.retryAfterSeconds);
+
     const result = await createCustomer(pool, parsed.data);
     if (result.kind === "duplicate") {
       return NextResponse.json(

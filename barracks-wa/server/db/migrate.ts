@@ -11,6 +11,8 @@ export async function applyMigrations(db: Pool, through = Number.POSITIVE_INFINI
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const client = await db.connect();
   try {
+    // Lock waits and data migrations may outlast the application's query limit.
+    await client.query("SET statement_timeout = 0");
     // Global default privileges and extension catalog changes are shared even
     // across schemas. Serialize separate migration runners on this database.
     await client.query("SELECT pg_advisory_lock(918274)");
@@ -34,6 +36,7 @@ export async function applyMigrations(db: Pool, through = Number.POSITIVE_INFINI
     }
   } finally {
     await client.query("SELECT pg_advisory_unlock(918274)").catch(() => undefined);
+    await client.query("RESET statement_timeout").catch(() => undefined);
     client.release();
   }
 }

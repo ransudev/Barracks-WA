@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import type { Db } from "@/server/db/transaction";
 import { hashPassword } from "@/server/services/password.service";
 import type {
   CustomerProfileInput,
@@ -88,7 +89,7 @@ export async function listCustomers(db: Pool): Promise<CustomerRecord[]> {
   return result.rows.map(toCustomer);
 }
 
-export async function findCustomerById(db: Pool, id: number): Promise<CustomerRecord | null> {
+export async function findCustomerById(db: Db, id: number): Promise<CustomerRecord | null> {
   const result = await db.query<CustomerRow>(
     `${customerSelect}
       LEFT JOIN roles r ON r.id = u.role_id
@@ -118,6 +119,8 @@ export async function createCustomer(
   db: Pool,
   input: CreateCustomerInput,
 ): Promise<{ kind: "created"; customer: RegisteredCustomerRecord } | { kind: "duplicate" }> {
+  // Hash first: this is slow and must not hold a connection or transaction open.
+  const passwordHash = await hashPassword(input.password);
   const client = await db.connect();
 
   try {
@@ -140,7 +143,6 @@ export async function createCustomer(
       throw new Error("Customer role is missing; run the database migration first");
     }
 
-    const passwordHash = await hashPassword(input.password);
     const insertedUser = await client.query<{ id: number }>(
       `
         INSERT INTO users (first_name, last_name, email, password_hash, role_id)
@@ -159,10 +161,11 @@ export async function createCustomer(
       [insertedUser.rows[0].id, input.phone, input.preferredBarberId],
     );
 
-    await client.query("COMMIT");
-    const customer = await findCustomerById(db, insertedCustomer.rows[0].id);
+    // Read on this connection so a small pool cannot wait on itself.
+    const customer = await findCustomerById(client, insertedCustomer.rows[0].id);
     if (!customer || customer.userId === null)
       throw new Error("Unable to read created customer account");
+    await client.query("COMMIT");
     return { kind: "created", customer: { ...customer, userId: customer.userId } };
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
@@ -227,8 +230,9 @@ export async function updateCustomer(
       [input.phone, input.preferredBarberId, input.loyaltyPoints ?? null, id],
     );
 
+    const customer = await findCustomerById(client, id);
     await client.query("COMMIT");
-    return findCustomerById(db, id);
+    return customer;
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
     if (isUniqueViolation(error)) throw new Error("A user with this email already exists");

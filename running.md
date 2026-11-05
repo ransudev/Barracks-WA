@@ -169,8 +169,11 @@ For a serverless app runtime such as Vercel, use the intended project's transact
 ```text
 DATABASE_URL=<the intended project's transaction-pooler URL>
 DATABASE_SSL=true
+DATABASE_SSL_CA=<Supabase CA certificate in PEM format>
 DATABASE_POOL_MAX=3
 ```
+
+`DATABASE_SSL=true` verifies the database certificate, and Supabase's certificate only verifies with its own CA. Download it from the SSL settings in the project's Supabase dashboard. Without it, connections fail with `SELF_SIGNED_CERT_IN_CHAIN`. `DATABASE_SSL=no-verify` is a temporary fallback that encrypts without verifying.
 
 For migrations, use a direct connection, or a session-pooler connection when direct access is unavailable on your network. The repository's migration runner holds a session-level advisory lock across migration transactions, so a transaction-pooler URL is unsuitable for that command. Keep migration connection settings in a separate untracked file such as `.env.migrations.local`, with SSL enabled, and run:
 
