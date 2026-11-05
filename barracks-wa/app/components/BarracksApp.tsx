@@ -11,14 +11,35 @@ import { ScreenLoading } from "@/app/components/ui/ScreenLoading";
 import { Toast } from "@/app/components/ui";
 import { isManagementRole } from "@/app/constants/roles";
 import type { ViewId } from "@/app/types/domain";
-import { canAccessView, canonicalView, isCustomerView, isProtectedView, isSupplierView, isWorkspaceView, workspaceAreaForView } from "@/app/utils/view";
+import {
+  canAccessView,
+  canonicalView,
+  isCustomerView,
+  isProtectedView,
+  isSupplierView,
+  isWorkspaceView,
+  workspaceAreaForView,
+} from "@/app/utils/view";
 import { isKnownAppPath, pathForView, viewForPath } from "@/app/utils/routes";
 import { apiRequest, clearApiCache, readApiBody, type ApiUser } from "@/app/lib/api";
 
-const LoginPage = dynamic(() => import("@/app/pages/auth/LoginPage").then((module) => module.LoginPage), { loading: ScreenLoading });
-const CustomerDashboard = dynamic(() => import("@/app/pages/customer/CustomerDashboard").then((module) => module.CustomerDashboard), { loading: CustomerPageSkeleton });
-const CustomerBookingPage = dynamic(() => import("@/app/pages/customer/CustomerBookingPage").then((module) => module.CustomerBookingPage), { loading: CustomerPageSkeleton });
-const SupplierPortal = dynamic(() => import("@/app/pages/supplier/SupplierPortal").then((module) => module.SupplierPortal), { loading: CustomerPageSkeleton });
+const LoginPage = dynamic(
+  () => import("@/app/pages/auth/LoginPage").then((module) => module.LoginPage),
+  { loading: ScreenLoading },
+);
+const CustomerDashboard = dynamic(
+  () => import("@/app/pages/customer/CustomerDashboard").then((module) => module.CustomerDashboard),
+  { loading: CustomerPageSkeleton },
+);
+const CustomerBookingPage = dynamic(
+  () =>
+    import("@/app/pages/customer/CustomerBookingPage").then((module) => module.CustomerBookingPage),
+  { loading: CustomerPageSkeleton },
+);
+const SupplierPortal = dynamic(
+  () => import("@/app/pages/supplier/SupplierPortal").then((module) => module.SupplierPortal),
+  { loading: CustomerPageSkeleton },
+);
 
 function defaultViewForUser(user: ApiUser): ViewId {
   if (isManagementRole(user.role)) return "admin-dashboard";
@@ -28,14 +49,22 @@ function defaultViewForUser(user: ApiUser): ViewId {
 }
 
 function sessionScope(user: ApiUser | null) {
-  return user ? JSON.stringify([user.id, user.role, [...(user.branchIds ?? [])].sort((a, b) => a - b)]) : "";
+  return user
+    ? JSON.stringify([user.id, user.role, [...(user.branchIds ?? [])].sort((a, b) => a - b)])
+    : "";
 }
 
 // While the session is checked, show the layout of the screen being opened.
 function SessionLoading({ view }: { view?: ViewId }) {
   if (view && isWorkspaceView(view)) return <AppShellSkeleton />;
   if (view && (isCustomerView(view) || isSupplierView(view))) return <CustomerPageSkeleton />;
-  return <main className="route-loading" aria-live="polite"><p className="eyebrow">Barracks</p><h1>Restoring your workspace</h1><p>Checking your account session…</p></main>;
+  return (
+    <main className="route-loading" aria-live="polite">
+      <p className="eyebrow">Barracks</p>
+      <h1>Restoring your workspace</h1>
+      <p>Checking your account session…</p>
+    </main>
+  );
 }
 
 export function BarracksApp() {
@@ -138,15 +167,30 @@ export function BarracksApp() {
 
   function go(nextView: ViewId) {
     if (isCustomerView(nextView) && (!currentUser || currentUser.role !== "customer")) {
-      setPendingView(nextView); navigate("login"); onToast("Sign in with a customer account to continue"); return;
+      setPendingView(nextView);
+      navigate("login");
+      onToast("Sign in with a customer account to continue");
+      return;
     }
     if (isSupplierView(nextView) && (!currentUser || currentUser.role !== "supplier")) {
-      setPendingView(nextView); navigate("login"); onToast("Sign in with a supplier account to continue"); return;
+      setPendingView(nextView);
+      navigate("login");
+      onToast("Sign in with a supplier account to continue");
+      return;
     }
-    if (isWorkspaceView(nextView) && (!currentUser || currentUser.role === "customer" || currentUser.role === "supplier")) {
-      setPendingView(nextView); navigate("login"); onToast("Sign in to access the workspace"); return;
+    if (
+      isWorkspaceView(nextView) &&
+      (!currentUser || currentUser.role === "customer" || currentUser.role === "supplier")
+    ) {
+      setPendingView(nextView);
+      navigate("login");
+      onToast("Sign in to access the workspace");
+      return;
     }
-    if (!canAccessView(nextView, currentUser?.role ?? null)) { onToast("You do not have access to this page"); return; }
+    if (!canAccessView(nextView, currentUser?.role ?? null)) {
+      onToast("You do not have access to this page");
+      return;
+    }
     navigate(canonicalView(nextView));
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
   }
@@ -156,8 +200,12 @@ export function BarracksApp() {
     sessionUser.current = user;
     clearApiCache();
     setSessionLoading(false);
-    const destination = pendingView && canAccessView(pendingView, user.role) ? pendingView : defaultViewForUser(user);
-    setCurrentUser(user); setPendingView(null); navigate(canonicalView(destination)); onToast(`Signed in as ${user.firstName} ${user.lastName}`);
+    const destination =
+      pendingView && canAccessView(pendingView, user.role) ? pendingView : defaultViewForUser(user);
+    setCurrentUser(user);
+    setPendingView(null);
+    navigate(canonicalView(destination));
+    onToast(`Signed in as ${user.firstName} ${user.lastName}`);
   }
 
   async function handleSignOut() {
@@ -168,29 +216,106 @@ export function BarracksApp() {
     try {
       const response = await apiRequest("/api/auth/logout", { method: "POST" });
       if (!response.ok) throw new Error("Unable to sign out");
-    } catch (error) { message = error instanceof Error ? error.message : "Unable to sign out"; }
-    finally { setCurrentUser(null); setPendingView(null); router.replace(pathForView("landing")); onToast(message); }
+    } catch (error) {
+      message = error instanceof Error ? error.message : "Unable to sign out";
+    } finally {
+      setCurrentUser(null);
+      setPendingView(null);
+      router.replace(pathForView("landing"));
+      onToast(message);
+    }
   }
 
-  const waitingForSession = sessionLoading && (!currentUser || !canAccessView(view, currentUser.role));
+  const waitingForSession =
+    sessionLoading && (!currentUser || !canAccessView(view, currentUser.role));
   if (waitingForSession && view !== "landing") return <SessionLoading view={view} />;
-  if (view === "landing") return <><LandingPage go={go} /><Toast message={toast} onClose={() => setToast("")} /></>;
+  if (view === "landing")
+    return (
+      <>
+        <LandingPage go={go} />
+        <Toast message={toast} onClose={() => setToast("")} />
+      </>
+    );
   if (view === "login" && currentUser) return <SessionLoading view={view} />;
-  if (view === "login") return <><LoginPage go={go} onLogin={handleLogin} /><Toast message={toast} onClose={() => setToast("")} /></>;
+  if (view === "login")
+    return (
+      <>
+        <LoginPage go={go} onLogin={handleLogin} />
+        <Toast message={toast} onClose={() => setToast("")} />
+      </>
+    );
 
-  if ((view === "customer-dashboard" || view === "customer-profile") && currentUser?.role === "customer") {
-    return <><CustomerDashboard key={sessionScope(currentUser)} go={go} onToast={onToast} onSignOut={handleSignOut} user={currentUser} /><Toast message={toast} onClose={() => setToast("")} /></>;
+  if (
+    (view === "customer-dashboard" || view === "customer-profile") &&
+    currentUser?.role === "customer"
+  ) {
+    return (
+      <>
+        <CustomerDashboard
+          key={sessionScope(currentUser)}
+          go={go}
+          onToast={onToast}
+          onSignOut={handleSignOut}
+          user={currentUser}
+        />
+        <Toast message={toast} onClose={() => setToast("")} />
+      </>
+    );
   }
   if (view === "customer-booking" && currentUser?.role === "customer") {
-    return <><CustomerBookingPage key={sessionScope(currentUser)} go={go} onToast={onToast} onSignOut={handleSignOut} user={currentUser} /><Toast message={toast} onClose={() => setToast("")} /></>;
+    return (
+      <>
+        <CustomerBookingPage
+          key={sessionScope(currentUser)}
+          go={go}
+          onToast={onToast}
+          onSignOut={handleSignOut}
+          user={currentUser}
+        />
+        <Toast message={toast} onClose={() => setToast("")} />
+      </>
+    );
   }
   if (view === "supplier-dashboard" && currentUser?.role === "supplier") {
-    return <><SupplierPortal key={sessionScope(currentUser)} user={currentUser} onSignOut={handleSignOut} onToast={onToast} /><Toast message={toast} onClose={() => setToast("")} /></>;
+    return (
+      <>
+        <SupplierPortal
+          key={sessionScope(currentUser)}
+          user={currentUser}
+          onSignOut={handleSignOut}
+          onToast={onToast}
+        />
+        <Toast message={toast} onClose={() => setToast("")} />
+      </>
+    );
   }
 
-  if (!currentUser) return <><LoginPage go={go} onLogin={handleLogin} /><Toast message={toast} onClose={() => setToast("")} /></>;
-  if (currentUser.role === "customer" || currentUser.role === "supplier") return <SessionLoading view={view} />;
-  if (!canAccessView(view, currentUser.role) || canonicalView(view) !== view) return <SessionLoading view={view} />;
+  if (!currentUser)
+    return (
+      <>
+        <LoginPage go={go} onLogin={handleLogin} />
+        <Toast message={toast} onClose={() => setToast("")} />
+      </>
+    );
+  if (currentUser.role === "customer" || currentUser.role === "supplier")
+    return <SessionLoading view={view} />;
+  if (!canAccessView(view, currentUser.role) || canonicalView(view) !== view)
+    return <SessionLoading view={view} />;
 
-  return <><AppShell key={sessionScope(currentUser)} area={workspaceAreaForView(view, currentUser.role)} active={view} go={go} onToast={onToast} currentUser={currentUser} onSignOut={handleSignOut}><PageRouter view={view} go={go} onToast={onToast} currentUser={currentUser} /></AppShell><Toast message={toast} onClose={() => setToast("")} /></>;
+  return (
+    <>
+      <AppShell
+        key={sessionScope(currentUser)}
+        area={workspaceAreaForView(view, currentUser.role)}
+        active={view}
+        go={go}
+        onToast={onToast}
+        currentUser={currentUser}
+        onSignOut={handleSignOut}
+      >
+        <PageRouter view={view} go={go} onToast={onToast} currentUser={currentUser} />
+      </AppShell>
+      <Toast message={toast} onClose={() => setToast("")} />
+    </>
+  );
 }

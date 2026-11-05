@@ -40,7 +40,14 @@ export function BranchesSection({ go }: { go: (view: ViewId) => void }) {
         <h2>
           OUR 4 <span className="accent-crimson">HEADQUARTERS</span>
         </h2>
-        <p style={{ color: "var(--color-text-muted)", maxWidth: 540, margin: "0 auto", fontSize: 14 }}>
+        <p
+          style={{
+            color: "var(--color-text-muted)",
+            maxWidth: 540,
+            margin: "0 auto",
+            fontSize: 14,
+          }}
+        >
           {landingHours.label} · {landingHours.timezone}
         </p>
       </div>
@@ -77,7 +84,11 @@ export function BranchesSection({ go }: { go: (view: ViewId) => void }) {
           </div>
 
           <div className="branch-card-luxury__address">
-            <Icon name="mapPin" size={15} style={{ color: "var(--color-primary-bright)", flexShrink: 0, marginTop: 2 }} />
+            <Icon
+              name="mapPin"
+              size={15}
+              style={{ color: "var(--color-primary-bright)", flexShrink: 0, marginTop: 2 }}
+            />
             <span>{branch.address}</span>
           </div>
 
@@ -91,7 +102,11 @@ export function BranchesSection({ go }: { go: (view: ViewId) => void }) {
               <span>Contact branch</span>
               <Icon name="arrowRight" size={12} />
             </a>
-            <button type="button" className="btn-action-small" onClick={() => go("customer-booking")}>
+            <button
+              type="button"
+              className="btn-action-small"
+              onClick={() => go("customer-booking")}
+            >
               <span>Book at this HQ</span>
               <Icon name="calendar" size={13} />
             </button>
@@ -106,7 +121,11 @@ export function BranchesSection({ go }: { go: (view: ViewId) => void }) {
             >
               <Icon name="chevronLeft" size={16} />
             </button>
-            <div className="branches-carousel__dots" role="tablist" aria-label="Choose headquarters">
+            <div
+              className="branches-carousel__dots"
+              role="tablist"
+              aria-label="Choose headquarters"
+            >
               {landingBranches.map((item, index) => (
                 <button
                   key={item.id}

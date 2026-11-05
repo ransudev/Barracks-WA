@@ -13,7 +13,8 @@ export function FinalCta({ go }: { go: (view: ViewId) => void }) {
           </h2>
           <p>
             Appointments and walk-ins welcome across all 4 Davao HQs. Reserve your chair in advance,
-            select your preferred barber, grab an iced coffee, and enjoy the authentic Barracks experience.
+            select your preferred barber, grab an iced coffee, and enjoy the authentic Barracks
+            experience.
           </p>
         </div>
 
@@ -32,12 +33,19 @@ export function FinalCta({ go }: { go: (view: ViewId) => void }) {
             <span>Direct phone reservations: </span>
             <a
               href={`tel:${landingContact.phoneHref}`}
-              style={{ color: "var(--color-secondary-bright)", fontWeight: 600, textDecoration: "none" }}
+              style={{
+                color: "var(--color-secondary-bright)",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               {landingContact.phone}
             </a>
             <br />
-            <span>See your confirmation on screen and in your dashboard. A 10-minute grace period is provided.</span>
+            <span>
+              See your confirmation on screen and in your dashboard. A 10-minute grace period is
+              provided.
+            </span>
           </div>
         </div>
       </div>

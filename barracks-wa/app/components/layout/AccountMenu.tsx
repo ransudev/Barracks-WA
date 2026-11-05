@@ -42,7 +42,12 @@ export function AccountMenu({
 
   return (
     <div className="topbar__popover-wrap" ref={wrapRef}>
-      <button className="topbar__account" type="button" aria-expanded={isOpen} onClick={() => setOpen(!isOpen)}>
+      <button
+        className="topbar__account"
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setOpen(!isOpen)}
+      >
         <Avatar initials={initials} tone={tone} size="sm" />
         <span>
           <strong>{name}</strong>
@@ -60,7 +65,14 @@ export function AccountMenu({
             </span>
           </div>
           {children}
-          <button className="is-danger" type="button" onClick={() => { setOpen(false); void onSignOut(); }}>
+          <button
+            className="is-danger"
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              void onSignOut();
+            }}
+          >
             <Icon name="logOut" size={15} />
             Sign out
           </button>

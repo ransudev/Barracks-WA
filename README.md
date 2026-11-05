@@ -592,6 +592,8 @@ Useful commands from `barracks-wa/`:
 ```bash
 npm run dev
 npm run lint
+npm run format
+npm run format:check
 npm test
 npx tsc --noEmit
 npm run build

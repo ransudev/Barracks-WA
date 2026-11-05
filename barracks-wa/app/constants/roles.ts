@@ -1,4 +1,10 @@
-export const userRoles = ["administrator", "manager", "front_desk", "customer", "supplier"] as const;
+export const userRoles = [
+  "administrator",
+  "manager",
+  "front_desk",
+  "customer",
+  "supplier",
+] as const;
 
 export const roleOptions = [
   { value: "administrator", label: "Administrator" },
@@ -8,7 +14,16 @@ export const roleOptions = [
 
 export type UserRole = (typeof userRoles)[number];
 
-export type BookingAction = "edit" | "confirm" | "reject" | "cancel" | "check_in" | "start" | "complete" | "no_show" | "delete";
+export type BookingAction =
+  | "edit"
+  | "confirm"
+  | "reject"
+  | "cancel"
+  | "check_in"
+  | "start"
+  | "complete"
+  | "no_show"
+  | "delete";
 
 export function roleLabel(role: string): string {
   if (role === "manager") return "Manager";
@@ -26,8 +41,10 @@ export function isStaffRole(role: string): boolean {
 }
 
 export function canViewStaffUser(actorRole: string, targetRole: string): boolean {
-  return isStaffRole(targetRole)
-    && (actorRole === "administrator" || (actorRole === "manager" && targetRole === "front_desk"));
+  return (
+    isStaffRole(targetRole) &&
+    (actorRole === "administrator" || (actorRole === "manager" && targetRole === "front_desk"))
+  );
 }
 
 export function canCreateStaffUser(actorRole: string, desiredRole: string): boolean {
@@ -45,10 +62,16 @@ export function canUpdateStaffUser(
 ): boolean {
   if (!isStaffRole(targetRole) || !isStaffRole(desiredRole)) return false;
   if (actorRole === "administrator") {
-    return targetRole !== "administrator"
-      || (actorId === targetId && desiredRole === "administrator");
+    return (
+      targetRole !== "administrator" || (actorId === targetId && desiredRole === "administrator")
+    );
   }
-  return actorRole === "manager" && actorId !== targetId && targetRole === "front_desk" && desiredRole === "front_desk";
+  return (
+    actorRole === "manager" &&
+    actorId !== targetId &&
+    targetRole === "front_desk" &&
+    desiredRole === "front_desk"
+  );
 }
 
 export function canChangeStaffLifecycle(
@@ -57,14 +80,18 @@ export function canChangeStaffLifecycle(
   actorId: number,
   targetId: number,
 ): boolean {
-  if (!isStaffRole(targetRole) || actorId === targetId || targetRole === "administrator") return false;
-  return actorRole === "administrator"
-    || (actorRole === "manager" && targetRole === "front_desk");
+  if (!isStaffRole(targetRole) || actorId === targetId || targetRole === "administrator")
+    return false;
+  return actorRole === "administrator" || (actorRole === "manager" && targetRole === "front_desk");
 }
 
 export const canDeactivateStaffUser = canChangeStaffLifecycle;
 
-export function canManageBooking(actorRole: string, action: BookingAction, ownsBooking = false): boolean {
+export function canManageBooking(
+  actorRole: string,
+  action: BookingAction,
+  ownsBooking = false,
+): boolean {
   if (isStaffRole(actorRole)) return true;
   return actorRole === "customer" && ownsBooking && (action === "edit" || action === "cancel");
 }

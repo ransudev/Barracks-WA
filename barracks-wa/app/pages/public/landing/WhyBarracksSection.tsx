@@ -8,7 +8,11 @@ export function WhyBarracksSection() {
   return (
     <section className="section-craft" id="about">
       {/* GoGrin 4-Photo Quadrant Collage */}
-      <div className="collage-quad" aria-label="Barracks craftsmanship collage" style={{ position: "relative" }}>
+      <div
+        className="collage-quad"
+        aria-label="Barracks craftsmanship collage"
+        style={{ position: "relative" }}
+      >
         <div className="collage-quad__cell" style={{ position: "relative", overflow: "hidden" }}>
           <Image
             src={collageImages[0]}
@@ -44,7 +48,11 @@ export function WhyBarracksSection() {
 
         {/* Central Crest Emblem */}
         <div className="collage-quad__center-badge" aria-hidden="true">
-          <Icon name="scissors" size={14} style={{ color: "var(--color-primary-bright)", marginBottom: 2 }} />
+          <Icon
+            name="scissors"
+            size={14}
+            style={{ color: "var(--color-primary-bright)", marginBottom: 2 }}
+          />
           <span>EST.</span>
           <strong>2017</strong>
         </div>
@@ -60,23 +68,29 @@ export function WhyBarracksSection() {
         <p>
           Giving a modern twist to a traditional barbershop since 2017. More than just a haircut,
           Barracks is a modern man-cave and barber café where great conversation, artisan coffee,
-          and expert grooming meet. Every style is shaped by TESDA-certified barbers dedicated
-          to clean techniques, modern trends, and consistent quality.
+          and expert grooming meet. Every style is shaped by TESDA-certified barbers dedicated to
+          clean techniques, modern trends, and consistent quality.
         </p>
 
         {/* 4 Brand Pillars */}
         <div className="craft-story__pillars">
           <div className="craft-pillar-item">
             <strong>Craftsmanship</strong>
-            <span>Professional barbering by TESDA NC II certified barbers with continuous training.</span>
+            <span>
+              Professional barbering by TESDA NC II certified barbers with continuous training.
+            </span>
           </div>
           <div className="craft-pillar-item">
             <strong>Community</strong>
-            <span>Supporting homegrown Dabawenyo talent, local brands, and the people in our chairs.</span>
+            <span>
+              Supporting homegrown Dabawenyo talent, local brands, and the people in our chairs.
+            </span>
           </div>
           <div className="craft-pillar-item">
             <strong>Culture</strong>
-            <span>A vibrant Davao-grown space combining sharp grooming with a relaxed café atmosphere.</span>
+            <span>
+              A vibrant Davao-grown space combining sharp grooming with a relaxed café atmosphere.
+            </span>
           </div>
           <div className="craft-pillar-item">
             <strong>Charity</strong>
@@ -91,7 +105,8 @@ export function WhyBarracksSection() {
           </div>
           <div className="barber-quote-card__info">
             <span className="barber-quote-card__quote">
-              &ldquo;We&apos;re here to give every Dabawenyo a fresh, confident look — delivered with clean technique and good vibes.&rdquo;
+              &ldquo;We&apos;re here to give every Dabawenyo a fresh, confident look — delivered
+              with clean technique and good vibes.&rdquo;
             </span>
             <span className="barber-quote-card__name">Rodsky · Senior Barber at Bajada HQ</span>
           </div>

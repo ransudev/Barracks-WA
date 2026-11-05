@@ -34,12 +34,27 @@ export type ApiBarber = {
 
 export type ApiOperationalAvailability = {
   available: boolean;
-  reason: "absent" | "clocked_out" | "barber_not_found" | "invalid_branch" | "duration_unknown" | "reservation_collision" | "unavailable" | "serving_customer" | "off_shift" | "break" | "temporary_unavailability" | null;
+  reason:
+    | "absent"
+    | "clocked_out"
+    | "barber_not_found"
+    | "invalid_branch"
+    | "duration_unknown"
+    | "reservation_collision"
+    | "unavailable"
+    | "serving_customer"
+    | "off_shift"
+    | "break"
+    | "temporary_unavailability"
+    | null;
   activeQueueEntryId: number | null;
   interval?: { startsAt: string; endsAt: string };
   attendanceState?: "unmarked" | "present" | "late" | "absent" | "clocked_out";
 };
-export type ApiBarberAvailability = Pick<ApiBarber, "id" | "firstName" | "lastName" | "status" | "operationalAvailability">;
+export type ApiBarberAvailability = Pick<
+  ApiBarber,
+  "id" | "firstName" | "lastName" | "status" | "operationalAvailability"
+>;
 
 export type ApiAttendance = {
   branchId: number;
@@ -124,7 +139,15 @@ export type ApiCustomer = {
   updatedAt: string;
 };
 
-export type ApiBookingStatus = "pending" | "confirmed" | "rejected" | "checked_in" | "in_progress" | "completed" | "cancelled" | "no_show";
+export type ApiBookingStatus =
+  | "pending"
+  | "confirmed"
+  | "rejected"
+  | "checked_in"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "no_show";
 
 export type ApiBooking = {
   branchId: number;
@@ -205,20 +228,21 @@ export function clearStaleReads() {
 
 function rememberRead(path: string, response: Response, version: number, staleVersion: number) {
   if (!(response.headers.get("content-type") ?? "").includes("application/json")) return;
-  void response.json().then((body: unknown) => {
-    // A request or its body can finish after a mutation or account change.
-    if (version !== cacheVersion || staleVersion !== staleReadVersion) return;
-    if (!body || typeof body !== "object" || (body as { success?: unknown }).success === false) return;
-    lastReads.delete(path);
-    lastReads.set(path, body);
-    if (lastReads.size > LAST_READS_LIMIT) lastReads.delete(lastReads.keys().next().value!);
-  }).catch(() => undefined);
+  void response
+    .json()
+    .then((body: unknown) => {
+      // A request or its body can finish after a mutation or account change.
+      if (version !== cacheVersion || staleVersion !== staleReadVersion) return;
+      if (!body || typeof body !== "object" || (body as { success?: unknown }).success === false)
+        return;
+      lastReads.delete(path);
+      lastReads.set(path, body);
+      if (lastReads.size > LAST_READS_LIMIT) lastReads.delete(lastReads.keys().next().value!);
+    })
+    .catch(() => undefined);
 }
 
-export async function apiRequest(
-  path: string,
-  init: ApiRequestInit = {},
-): Promise<Response> {
+export async function apiRequest(path: string, init: ApiRequestInit = {}): Promise<Response> {
   const { reuseForMs = 0, ...requestInit } = init;
   const headers = new Headers(requestInit.headers);
 
@@ -227,12 +251,20 @@ export async function apiRequest(
   }
 
   const isRead = (requestInit.method ?? "GET").toUpperCase() === "GET";
-  const canShare = typeof window !== "undefined" && isRead && !requestInit.signal && !requestInit.body;
+  const canShare =
+    typeof window !== "undefined" && isRead && !requestInit.signal && !requestInit.body;
   // Only explicitly opted-in reference lists may survive a completed request.
   // Operational data (queue, bookings, payments, stock) always remains fresh.
-  const lifetime = canShare && ["/api/services", "/api/customers"].includes(path.split("?")[0])
-    ? Math.min(Math.max(reuseForMs, 0), 15_000) : 0;
-  const key = JSON.stringify([path, requestInit.cache, requestInit.credentials, Array.from(headers.entries())]);
+  const lifetime =
+    canShare && ["/api/services", "/api/customers"].includes(path.split("?")[0])
+      ? Math.min(Math.max(reuseForMs, 0), 15_000)
+      : 0;
+  const key = JSON.stringify([
+    path,
+    requestInit.cache,
+    requestInit.credentials,
+    Array.from(headers.entries()),
+  ]);
   const cached = lifetime ? referenceReads.get(key) : undefined;
   if (cached && cached.expiresAt > Date.now()) return cached.response.clone();
   if (cached) referenceReads.delete(key);
@@ -242,22 +274,38 @@ export async function apiRequest(
   if (!isRead) clearApiCache();
   const version = cacheVersion;
   const staleVersion = staleReadVersion;
-  const request = fetch(path, { ...requestInit, credentials: "same-origin", headers }).then((response) => {
-    const current = version === cacheVersion;
-    if (!isRead || (current && (response.status === 401 || response.status === 403))) clearApiCache();
-    if (isRead && current && response.ok && typeof window !== "undefined" && path.startsWith("/api/") && !path.startsWith("/api/auth/")) rememberRead(path, response.clone(), version, staleVersion);
-    if (current && typeof window !== "undefined" && response.status === 401 && !path.startsWith("/api/auth/")) {
-      window.dispatchEvent(new Event("barracks:session-expired"));
-    }
-    if (response.ok && lifetime && version === cacheVersion) {
-      for (const [cachedKey, entry] of referenceReads) {
-        if (entry.expiresAt <= Date.now()) referenceReads.delete(cachedKey);
+  const request = fetch(path, { ...requestInit, credentials: "same-origin", headers }).then(
+    (response) => {
+      const current = version === cacheVersion;
+      if (!isRead || (current && (response.status === 401 || response.status === 403)))
+        clearApiCache();
+      if (
+        isRead &&
+        current &&
+        response.ok &&
+        typeof window !== "undefined" &&
+        path.startsWith("/api/") &&
+        !path.startsWith("/api/auth/")
+      )
+        rememberRead(path, response.clone(), version, staleVersion);
+      if (
+        current &&
+        typeof window !== "undefined" &&
+        response.status === 401 &&
+        !path.startsWith("/api/auth/")
+      ) {
+        window.dispatchEvent(new Event("barracks:session-expired"));
       }
-      if (referenceReads.size >= 16) referenceReads.delete(referenceReads.keys().next().value!);
-      referenceReads.set(key, { expiresAt: Date.now() + lifetime, response: response.clone() });
-    }
-    return response;
-  });
+      if (response.ok && lifetime && version === cacheVersion) {
+        for (const [cachedKey, entry] of referenceReads) {
+          if (entry.expiresAt <= Date.now()) referenceReads.delete(cachedKey);
+        }
+        if (referenceReads.size >= 16) referenceReads.delete(referenceReads.keys().next().value!);
+        referenceReads.set(key, { expiresAt: Date.now() + lifetime, response: response.clone() });
+      }
+      return response;
+    },
+  );
   if (canShare) pendingReads.set(key, request);
   try {
     const response = await request;

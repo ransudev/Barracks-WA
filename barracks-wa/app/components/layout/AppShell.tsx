@@ -51,7 +51,9 @@ function Sidebar({
   onMobileClose: () => void;
 }) {
   const isManagement = area === "admin";
-  const navigation = (isManagement ? managementNavigation : frontDeskNavigation).filter((item) => canAccessView(item.id, currentUser.role));
+  const navigation = (isManagement ? managementNavigation : frontDeskNavigation).filter((item) =>
+    canAccessView(item.id, currentUser.role),
+  );
   const homeView = dashboardForArea(area);
   const navigate = (view: ViewId) => {
     onMobileClose();
@@ -79,23 +81,48 @@ function Sidebar({
         className="sidebar__nav"
         aria-label={`${isManagement ? "Management" : "Front Desk"} navigation`}
       >
-        {[{ name: "Today", ids: ["admin-dashboard", "staff-dashboard", "bookings", "queue", "payments"] }, { name: "People", ids: ["admin-customers", "customers", "staff-management", "admin-barbers", "barbers", "admin-attendance", "admin-payroll"] }, { name: "Business", ids: ["admin-services", "admin-reports", "admin-branches"] }, { name: "Stock", ids: ["admin-inventory", "admin-suppliers", "admin-restocks"] }].map((group) => <div className="sidebar__group" key={group.name}>
-        {navigation.some((item) => group.ids.includes(item.id)) && <span className="sidebar__label">{group.name}</span>}
-        {navigation.filter((item) => group.ids.includes(item.id)).map((item) => (
-          <button
-            className={`sidebar__link ${active === item.id ? "is-active" : ""}`}
-            type="button"
-            aria-current={active === item.id ? "page" : undefined}
-            aria-label={item.label}
-            title={item.label}
-            key={item.id}
-            onClick={() => navigate(item.id)}
-          >
-            <Icon name={item.icon} size={18} />
-            <span>{item.label}</span>
-          </button>
-        ))}</div>)}
-
+        {[
+          {
+            name: "Today",
+            ids: ["admin-dashboard", "staff-dashboard", "bookings", "queue", "payments"],
+          },
+          {
+            name: "People",
+            ids: [
+              "admin-customers",
+              "customers",
+              "staff-management",
+              "admin-barbers",
+              "barbers",
+              "admin-attendance",
+              "admin-payroll",
+            ],
+          },
+          { name: "Business", ids: ["admin-services", "admin-reports", "admin-branches"] },
+          { name: "Stock", ids: ["admin-inventory", "admin-suppliers", "admin-restocks"] },
+        ].map((group) => (
+          <div className="sidebar__group" key={group.name}>
+            {navigation.some((item) => group.ids.includes(item.id)) && (
+              <span className="sidebar__label">{group.name}</span>
+            )}
+            {navigation
+              .filter((item) => group.ids.includes(item.id))
+              .map((item) => (
+                <button
+                  className={`sidebar__link ${active === item.id ? "is-active" : ""}`}
+                  type="button"
+                  aria-current={active === item.id ? "page" : undefined}
+                  aria-label={item.label}
+                  title={item.label}
+                  key={item.id}
+                  onClick={() => navigate(item.id)}
+                >
+                  <Icon name={item.icon} size={18} />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+          </div>
+        ))}
       </nav>
 
       <div className="sidebar__footer">
@@ -147,10 +174,16 @@ function Topbar({
   const refreshLowStock = useCallback(async () => {
     const selectedBranchId = branchId;
     const requestId = ++lowStockRequest.current;
-    if (!selectedBranchId) { setLowStock([]); setLowStockBranchId(0); return; }
+    if (!selectedBranchId) {
+      setLowStock([]);
+      setLowStockBranchId(0);
+      return;
+    }
     try {
-      const response = await apiRequest(`/api/inventory/alerts?branchId=${selectedBranchId}`, { cache: "no-store" });
-      const body = await readApiBody<{ success:boolean; alerts?:ApiLowStockAlert[] }>(response);
+      const response = await apiRequest(`/api/inventory/alerts?branchId=${selectedBranchId}`, {
+        cache: "no-store",
+      });
+      const body = await readApiBody<{ success: boolean; alerts?: ApiLowStockAlert[] }>(response);
       if (!response.ok || !body?.success) return;
       if (requestId === lowStockRequest.current && branchRef.current === selectedBranchId) {
         setLowStock(body.alerts ?? []);
@@ -161,7 +194,9 @@ function Topbar({
     }
   }, [branchId]);
 
-  useEffect(() => { branchRef.current = branchId; }, [branchId]);
+  useEffect(() => {
+    branchRef.current = branchId;
+  }, [branchId]);
 
   useEffect(() => {
     // The request updates notification state after the external API resolves.
@@ -192,66 +227,105 @@ function Topbar({
         <span>{isManagement ? "Management" : "Front Desk"}</span>
         <Icon name="chevronRight" size={13} />
         <strong>
-          {(isManagement ? managementNavigation : frontDeskNavigation).find((item) => item.id === active)?.label ?? "Dashboard"}
+          {(isManagement ? managementNavigation : frontDeskNavigation).find(
+            (item) => item.id === active,
+          )?.label ?? "Dashboard"}
         </strong>
       </div>
 
       <div className="topbar__actions">
         <ThemeToggle />
 
-        {isManagement && <div className="topbar__popover-wrap">
-          <IconButton
-            label={`View notifications${visibleLowStock.length ? ` (${visibleLowStock.length})` : ""}`}
-            icon="bell"
-            active={notificationsOpen}
-            onClick={() => {
-              setNotificationsOpen(!notificationsOpen);
-              setProfileOpen(false);
-              if (!notificationsOpen) void refreshLowStock();
-            }}
-          />
-        {notificationsOpen && (
-          <div className="popover notification-popover">
-            <div className="popover__header">
-              <strong>Notifications</strong>
-            </div>
-            {visibleLowStock.length ? visibleLowStock.map((item) => (
-              <div className="notification-item" key={item.id}>
-                <span><strong>{item.currentQuantity === 0 ? "Out of stock" : "Low stock"}: {item.itemName}</strong><small>{item.branch} · {item.currentQuantity} {item.unit} remaining · threshold {item.threshold}</small></span>
-              </div>
-            )) : (
-              <div className="notification-item">
-                <span>No active stock alerts.</span>
+        {isManagement && (
+          <div className="topbar__popover-wrap">
+            <IconButton
+              label={`View notifications${visibleLowStock.length ? ` (${visibleLowStock.length})` : ""}`}
+              icon="bell"
+              active={notificationsOpen}
+              onClick={() => {
+                setNotificationsOpen(!notificationsOpen);
+                setProfileOpen(false);
+                if (!notificationsOpen) void refreshLowStock();
+              }}
+            />
+            {notificationsOpen && (
+              <div className="popover notification-popover">
+                <div className="popover__header">
+                  <strong>Notifications</strong>
+                </div>
+                {visibleLowStock.length ? (
+                  visibleLowStock.map((item) => (
+                    <div className="notification-item" key={item.id}>
+                      <span>
+                        <strong>
+                          {item.currentQuantity === 0 ? "Out of stock" : "Low stock"}:{" "}
+                          {item.itemName}
+                        </strong>
+                        <small>
+                          {item.branch} · {item.currentQuantity} {item.unit} remaining · threshold{" "}
+                          {item.threshold}
+                        </small>
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="notification-item">
+                    <span>No active stock alerts.</span>
+                  </div>
+                )}
+                {visibleLowStock.length > 0 && (
+                  <button
+                    className="popover__footer"
+                    type="button"
+                    disabled={acknowledging}
+                    onClick={() => {
+                      const selectedBranchId = branchId;
+                      const requestId = lowStockRequest.current;
+                      setAcknowledging(true);
+                      void Promise.all(
+                        visibleLowStock.map(async (item) => {
+                          const response = await apiRequest(
+                            `/api/inventory/alerts/${item.itemId}/acknowledge?branchId=${selectedBranchId}`,
+                            { method: "POST" },
+                          );
+                          if (!response.ok) throw new Error("Unable to acknowledge stock alerts");
+                        }),
+                      )
+                        .then(() => {
+                          if (
+                            requestId !== lowStockRequest.current ||
+                            branchRef.current !== selectedBranchId
+                          )
+                            return;
+                          setLowStock([]);
+                          setNotificationsOpen(false);
+                          onToast("Low stock alerts acknowledged");
+                        })
+                        .catch((error: unknown) => {
+                          if (
+                            requestId !== lowStockRequest.current ||
+                            branchRef.current !== selectedBranchId
+                          )
+                            return;
+                          onToast(
+                            error instanceof Error
+                              ? error.message
+                              : "Unable to acknowledge stock alerts",
+                          );
+                          void refreshLowStock();
+                        })
+                        .finally(() => {
+                          if (branchRef.current === selectedBranchId) setAcknowledging(false);
+                        });
+                    }}
+                  >
+                    {acknowledging ? "Acknowledging…" : "Acknowledge stock alerts"}
+                  </button>
+                )}
               </div>
             )}
-              {visibleLowStock.length > 0 && <button
-                className="popover__footer"
-                type="button"
-                disabled={acknowledging}
-                onClick={() => {
-                  const selectedBranchId = branchId;
-                  const requestId = lowStockRequest.current;
-                  setAcknowledging(true);
-                  void Promise.all(visibleLowStock.map(async (item) => {
-                    const response = await apiRequest(`/api/inventory/alerts/${item.itemId}/acknowledge?branchId=${selectedBranchId}`, { method: "POST" });
-                    if (!response.ok) throw new Error("Unable to acknowledge stock alerts");
-                  })).then(() => {
-                    if (requestId !== lowStockRequest.current || branchRef.current !== selectedBranchId) return;
-                    setLowStock([]);
-                    setNotificationsOpen(false);
-                    onToast("Low stock alerts acknowledged");
-                  }).catch((error: unknown) => {
-                    if (requestId !== lowStockRequest.current || branchRef.current !== selectedBranchId) return;
-                    onToast(error instanceof Error ? error.message : "Unable to acknowledge stock alerts");
-                    void refreshLowStock();
-                  }).finally(() => { if (branchRef.current === selectedBranchId) setAcknowledging(false); });
-                }}
-              >
-                {acknowledging ? "Acknowledging…" : "Acknowledge stock alerts"}
-              </button>}
-            </div>
-          )}
-        </div>}
+          </div>
+        )}
 
         <AccountMenu
           name={name}
@@ -263,8 +337,7 @@ function Topbar({
             if (open) setNotificationsOpen(false);
           }}
           onSignOut={onSignOut}
-        >
-        </AccountMenu>
+        ></AccountMenu>
       </div>
     </header>
   );
@@ -284,41 +357,39 @@ export function AppShell({
 
   return (
     <BranchContextProvider>
-    <div
-      className={`app-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}
-    >
-      <Sidebar
-        area={area}
-        active={active}
-        go={go}
-        onToast={onToast}
-        currentUser={currentUser}
-        onSignOut={onSignOut}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((value) => !value)}
-        mobileOpen={mobileNavOpen}
-        onMobileClose={() => setMobileNavOpen(false)}
-      />
-      <button
-        className={`mobile-nav-backdrop ${mobileNavOpen ? "is-open" : ""}`}
-        type="button"
-        aria-label="Close navigation"
-        onClick={() => setMobileNavOpen(false)}
-      />
-      <div className="app-main">
-        <Topbar
+      <div className={`app-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
+        <Sidebar
           area={area}
           active={active}
           go={go}
           onToast={onToast}
           currentUser={currentUser}
           onSignOut={onSignOut}
-          mobileNavOpen={mobileNavOpen}
-          onToggleMobileNav={() => setMobileNavOpen((value) => !value)}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((value) => !value)}
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
         />
-        <main className="app-content">{children}</main>
+        <button
+          className={`mobile-nav-backdrop ${mobileNavOpen ? "is-open" : ""}`}
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileNavOpen(false)}
+        />
+        <div className="app-main">
+          <Topbar
+            area={area}
+            active={active}
+            go={go}
+            onToast={onToast}
+            currentUser={currentUser}
+            onSignOut={onSignOut}
+            mobileNavOpen={mobileNavOpen}
+            onToggleMobileNav={() => setMobileNavOpen((value) => !value)}
+          />
+          <main className="app-content">{children}</main>
+        </div>
       </div>
-    </div>
     </BranchContextProvider>
   );
 }

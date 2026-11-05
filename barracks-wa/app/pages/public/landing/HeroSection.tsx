@@ -37,11 +37,7 @@ export function HeroSection({ go }: { go: (view: ViewId) => void }) {
         />
 
         <div className="hero-gogrin__actions">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => go("customer-booking")}
-          >
+          <button type="button" className="btn-primary" onClick={() => go("customer-booking")}>
             <Icon name="calendar" size={16} />
             <span>Book Appointment</span>
           </button>
@@ -51,7 +47,6 @@ export function HeroSection({ go }: { go: (view: ViewId) => void }) {
           </a>
         </div>
       </div>
-
     </section>
   );
 }

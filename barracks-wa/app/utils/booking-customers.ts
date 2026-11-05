@@ -7,5 +7,7 @@ export function isAppointmentCustomer(customer: ApiCustomer): boolean {
 }
 
 export function hasAppointmentCustomer(customers: ApiCustomer[], customerId: string): boolean {
-  return customers.some((customer) => String(customer.id) === customerId && isAppointmentCustomer(customer));
+  return customers.some(
+    (customer) => String(customer.id) === customerId && isAppointmentCustomer(customer),
+  );
 }

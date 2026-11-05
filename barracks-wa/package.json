@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "format": "prettier --write \"app/**/*.{ts,tsx}\" \"!app/api/**\"",
+    "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"!app/api/**\"",
     "test": "node --import ./tests/helpers/css-register.mjs --import tsx --experimental-test-module-mocks --test --test-concurrency=1 tests/*.test.ts tests/*.test.tsx",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed-admin": "tsx scripts/seed-admin.ts",
@@ -35,6 +37,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "jsdom": "^30.1.0",
+    "prettier": "3.9.10",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5"

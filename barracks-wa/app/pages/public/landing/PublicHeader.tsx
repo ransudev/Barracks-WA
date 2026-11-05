@@ -17,7 +17,9 @@ export function PublicHeader({ go }: { go: (view: ViewId) => void }) {
         <Logo onClick={() => go("landing")} />
 
         <div className="public-nav__links">
-          <a className="public-nav__link is-active" href="#home">Home</a>
+          <a className="public-nav__link is-active" href="#home">
+            Home
+          </a>
           <div className="public-nav__dropdown">
             <button
               className="public-nav__dropdown-trigger"
@@ -31,24 +33,32 @@ export function PublicHeader({ go }: { go: (view: ViewId) => void }) {
             </button>
             {aboutOpen ? (
               <div className="public-nav__dropdown-menu">
-                <a href="#about" onClick={closeAboutMenu}>About Barracks</a>
-                <a href="#studio" onClick={closeAboutMenu}>The Atmosphere</a>
-                <a href="#branches" onClick={closeAboutMenu}>4 Davao HQs</a>
+                <a href="#about" onClick={closeAboutMenu}>
+                  About Barracks
+                </a>
+                <a href="#studio" onClick={closeAboutMenu}>
+                  The Atmosphere
+                </a>
+                <a href="#branches" onClick={closeAboutMenu}>
+                  4 Davao HQs
+                </a>
               </div>
             ) : null}
           </div>
 
-          <a className="public-nav__link" href="#services">Services</a>
-          <a className="public-nav__link" href="#branches">Branches</a>
-          <a className="public-nav__link" href="#contact">Contact</a>
+          <a className="public-nav__link" href="#services">
+            Services
+          </a>
+          <a className="public-nav__link" href="#branches">
+            Branches
+          </a>
+          <a className="public-nav__link" href="#contact">
+            Contact
+          </a>
         </div>
 
         <div className="public-nav__actions">
-          <button
-            className="public-nav__login"
-            type="button"
-            onClick={() => go("login")}
-          >
+          <button className="public-nav__login" type="button" onClick={() => go("login")}>
             Login
           </button>
 
@@ -79,25 +89,43 @@ export function PublicHeader({ go }: { go: (view: ViewId) => void }) {
       {mobileMenuOpen ? (
         <div className="public-mobile-menu is-open" id="public-mobile-menu">
           <div className="public-mobile-menu__links">
-            <a href="#home" onClick={closeMobileMenu}>Home</a>
-            <a href="#about" onClick={closeMobileMenu}>About Barracks</a>
-            <a href="#services" onClick={closeMobileMenu}>Services &amp; Pricing</a>
-            <a href="#branches" onClick={closeMobileMenu}>Davao HQs</a>
-            <a href="#studio" onClick={closeMobileMenu}>The Atmosphere</a>
-            <a href="#contact" onClick={closeMobileMenu}>Contact &amp; Hours</a>
+            <a href="#home" onClick={closeMobileMenu}>
+              Home
+            </a>
+            <a href="#about" onClick={closeMobileMenu}>
+              About Barracks
+            </a>
+            <a href="#services" onClick={closeMobileMenu}>
+              Services &amp; Pricing
+            </a>
+            <a href="#branches" onClick={closeMobileMenu}>
+              Davao HQs
+            </a>
+            <a href="#studio" onClick={closeMobileMenu}>
+              The Atmosphere
+            </a>
+            <a href="#contact" onClick={closeMobileMenu}>
+              Contact &amp; Hours
+            </a>
           </div>
           <div className="public-mobile-menu__actions">
             <button
               type="button"
               className="btn-outlined"
-              onClick={() => { closeMobileMenu(); go("login"); }}
+              onClick={() => {
+                closeMobileMenu();
+                go("login");
+              }}
             >
               Login
             </button>
             <button
               type="button"
               className="btn-primary"
-              onClick={() => { closeMobileMenu(); go("customer-booking"); }}
+              onClick={() => {
+                closeMobileMenu();
+                go("customer-booking");
+              }}
             >
               <Icon name="calendar" size={16} />
               <span>Book Appointment</span>

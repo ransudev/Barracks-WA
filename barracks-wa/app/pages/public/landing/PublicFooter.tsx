@@ -31,11 +31,19 @@ export function PublicFooter() {
           <div className="footer-col">
             <h4>Contact &amp; Hours</h4>
             <a href={`tel:${landingContact.phoneHref}`}>
-              <Icon name="phone" size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }} />
+              <Icon
+                name="phone"
+                size={13}
+                style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }}
+              />
               {landingContact.phone}
             </a>
             <a href={`mailto:${landingContact.email}`}>
-              <Icon name="mail" size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }} />
+              <Icon
+                name="mail"
+                size={13}
+                style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }}
+              />
               {landingContact.email}
             </a>
             <a href={landingContact.instagramUrl} target="_blank" rel="noreferrer">
@@ -51,7 +59,10 @@ export function PublicFooter() {
         </div>
 
         <div className="footer-bottom">
-          <span>&copy; {new Date().getFullYear()} Barracks Barbers &amp; Shaves. Homegrown in Davao City.</span>
+          <span>
+            &copy; {new Date().getFullYear()} Barracks Barbers &amp; Shaves. Homegrown in Davao
+            City.
+          </span>
           <span>10-Minute Grace Period on Bookings · {landingContact.hashtag}</span>
         </div>
       </div>

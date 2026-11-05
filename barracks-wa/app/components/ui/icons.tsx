@@ -199,11 +199,6 @@ export function Icon({
   const LucideIconComponent = icons[name];
 
   return (
-    <LucideIconComponent
-      aria-hidden="true"
-      size={size}
-      strokeWidth={strokeWidth}
-      {...props}
-    />
+    <LucideIconComponent aria-hidden="true" size={size} strokeWidth={strokeWidth} {...props} />
   );
 }

@@ -6,7 +6,12 @@ export function formatCurrency(amount: number) {
 }
 
 export function dateInputValue(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
@@ -42,8 +47,18 @@ export function formatTimeRange(start: string | null | undefined, end: string | 
 }
 
 // "2026-10-21" -> "Wed, Oct 21, 2026"
-export function formatDate(date: string | null | undefined, options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric", year: "numeric" }) {
+export function formatDate(
+  date: string | null | undefined,
+  options: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  },
+) {
   if (!date) return "—";
   const parsed = new Date(`${date.slice(0, 10)}T12:00:00Z`);
-  return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString("en-PH", { ...options, timeZone: "UTC" });
+  return Number.isNaN(parsed.getTime())
+    ? date
+    : parsed.toLocaleDateString("en-PH", { ...options, timeZone: "UTC" });
 }

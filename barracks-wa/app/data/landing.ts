@@ -121,16 +121,29 @@ export const landingServices: LandingServiceSection[] = [
     kind: "groups",
     number: "03",
     name: "Hair & Scalp Care",
-    description: "Scalp care, hair spa, and molecular repair treatments powered by L'Oréal Professionnel.",
+    description:
+      "Scalp care, hair spa, and molecular repair treatments powered by L'Oréal Professionnel.",
     duration: "MENU",
     groups: [
       {
         id: "jacinto-care",
         name: "The Jacinto Care",
         items: [
-          { id: "scalp-advanced", name: "L'Oréal Scalp Advanced", prices: [{ amount: "₱1,250 / ₱1,500" }] },
-          { id: "scalp-advanced-a", name: "L'Oréal Scalp Advanced-A", prices: [{ amount: "₱700 / ₱1,000" }] },
-          { id: "scalp-advanced-b", name: "L'Oréal Scalp Advanced-B", prices: [{ amount: "₱800 / ₱1,100" }] },
+          {
+            id: "scalp-advanced",
+            name: "L'Oréal Scalp Advanced",
+            prices: [{ amount: "₱1,250 / ₱1,500" }],
+          },
+          {
+            id: "scalp-advanced-a",
+            name: "L'Oréal Scalp Advanced-A",
+            prices: [{ amount: "₱700 / ₱1,000" }],
+          },
+          {
+            id: "scalp-advanced-b",
+            name: "L'Oréal Scalp Advanced-B",
+            prices: [{ amount: "₱800 / ₱1,100" }],
+          },
         ],
       },
       {
@@ -146,7 +159,11 @@ export const landingServices: LandingServiceSection[] = [
         id: "lunas-luxury",
         name: "Lunas Luxury",
         items: [
-          { id: "absolut-repair-molecular", name: "Absolut Repair Molecular", prices: [{ amount: "₱1,700 / ₱2,000" }] },
+          {
+            id: "absolut-repair-molecular",
+            name: "Absolut Repair Molecular",
+            prices: [{ amount: "₱1,700 / ₱2,000" }],
+          },
         ],
       },
     ],
@@ -156,7 +173,8 @@ export const landingServices: LandingServiceSection[] = [
     kind: "items",
     number: "04",
     name: "Other Services",
-    description: "Facial care, upper body massage, and deep conditioning treatments to recharge and look sharp.",
+    description:
+      "Facial care, upper body massage, and deep conditioning treatments to recharge and look sharp.",
     duration: "MENU",
     items: [
       { id: "facial-care", name: "Facial Care Service", prices: [{ amount: "₱300 / ₱550*" }] },
@@ -178,7 +196,11 @@ export const landingServices: LandingServiceSection[] = [
       { id: "delta-styling-powder", name: "Delta Styling Powder", prices: [{ amount: "₱250" }] },
       { id: "elite-cream-pomade", name: "Elite Cream Pomade", prices: [{ amount: "₱300" }] },
       { id: "frost-massage-gel", name: "Frost Massage Gel", prices: [{ amount: "₱200" }] },
-      { id: "generals-grooming-kit", name: "Generals' Grooming Kit", prices: [{ amount: "₱1,150" }] },
+      {
+        id: "generals-grooming-kit",
+        name: "Generals' Grooming Kit",
+        prices: [{ amount: "₱1,150" }],
+      },
       { id: "gift-vouchers", name: "Gift Vouchers", prices: [{ amount: "₱300 / ₱500" }] },
       { id: "wooden-comb", name: "Barracks Wooden Comb", prices: [{ amount: "₱200" }] },
       { id: "car-decals", name: "Barracks Car Decals", prices: [{ amount: "₱150" }] },
@@ -225,9 +247,8 @@ export type LandingProduct = LandingMenuItem & {
 export const landingProducts: LandingProduct[] = landingServices
   .filter((section) => section.duration === "PRODUCTS")
   .flatMap((section) => {
-    const items = section.kind === "groups"
-      ? section.groups.flatMap((group) => group.items)
-      : section.items;
+    const items =
+      section.kind === "groups" ? section.groups.flatMap((group) => group.items) : section.items;
 
     return items.map((item) => ({
       ...item,

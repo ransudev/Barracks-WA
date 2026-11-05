@@ -3,7 +3,11 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Icon } from "@/app/components/ui/icons";
-import { landingServices, type LandingMenuItem, type LandingServiceSection } from "@/app/data/landing";
+import {
+  landingServices,
+  type LandingMenuItem,
+  type LandingServiceSection,
+} from "@/app/data/landing";
 import type { ViewId } from "@/app/types/domain";
 
 type CatalogMode = "services" | "products";
@@ -34,23 +38,27 @@ export function ServicesSection({ go }: { go: (view: ViewId) => void }) {
   const [catalogMode, setCatalogMode] = useState<CatalogMode>("services");
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const visibleSections = landingServices.filter((section) => (
-    catalogMode === "products" ? isProductSection(section) : !isProductSection(section)
-  ));
+  const visibleSections = landingServices.filter((section) =>
+    catalogMode === "products" ? isProductSection(section) : !isProductSection(section),
+  );
   const activeService = visibleSections[activeIndex] ?? visibleSections[0];
 
   if (!activeService) return null;
 
-  const menuGroups = activeService.kind === "groups"
-    ? activeService.groups
-    : [{ id: activeService.id, name: "", items: activeService.items }];
+  const menuGroups =
+    activeService.kind === "groups"
+      ? activeService.groups
+      : [{ id: activeService.id, name: "", items: activeService.items }];
   const menuItems = menuGroups.flatMap((group) => group.items);
   const featuredItem = getFeaturedItem(activeService, menuItems);
 
   if (!featuredItem) return null;
 
   const menuGroupsWithoutFeature = menuGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => item.id !== featuredItem.id) }))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.id !== featuredItem.id),
+    }))
     .filter((group) => group.items.length > 0);
   const productMode = catalogMode === "products";
 
@@ -88,7 +96,11 @@ export function ServicesSection({ go }: { go: (view: ViewId) => void }) {
         </button>
       </div>
 
-      <div className="services-menu-categories" role="tablist" aria-label={`${catalogMode} categories`}>
+      <div
+        className="services-menu-categories"
+        role="tablist"
+        aria-label={`${catalogMode} categories`}
+      >
         {visibleSections.map((service, index) => (
           <button
             key={service.id}
@@ -105,16 +117,29 @@ export function ServicesSection({ go }: { go: (view: ViewId) => void }) {
       </div>
 
       <div className="services-menu-layout">
-        <aside className="services-menu-feature" aria-label={`Featured ${catalogMode.slice(0, -1)}: ${featuredItem.name}`}>
+        <aside
+          className="services-menu-feature"
+          aria-label={`Featured ${catalogMode.slice(0, -1)}: ${featuredItem.name}`}
+        >
           <div className="services-menu-feature__visual">
             <Image
-              src={productMode ? "/barracks/products-editorial.png" : "/barracks/services-editorial.png"}
-              alt={productMode ? "Barracks grooming products arranged on a charcoal stone surface" : "Straight razor service in a dark Barracks barbershop"}
+              src={
+                productMode
+                  ? "/barracks/products-editorial.png"
+                  : "/barracks/services-editorial.png"
+              }
+              alt={
+                productMode
+                  ? "Barracks grooming products arranged on a charcoal stone surface"
+                  : "Straight razor service in a dark Barracks barbershop"
+              }
               fill
               sizes="(max-width: 1024px) 100vw, 36vw"
               className="services-menu-feature__image"
             />
-            <span className="services-menu-feature__number" aria-hidden="true">{activeService.number}</span>
+            <span className="services-menu-feature__number" aria-hidden="true">
+              {activeService.number}
+            </span>
           </div>
           <h3>{featuredItem.name}</h3>
           <p>{activeService.description}</p>
@@ -136,7 +161,11 @@ export function ServicesSection({ go }: { go: (view: ViewId) => void }) {
               Available in shop <Icon name="shoppingBag" size={14} />
             </span>
           ) : (
-            <button type="button" className="services-menu-feature__action" onClick={() => go("customer-booking")}>
+            <button
+              type="button"
+              className="services-menu-feature__action"
+              onClick={() => go("customer-booking")}
+            >
               Book this service <Icon name="arrowRight" size={14} />
             </button>
           )}
@@ -172,7 +201,9 @@ export function ServicesSection({ go }: { go: (view: ViewId) => void }) {
                     </div>
 
                     {productMode ? (
-                      <span className="services-menu-row__action services-menu-row__action--static">In shop</span>
+                      <span className="services-menu-row__action services-menu-row__action--static">
+                        In shop
+                      </span>
                     ) : (
                       <button
                         type="button"
@@ -192,7 +223,11 @@ export function ServicesSection({ go }: { go: (view: ViewId) => void }) {
       </div>
 
       <div className="services-menu-footer">
-        <span>{productMode ? "Explore the collection in-store." : "Appointments available across Barracks locations."}</span>
+        <span>
+          {productMode
+            ? "Explore the collection in-store."
+            : "Appointments available across Barracks locations."}
+        </span>
         {!productMode ? (
           <button type="button" className="btn-primary" onClick={() => go("customer-booking")}>
             <Icon name="calendar" size={16} />

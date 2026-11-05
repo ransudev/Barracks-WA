@@ -2,7 +2,12 @@ export type ReportRange = { from: string; to: string };
 export type ReportPreset = "Today" | "This week" | "This month" | "Last 30 days";
 
 export function manilaToday() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export function shiftDate(day: string, offset: number) {
@@ -22,6 +27,11 @@ export function presetRange(preset: ReportPreset): ReportRange {
   return { from: shiftDate(to, -29), to };
 }
 
-export function displayDate(day: string, options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
-  return new Intl.DateTimeFormat("en-PH", { ...options, timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
+export function displayDate(
+  day: string,
+  options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" },
+) {
+  return new Intl.DateTimeFormat("en-PH", { ...options, timeZone: "UTC" }).format(
+    new Date(`${day}T00:00:00Z`),
+  );
 }

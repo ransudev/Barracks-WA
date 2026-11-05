@@ -19,35 +19,83 @@ import { PortalTopbar } from "@/app/components/layout/PortalTopbar";
 import { DetailDrawer, DrawerSection } from "@/app/components/operations/OperationalPrimitives";
 import { Icon } from "@/app/components/ui/icons";
 
-type SupplierRecord = { id:number; companyName:string; contactPerson:string; phone:string; email:string; address:string; notes:string; status:"active"|"inactive" };
-type SupplierForm = Pick<SupplierRecord, "companyName" | "contactPerson" | "phone" | "email" | "address" | "notes">;
+type SupplierRecord = {
+  id: number;
+  companyName: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  status: "active" | "inactive";
+};
+type SupplierForm = Pick<
+  SupplierRecord,
+  "companyName" | "contactPerson" | "phone" | "email" | "address" | "notes"
+>;
 type SupplierProfileResponse = {
   success: boolean;
   message?: string;
   profile?: {
     supplier: SupplierRecord;
-    suppliedItems: Array<{ id:number; name:string; category:string; quantity:number; minimum_stock:number; unit:string; sku:string|null; unit_cost:number|string; status:string }>;
-    recentDeliveries: Array<{ id:number; status:string; branch:string; reference:string|null; received_at:string|null; created_at:string }>;
-    restockHistory: Array<{ id:number; status:string; reference:string|null; notes:string; created_at:string; updated_at:string }>;
+    suppliedItems: Array<{
+      id: number;
+      name: string;
+      category: string;
+      quantity: number;
+      minimum_stock: number;
+      unit: string;
+      sku: string | null;
+      unit_cost: number | string;
+      status: string;
+    }>;
+    recentDeliveries: Array<{
+      id: number;
+      status: string;
+      branch: string;
+      reference: string | null;
+      received_at: string | null;
+      created_at: string;
+    }>;
+    restockHistory: Array<{
+      id: number;
+      status: string;
+      reference: string | null;
+      notes: string;
+      created_at: string;
+      updated_at: string;
+    }>;
   };
 };
 
-type RestockItem = { id:number; itemName:string; requestedQuantity:number; deliveredQuantity:number|null; unitCost?:number|string|null };
-type Restock = {
-  id:number;
-  status:string;
-  branch?:string;
-  reference:string|null;
-  notes?:string;
-  created_at:string;
-  updated_at?:string;
-  received_at?:string|null;
-  items:RestockItem[];
+type RestockItem = {
+  id: number;
+  itemName: string;
+  requestedQuantity: number;
+  deliveredQuantity: number | null;
+  unitCost?: number | string | null;
 };
-type Delivery = { id:number; status:string; branch:string; reference:string|null; received_at:string|null; created_at:string };
+type Restock = {
+  id: number;
+  status: string;
+  branch?: string;
+  reference: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+  received_at?: string | null;
+  items: RestockItem[];
+};
+type Delivery = {
+  id: number;
+  status: string;
+  branch: string;
+  reference: string | null;
+  received_at: string | null;
+  created_at: string;
+};
 type OperationsDetail =
-  | { kind:"restock"; record:Restock }
-  | { kind:"delivery"; record:Delivery };
+  { kind: "restock"; record: Restock } | { kind: "delivery"; record: Delivery };
 
 function supplierFormFrom(record: SupplierRecord): SupplierForm {
   return {
@@ -77,17 +125,27 @@ function formatDeliveryDate(value: string | null) {
 }
 
 function formatRecordDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Not recorded";
+  return value
+    ? new Date(value).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+    : "Not recorded";
 }
 
-export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; onSignOut: () => void; onToast: (message:string) => void }) {
+export function SupplierPortal({
+  user,
+  onSignOut,
+  onToast,
+}: {
+  user: ApiUser;
+  onSignOut: () => void;
+  onToast: (message: string) => void;
+}) {
   const [profile, setProfile] = useState<SupplierProfileResponse["profile"]>();
   const [restocks, setRestocks] = useState<Restock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPassword,setCurrentPassword] = useState("");
-  const [newPassword,setNewPassword] = useState("");
-  const [confirmPassword,setConfirmPassword] = useState("");
-  const [savingPassword,setSavingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState<SupplierForm | null>(null);
@@ -101,13 +159,19 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
     setLoading(true);
     try {
       const [profileResponse, restockResponse] = await Promise.all([
-        apiRequest("/api/supplier/me", { cache:"no-store" }),
-        apiRequest("/api/restocks", { cache:"no-store" }),
+        apiRequest("/api/supplier/me", { cache: "no-store" }),
+        apiRequest("/api/restocks", { cache: "no-store" }),
       ]);
       const profileBody = await readApiBody<SupplierProfileResponse>(profileResponse);
-      const restockBody = await readApiBody<{success:boolean;restocks?:Restock[];message?:string}>(restockResponse);
-      if (!profileResponse.ok || !profileBody?.success || !profileBody.profile) throw new Error(profileBody?.message ?? "Unable to load supplier profile");
-      if (!restockResponse.ok || !restockBody?.success) throw new Error(restockBody?.message ?? "Unable to load restock requests");
+      const restockBody = await readApiBody<{
+        success: boolean;
+        restocks?: Restock[];
+        message?: string;
+      }>(restockResponse);
+      if (!profileResponse.ok || !profileBody?.success || !profileBody.profile)
+        throw new Error(profileBody?.message ?? "Unable to load supplier profile");
+      if (!restockResponse.ok || !restockBody?.success)
+        throw new Error(restockBody?.message ?? "Unable to load restock requests");
       setProfile(profileBody.profile);
       setRestocks(restockBody.restocks ?? []);
     } catch (error) {
@@ -118,15 +182,20 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
   }, [onToast]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => { void load(); });
+    const frame = window.requestAnimationFrame(() => {
+      void load();
+    });
     return () => window.cancelAnimationFrame(frame);
   }, [load]);
 
   async function advance(restock: Restock) {
     const next = supplierTransitions[restock.status];
     if (!next) return false;
-    const response = await apiRequest(`/api/restocks/${restock.id}/status`, { method:"PATCH", body:JSON.stringify({status:next}) });
-    const body = await readApiBody<{success:boolean;message?:string}>(response);
+    const response = await apiRequest(`/api/restocks/${restock.id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: next }),
+    });
+    const body = await readApiBody<{ success: boolean; message?: string }>(response);
     if (!response.ok || !body?.success) {
       onToast(body?.message ?? "Unable to update restock");
       return false;
@@ -178,8 +247,9 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
         method: "PATCH",
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const body = await readApiBody<{success:boolean;message?:string}>(response);
-      if (!response.ok || !body?.success) throw new Error(body?.message ?? "Unable to update password");
+      const body = await readApiBody<{ success: boolean; message?: string }>(response);
+      if (!response.ok || !body?.success)
+        throw new Error(body?.message ?? "Unable to update password");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -223,12 +293,17 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
         method: "PATCH",
         body: JSON.stringify(profileForm),
       });
-      const body = await readApiBody<{ success:boolean; supplier?:SupplierRecord; message?:string; errors?:Record<string, string[]> }>(response);
+      const body = await readApiBody<{
+        success: boolean;
+        supplier?: SupplierRecord;
+        message?: string;
+        errors?: Record<string, string[]>;
+      }>(response);
       if (!response.ok || !body?.success || !body.supplier) {
         const details = body?.errors ? Object.values(body.errors).flat().join(" ") : body?.message;
         throw new Error(details ?? "Unable to update supplier details");
       }
-      setProfile((current) => current ? { ...current, supplier: body.supplier! } : current);
+      setProfile((current) => (current ? { ...current, supplier: body.supplier! } : current));
       setProfileForm(supplierFormFrom(body.supplier));
       setEditingProfile(false);
       onToast("Supplier details updated");
@@ -244,16 +319,23 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
   const pending = restocks.filter((restock) => !["Received", "Cancelled"].includes(restock.status));
   const supplier = profile?.supplier;
   const supplierInitials = `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase();
-  const profileDirty = Boolean(supplier && profileForm && JSON.stringify(profileForm) !== JSON.stringify(supplierFormFrom(supplier)));
-  const matchingDeliveryRequest = operationsDetail?.kind === "delivery"
-    ? restocks.find((restock) => restock.id === operationsDetail.record.id)
-    : undefined;
+  const profileDirty = Boolean(
+    supplier &&
+    profileForm &&
+    JSON.stringify(profileForm) !== JSON.stringify(supplierFormFrom(supplier)),
+  );
+  const matchingDeliveryRequest =
+    operationsDetail?.kind === "delivery"
+      ? restocks.find((restock) => restock.id === operationsDetail.record.id)
+      : undefined;
   const requestPreview = restocks.slice(0, 3);
   const deliveryPreview = profile?.recentDeliveries.slice(0, 3) ?? [];
 
   function renderRestockRow(restock: Restock) {
     const next = supplierTransitions[restock.status];
-    const items = restock.items.map((item) => `${item.itemName} × ${item.requestedQuantity}`).join(", ");
+    const items = restock.items
+      .map((item) => `${item.itemName} × ${item.requestedQuantity}`)
+      .join(", ");
     return (
       <article className="supplier-request-row" key={restock.id}>
         <button
@@ -295,7 +377,9 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
           <strong>Request #{delivery.id}</strong>
           <span>{delivery.reference ?? "No reference"}</span>
         </div>
-        <span className="supplier-delivery-row__date">{formatDeliveryDate(delivery.received_at)}</span>
+        <span className="supplier-delivery-row__date">
+          {formatDeliveryDate(delivery.received_at)}
+        </span>
         <Icon name="chevronRight" size={15} />
       </button>
     );
@@ -315,16 +399,37 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
         <PageHeader title={supplier?.companyName ?? "Supplier dashboard"} />
 
         <div className="metrics-grid metrics-grid--three supplier-portal__metrics">
-          <MetricCard label="Linked items" value={String(profile?.suppliedItems.length ?? 0)} icon="box" accent="blue" />
-          <MetricCard label="Open requests" value={String(pending.length)} icon="info" accent="amber" />
-          <MetricCard label="Received deliveries" value={String(profile?.recentDeliveries.length ?? 0)} icon="check" accent="green" />
+          <MetricCard
+            label="Linked items"
+            value={String(profile?.suppliedItems.length ?? 0)}
+            icon="box"
+            accent="blue"
+          />
+          <MetricCard
+            label="Open requests"
+            value={String(pending.length)}
+            icon="info"
+            accent="amber"
+          />
+          <MetricCard
+            label="Received deliveries"
+            value={String(profile?.recentDeliveries.length ?? 0)}
+            icon="check"
+            accent="green"
+          />
         </div>
 
         <div className="supplier-portal__grid">
           <Panel className="supplier-profile-card">
             <SectionHeading
               title="Supplier profile"
-              action={supplier ? <button className="link-button" type="button" onClick={openProfileDrawer}>Edit details</button> : undefined}
+              action={
+                supplier ? (
+                  <button className="link-button" type="button" onClick={openProfileDrawer}>
+                    Edit details
+                  </button>
+                ) : undefined
+              }
             />
             {loading ? (
               <SkeletonRows count={5} label="Loading supplier details" />
@@ -341,9 +446,22 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
                   </Badge>
                 </div>
                 <dl className="supplier-profile-card__facts">
-                  <div><dt>Email</dt><dd title={profile.supplier.email || undefined}>{profile.supplier.email || "Not set"}</dd></div>
-                  <div><dt>Phone</dt><dd>{profile.supplier.phone || "Not set"}</dd></div>
-                  <div className="supplier-profile-card__facts-wide"><dt>Address</dt><dd title={profile.supplier.address || undefined}>{profile.supplier.address || "Not set"}</dd></div>
+                  <div>
+                    <dt>Email</dt>
+                    <dd title={profile.supplier.email || undefined}>
+                      {profile.supplier.email || "Not set"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Phone</dt>
+                    <dd>{profile.supplier.phone || "Not set"}</dd>
+                  </div>
+                  <div className="supplier-profile-card__facts-wide">
+                    <dt>Address</dt>
+                    <dd title={profile.supplier.address || undefined}>
+                      {profile.supplier.address || "Not set"}
+                    </dd>
+                  </div>
                 </dl>
               </>
             ) : (
@@ -358,12 +476,16 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
           <Panel className="supplier-requests-panel">
             <SectionHeading
               title="Restock requests"
-              action={restocks.length > requestPreview.length ? <button className="link-button" type="button" onClick={openRequestsDrawer}>View all {restocks.length}</button> : undefined}
+              action={
+                restocks.length > requestPreview.length ? (
+                  <button className="link-button" type="button" onClick={openRequestsDrawer}>
+                    View all {restocks.length}
+                  </button>
+                ) : undefined
+              }
             />
             {restocks.length ? (
-              <div className="supplier-request-list">
-                {requestPreview.map(renderRestockRow)}
-              </div>
+              <div className="supplier-request-list">{requestPreview.map(renderRestockRow)}</div>
             ) : (
               <p className="supplier-portal__empty-copy">No restock requests yet.</p>
             )}
@@ -379,10 +501,14 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
                     <div className="supplier-item-row" key={item.id} role="listitem">
                       <div className="supplier-item-row__product">
                         <strong>{item.name}</strong>
-                        <span>{item.category} · {item.sku ?? "No SKU"}</span>
+                        <span>
+                          {item.category} · {item.sku ?? "No SKU"}
+                        </span>
                       </div>
                       <div className="supplier-item-row__quantity">
-                        <strong>{item.quantity} <small>{item.unit}</small></strong>
+                        <strong>
+                          {item.quantity} <small>{item.unit}</small>
+                        </strong>
                       </div>
                       <div className="supplier-item-row__status">
                         <Badge tone={isLowStock ? "warning" : "success"}>
@@ -401,12 +527,16 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
           <Panel className="supplier-deliveries-panel">
             <SectionHeading
               title="Delivery history"
-              action={(profile?.recentDeliveries.length ?? 0) > deliveryPreview.length ? <button className="link-button" type="button" onClick={openDeliveriesDrawer}>View all {profile?.recentDeliveries.length}</button> : undefined}
+              action={
+                (profile?.recentDeliveries.length ?? 0) > deliveryPreview.length ? (
+                  <button className="link-button" type="button" onClick={openDeliveriesDrawer}>
+                    View all {profile?.recentDeliveries.length}
+                  </button>
+                ) : undefined
+              }
             />
             {profile?.recentDeliveries.length ? (
-              <div className="supplier-delivery-list">
-                {deliveryPreview.map(renderDeliveryRow)}
-              </div>
+              <div className="supplier-delivery-list">{deliveryPreview.map(renderDeliveryRow)}</div>
             ) : (
               <p className="supplier-portal__empty-copy">No received deliveries yet.</p>
             )}
@@ -448,7 +578,9 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
         <DetailDrawer
           open={profileDrawerOpen && Boolean(supplier)}
           title={supplier?.companyName ?? "Supplier details"}
-          subtitle={supplier?.contactPerson || "Update the details linked to your supplier account."}
+          subtitle={
+            supplier?.contactPerson || "Update the details linked to your supplier account."
+          }
           eyebrow="Supplier profile"
           onClose={closeProfileDrawer}
           dirty={editingProfile && profileDirty}
@@ -456,17 +588,28 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
         >
           {supplier && editingProfile && profileForm ? (
             <DrawerSection eyebrow="Edit profile" title="Update supplier details">
-              <form className="operational-drawer-form supplier-profile-form" onSubmit={saveProfile}>
+              <form
+                className="operational-drawer-form supplier-profile-form"
+                onSubmit={saveProfile}
+              >
                 <TextField
                   required
                   label="Company name"
                   value={profileForm.companyName}
-                  onChange={(event) => setProfileForm((current) => current ? { ...current, companyName: event.target.value } : current)}
+                  onChange={(event) =>
+                    setProfileForm((current) =>
+                      current ? { ...current, companyName: event.target.value } : current,
+                    )
+                  }
                 />
                 <TextField
                   label="Contact person"
                   value={profileForm.contactPerson}
-                  onChange={(event) => setProfileForm((current) => current ? { ...current, contactPerson: event.target.value } : current)}
+                  onChange={(event) =>
+                    setProfileForm((current) =>
+                      current ? { ...current, contactPerson: event.target.value } : current,
+                    )
+                  }
                 />
                 <div className="form-grid form-grid--two operational-form-grid">
                   <TextField
@@ -475,32 +618,61 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
                     inputMode="numeric"
                     maxLength={11}
                     value={profileForm.phone}
-                    onChange={(event) => setProfileForm((current) => current ? { ...current, phone: event.target.value } : current)}
+                    onChange={(event) =>
+                      setProfileForm((current) =>
+                        current ? { ...current, phone: event.target.value } : current,
+                      )
+                    }
                   />
                   <TextField
                     label="Email"
                     type="email"
                     value={profileForm.email}
-                    onChange={(event) => setProfileForm((current) => current ? { ...current, email: event.target.value } : current)}
+                    onChange={(event) =>
+                      setProfileForm((current) =>
+                        current ? { ...current, email: event.target.value } : current,
+                      )
+                    }
                   />
                 </div>
                 <TextField
                   label="Address"
                   value={profileForm.address}
-                  onChange={(event) => setProfileForm((current) => current ? { ...current, address: event.target.value } : current)}
+                  onChange={(event) =>
+                    setProfileForm((current) =>
+                      current ? { ...current, address: event.target.value } : current,
+                    )
+                  }
                 />
                 <label className="field">
                   <span className="field__label">Notes</span>
                   <textarea
                     value={profileForm.notes}
-                    onChange={(event) => setProfileForm((current) => current ? { ...current, notes: event.target.value } : current)}
+                    onChange={(event) =>
+                      setProfileForm((current) =>
+                        current ? { ...current, notes: event.target.value } : current,
+                      )
+                    }
                     rows={4}
                   />
                 </label>
-                {profileError && <p className="form-error" role="alert">{profileError}</p>}
+                {profileError && (
+                  <p className="form-error" role="alert">
+                    {profileError}
+                  </p>
+                )}
                 <div className="modal-actions">
-                  <Button variant="secondary" type="button" disabled={savingProfile} onClick={cancelProfileEditing}>Cancel</Button>
-                  <Button type="submit" disabled={savingProfile}>{savingProfile ? "Saving…" : "Save details"}</Button>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    disabled={savingProfile}
+                    onClick={cancelProfileEditing}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={savingProfile}>
+                    {savingProfile ? "Saving…" : "Save details"}
+                  </Button>
                 </div>
               </form>
             </DrawerSection>
@@ -520,11 +692,34 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
               </DrawerSection>
               <DrawerSection eyebrow="Contact" title="Supplier details">
                 <div className="operational-drawer__facts supplier-drawer-facts">
-                  <div><span>Contact email</span><strong title={supplier.email || "Not set"}>{supplier.email || "Not set"}</strong></div>
-                  <div><span>Phone</span><strong title={supplier.phone || "Not set"}>{supplier.phone || "Not set"}</strong></div>
-                  <div><span>Address</span><strong title={supplier.address || "Not set"}>{supplier.address || "Not set"}</strong></div>
-                  <div><span>Login email</span><strong title={user.email}>{user.email}</strong></div>
-                  <div className="supplier-drawer-facts__wide"><span>Notes</span><strong title={supplier.notes || "No notes"}>{supplier.notes || "No notes"}</strong></div>
+                  <div>
+                    <span>Contact email</span>
+                    <strong title={supplier.email || "Not set"}>
+                      {supplier.email || "Not set"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Phone</span>
+                    <strong title={supplier.phone || "Not set"}>
+                      {supplier.phone || "Not set"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Address</span>
+                    <strong title={supplier.address || "Not set"}>
+                      {supplier.address || "Not set"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Login email</span>
+                    <strong title={user.email}>{user.email}</strong>
+                  </div>
+                  <div className="supplier-drawer-facts__wide">
+                    <span>Notes</span>
+                    <strong title={supplier.notes || "No notes"}>
+                      {supplier.notes || "No notes"}
+                    </strong>
+                  </div>
                 </div>
               </DrawerSection>
               <DrawerSection eyebrow="Actions" title="Manage details">
@@ -548,7 +743,13 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
 
         <DetailDrawer
           open={Boolean(operationsDetail)}
-          title={operationsDetail?.kind === "delivery" ? `Delivery #${operationsDetail.record.id}` : operationsDetail ? `Request #${operationsDetail.record.id}` : "Operations detail"}
+          title={
+            operationsDetail?.kind === "delivery"
+              ? `Delivery #${operationsDetail.record.id}`
+              : operationsDetail
+                ? `Request #${operationsDetail.record.id}`
+                : "Operations detail"
+          }
           subtitle={operationsDetail?.record.reference ?? "No reference"}
           eyebrow={operationsDetail?.kind === "delivery" ? "Delivery history" : "Restock request"}
           onClose={closeOperationsDrawer}
@@ -562,28 +763,56 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
                     <strong>Request #{operationsDetail.record.id}</strong>
                     <span>{operationsDetail.record.reference ?? "No reference"}</span>
                   </div>
-                  <Badge tone={restockTone(operationsDetail.record.status)}>{operationsDetail.record.status}</Badge>
+                  <Badge tone={restockTone(operationsDetail.record.status)}>
+                    {operationsDetail.record.status}
+                  </Badge>
                 </div>
               </DrawerSection>
               <DrawerSection eyebrow="Request details" title="Request information">
                 <div className="operational-drawer__facts supplier-drawer-facts">
-                  <div><span>Branch</span><strong>{operationsDetail.record.branch || "Not recorded"}</strong></div>
-                  <div><span>Reference</span><strong>{operationsDetail.record.reference || "Not recorded"}</strong></div>
-                  <div><span>Created</span><strong>{formatRecordDate(operationsDetail.record.created_at)}</strong></div>
-                  <div><span>Last updated</span><strong>{formatRecordDate(operationsDetail.record.updated_at)}</strong></div>
-                  {operationsDetail.record.notes && <div className="supplier-drawer-facts__wide"><span>Notes</span><strong>{operationsDetail.record.notes}</strong></div>}
+                  <div>
+                    <span>Branch</span>
+                    <strong>{operationsDetail.record.branch || "Not recorded"}</strong>
+                  </div>
+                  <div>
+                    <span>Reference</span>
+                    <strong>{operationsDetail.record.reference || "Not recorded"}</strong>
+                  </div>
+                  <div>
+                    <span>Created</span>
+                    <strong>{formatRecordDate(operationsDetail.record.created_at)}</strong>
+                  </div>
+                  <div>
+                    <span>Last updated</span>
+                    <strong>{formatRecordDate(operationsDetail.record.updated_at)}</strong>
+                  </div>
+                  {operationsDetail.record.notes && (
+                    <div className="supplier-drawer-facts__wide">
+                      <span>Notes</span>
+                      <strong>{operationsDetail.record.notes}</strong>
+                    </div>
+                  )}
                 </div>
               </DrawerSection>
               <DrawerSection eyebrow="Line items" title="Requested items">
                 <div className="supplier-drawer-line-list">
-                  {operationsDetail.record.items.length ? operationsDetail.record.items.map((item) => (
-                    <div className="supplier-drawer-line" key={item.id}>
-                      <div><strong>{item.itemName}</strong><span>Requested {item.requestedQuantity}</span></div>
-                      <Badge tone={item.deliveredQuantity === null ? "warning" : "success"}>
-                        {item.deliveredQuantity === null ? "Pending" : `${item.deliveredQuantity} delivered`}
-                      </Badge>
-                    </div>
-                  )) : <p className="supplier-portal__empty-copy">No line items recorded.</p>}
+                  {operationsDetail.record.items.length ? (
+                    operationsDetail.record.items.map((item) => (
+                      <div className="supplier-drawer-line" key={item.id}>
+                        <div>
+                          <strong>{item.itemName}</strong>
+                          <span>Requested {item.requestedQuantity}</span>
+                        </div>
+                        <Badge tone={item.deliveredQuantity === null ? "warning" : "success"}>
+                          {item.deliveredQuantity === null
+                            ? "Pending"
+                            : `${item.deliveredQuantity} delivered`}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="supplier-portal__empty-copy">No line items recorded.</p>
+                  )}
                 </div>
               </DrawerSection>
               {supplierTransitions[operationsDetail.record.status] && (
@@ -616,10 +845,22 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
               </DrawerSection>
               <DrawerSection eyebrow="Delivery details" title="Receipt information">
                 <div className="operational-drawer__facts supplier-drawer-facts">
-                  <div><span>Branch</span><strong>{operationsDetail.record.branch || "Not recorded"}</strong></div>
-                  <div><span>Reference</span><strong>{operationsDetail.record.reference || "Not recorded"}</strong></div>
-                  <div><span>Received</span><strong>{formatRecordDate(operationsDetail.record.received_at)}</strong></div>
-                  <div><span>Created</span><strong>{formatRecordDate(operationsDetail.record.created_at)}</strong></div>
+                  <div>
+                    <span>Branch</span>
+                    <strong>{operationsDetail.record.branch || "Not recorded"}</strong>
+                  </div>
+                  <div>
+                    <span>Reference</span>
+                    <strong>{operationsDetail.record.reference || "Not recorded"}</strong>
+                  </div>
+                  <div>
+                    <span>Received</span>
+                    <strong>{formatRecordDate(operationsDetail.record.received_at)}</strong>
+                  </div>
+                  <div>
+                    <span>Created</span>
+                    <strong>{formatRecordDate(operationsDetail.record.created_at)}</strong>
+                  </div>
                 </div>
               </DrawerSection>
               {matchingDeliveryRequest && (
@@ -627,12 +868,17 @@ export function SupplierPortal({ user, onSignOut, onToast }: { user: ApiUser; on
                   <div className="supplier-drawer-line-list">
                     {matchingDeliveryRequest.items.map((item) => (
                       <div className="supplier-drawer-line" key={item.id}>
-                        <div><strong>{item.itemName}</strong><span>Requested {item.requestedQuantity}</span></div>
+                        <div>
+                          <strong>{item.itemName}</strong>
+                          <span>Requested {item.requestedQuantity}</span>
+                        </div>
                         <Badge tone="success">{item.deliveredQuantity ?? 0} delivered</Badge>
                       </div>
                     ))}
                   </div>
-                  {matchingDeliveryRequest.notes && <p className="supplier-drawer-note">{matchingDeliveryRequest.notes}</p>}
+                  {matchingDeliveryRequest.notes && (
+                    <p className="supplier-drawer-note">{matchingDeliveryRequest.notes}</p>
+                  )}
                 </DrawerSection>
               )}
             </>

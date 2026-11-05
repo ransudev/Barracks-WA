@@ -1,5 +1,14 @@
 "use client";
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { BranchContext } from "@/app/types/branch";
 import { resolveBranchSelection } from "@/app/utils/branch-context";
 import { apiRequest, readApiBody } from "@/app/lib/api";
@@ -26,18 +35,29 @@ function useLocalBranchContext(enabled: boolean): BranchContextValue {
       try {
         const response = await apiRequest("/api/branch-context", { cache: "no-store" });
         const body = await readApiBody<BranchContext & { message?: string }>(response);
-        if (!response.ok || !body?.branches) throw new Error(body?.message ?? "Unable to load branches");
+        if (!response.ok || !body?.branches)
+          throw new Error(body?.message ?? "Unable to load branches");
         if (active) {
           const linkedId = Number(new URLSearchParams(window.location.search).get("branchId"));
           const linkedBranch = body.branches.find((branch) => branch.id === linkedId);
-          setContext(body); setBranchId(linkedBranch?.id ?? resolveBranchSelection(body)?.id ?? 0);
+          setContext(body);
+          setBranchId(linkedBranch?.id ?? resolveBranchSelection(body)?.id ?? 0);
         }
-      } catch (error) { if (active) setBranchError(error instanceof Error ? error.message : "Unable to load branches"); }
-      finally { if (active) setBranchLoading(false); }
+      } catch (error) {
+        if (active)
+          setBranchError(error instanceof Error ? error.message : "Unable to load branches");
+      } finally {
+        if (active) setBranchLoading(false);
+      }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [enabled]);
-  return useMemo(() => ({ ...context, branchId, setBranchId: selectBranch, branchError, branchLoading }), [context, branchId, selectBranch, branchError, branchLoading]);
+  return useMemo(
+    () => ({ ...context, branchId, setBranchId: selectBranch, branchError, branchLoading }),
+    [context, branchId, selectBranch, branchError, branchLoading],
+  );
 }
 
 export function BranchContextProvider({ children }: { children: ReactNode }) {

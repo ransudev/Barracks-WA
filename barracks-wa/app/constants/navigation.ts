@@ -32,7 +32,8 @@ export const managementNavigation: Array<NavigationItem & { icon: IconName }> = 
   { id: "admin-restocks", label: "Restocks", icon: "stockIn" },
 ];
 
-export type ViewAccessGroup = "public" | "customer" | "supplier" | "front_desk" | "staff" | "management" | "administrator";
+export type ViewAccessGroup =
+  "public" | "customer" | "supplier" | "front_desk" | "staff" | "management" | "administrator";
 
 // Sensitive Administrator-only actions are guarded at the API and control level.
 // Keep every page classified here so later navigation changes do not implicitly grant access.

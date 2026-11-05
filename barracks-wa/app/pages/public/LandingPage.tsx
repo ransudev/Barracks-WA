@@ -23,9 +23,7 @@ export function LandingPage({ go }: { go: (view: ViewId) => void }) {
 
     site.classList.add("motion-ready");
 
-    const sections = Array.from(
-      site.querySelectorAll<HTMLElement>("main > section:not(#home)"),
-    );
+    const sections = Array.from(site.querySelectorAll<HTMLElement>("main > section:not(#home)"));
     if (!("IntersectionObserver" in window)) {
       sections.forEach((section) => section.classList.add("is-visible"));
       return () => {

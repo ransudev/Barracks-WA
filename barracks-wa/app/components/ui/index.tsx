@@ -1,24 +1,21 @@
 import Image from "next/image";
-import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  type ButtonHTMLAttributes,
+  type ChangeEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from "react";
 import type { Tone } from "@/app/types/domain";
 import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { Icon, type IconName } from "./icons";
 
-export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "ghost"
-  | "danger"
-  | "success"
-  | "link";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success" | "link";
 
-export function Logo({
-  onClick,
-  compact = false,
-}: {
-  onClick?: () => void;
-  compact?: boolean;
-}) {
+export function Logo({ onClick, compact = false }: { onClick?: () => void; compact?: boolean }) {
   const content = (
     <span className={`logo-lockup ${compact ? "logo-lockup--compact" : ""}`}>
       <Image
@@ -60,11 +57,7 @@ export function Avatar({
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
-  return (
-    <span className={`avatar avatar--${tone} avatar--${size} ${className}`}>
-      {initials}
-    </span>
-  );
+  return <span className={`avatar avatar--${tone} avatar--${size} ${className}`}>{initials}</span>;
 }
 
 export function Button({
@@ -82,10 +75,7 @@ export function Button({
   iconAfter?: IconName;
 }) {
   return (
-    <button
-      className={`button button--${variant} button--${size} ${className}`}
-      {...props}
-    >
+    <button className={`button button--${variant} button--${size} ${className}`} {...props}>
       {icon && <Icon name={icon} size={size === "sm" ? 15 : 17} />}
       <span>{children}</span>
       {iconAfter && <Icon name={iconAfter} size={size === "sm" ? 15 : 17} />}
@@ -232,10 +222,7 @@ export function Panel({
   id?: string;
 }) {
   return (
-    <section
-      id={id}
-      className={`panel ${flush ? "panel--flush" : ""} ${className}`}
-    >
+    <section id={id} className={`panel ${flush ? "panel--flush" : ""} ${className}`}>
       {children}
     </section>
   );
@@ -338,7 +325,10 @@ export function TextField({
   min?: string;
   max?: string;
   step?: string;
-} & Omit<InputHTMLAttributes<HTMLInputElement>, "className" | "value" | "onChange" | "type" | "min" | "max" | "step">) {
+} & Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "className" | "value" | "onChange" | "type" | "min" | "max" | "step"
+>) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
 
@@ -367,7 +357,11 @@ export function TextField({
           {...props}
         />
       </span>
-      {error && <span className="field__error" id={`${fieldId}-error`} role="alert">{error}</span>}
+      {error && (
+        <span className="field__error" id={`${fieldId}-error`} role="alert">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
@@ -445,7 +439,11 @@ export function Modal({
 }) {
   if (!open) return null;
 
-  return <OpenModal title={title} description={description} onClose={onClose} width={width}>{children}</OpenModal>;
+  return (
+    <OpenModal title={title} description={description} onClose={onClose} width={width}>
+      {children}
+    </OpenModal>
+  );
 }
 
 function OpenModal({
@@ -476,9 +474,8 @@ function OpenModal({
     const modal = modalRef.current;
     if (!modal) return;
 
-    const previousFocus = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusableSelector =
       'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
     const focusFirstControl = () => {
@@ -573,13 +570,7 @@ export function Tabs({
   );
 }
 
-export function ProgressBar({
-  value,
-  tone = "blue",
-}: {
-  value: number;
-  tone?: Tone;
-}) {
+export function ProgressBar({ value, tone = "blue" }: { value: number; tone?: Tone }) {
   return (
     <span className="progress">
       <span
@@ -590,13 +581,7 @@ export function ProgressBar({
   );
 }
 
-export function Toast({
-  message,
-  onClose,
-}: {
-  message: string;
-  onClose: () => void;
-}) {
+export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   if (!message) return null;
 
   return (
@@ -631,9 +616,29 @@ export function Pagination({
       {summary ? <span className="pagination__summary">{summary}</span> : null}
       {pageCount > 1 && (
         <span className="pagination__controls">
-          <Button type="button" size="sm" variant="ghost" icon="chevronLeft" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Previous</Button>
-          <span className="pagination__page">Page {page} of {pageCount}</span>
-          <Button type="button" size="sm" variant="ghost" iconAfter="chevronRight" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>Next</Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            icon="chevronLeft"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            Previous
+          </Button>
+          <span className="pagination__page">
+            Page {page} of {pageCount}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            iconAfter="chevronRight"
+            disabled={page >= pageCount}
+            onClick={() => onPageChange(page + 1)}
+          >
+            Next
+          </Button>
         </span>
       )}
     </nav>

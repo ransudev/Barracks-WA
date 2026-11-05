@@ -24,13 +24,18 @@ type DrawerPresence = { mounted: boolean; phase: DrawerPhase };
  * drawer never cascades a render straight back into another render.
  */
 export function useDrawerPresence(open: boolean): DrawerPresence {
-  const [presence, setPresence] = useState<DrawerPresence>({ mounted: open, phase: open ? "entering" : "exiting" });
+  const [presence, setPresence] = useState<DrawerPresence>({
+    mounted: open,
+    phase: open ? "entering" : "exiting",
+  });
   const mountedRef = useRef(presence.mounted);
 
   // Keep the ref current without making the transition effect rerun when the
   // presence state changes. The close effect uses this to distinguish a real
   // exit from an open that was canceled before its first frame mounted.
-  useEffect(() => { mountedRef.current = presence.mounted; }, [presence.mounted]);
+  useEffect(() => {
+    mountedRef.current = presence.mounted;
+  }, [presence.mounted]);
 
   useEffect(() => {
     if (open) {
@@ -38,8 +43,12 @@ export function useDrawerPresence(open: boolean): DrawerPresence {
       // next frame so the browser has a start value to transition from.
       let settle = 0;
       const mount = window.requestAnimationFrame(() => {
-        setPresence((current) => (current.mounted ? current : { mounted: true, phase: "entering" }));
-        settle = window.requestAnimationFrame(() => setPresence({ mounted: true, phase: "entered" }));
+        setPresence((current) =>
+          current.mounted ? current : { mounted: true, phase: "entering" },
+        );
+        settle = window.requestAnimationFrame(() =>
+          setPresence({ mounted: true, phase: "entered" }),
+        );
       });
       return () => {
         window.cancelAnimationFrame(mount);
@@ -59,7 +68,10 @@ export function useDrawerPresence(open: boolean): DrawerPresence {
       // Start the unmount clock only once the exit position has been painted,
       // and add a grace period so the tail of the transition is never cut.
       settle = window.requestAnimationFrame(() => {
-        finish = window.setTimeout(() => setPresence({ mounted: false, phase: "exiting" }), EXIT_DURATION_MS + EXIT_GRACE_MS);
+        finish = window.setTimeout(
+          () => setPresence({ mounted: false, phase: "exiting" }),
+          EXIT_DURATION_MS + EXIT_GRACE_MS,
+        );
       });
     }, 0);
     return () => {
@@ -72,6 +84,7 @@ export function useDrawerPresence(open: boolean): DrawerPresence {
   // A reopen during an exit reverses from the browser's current interpolated
   // transform. Derive the visible phase instead of synchronously setting state
   // inside the effect, which would add a cascading render during the animation.
-  const phase = open && presence.mounted && presence.phase === "exiting" ? "entered" : presence.phase;
+  const phase =
+    open && presence.mounted && presence.phase === "exiting" ? "entered" : presence.phase;
   return { ...presence, phase };
 }

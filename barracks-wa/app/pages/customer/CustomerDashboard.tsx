@@ -42,8 +42,20 @@ function profileForm(customer: ApiCustomer): ProfileDraft {
   };
 }
 
-const upcomingLabel: Record<string, string> = { pending: "Awaiting confirmation", confirmed: "Confirmed", checked_in: "Checked in", in_progress: "In progress" };
-const historyLabel: Record<string, string> = { completed: "Completed", cancelled: "Cancelled", rejected: "Declined by shop", no_show: "No show", pending: "Not confirmed", confirmed: "Not attended" };
+const upcomingLabel: Record<string, string> = {
+  pending: "Awaiting confirmation",
+  confirmed: "Confirmed",
+  checked_in: "Checked in",
+  in_progress: "In progress",
+};
+const historyLabel: Record<string, string> = {
+  completed: "Completed",
+  cancelled: "Cancelled",
+  rejected: "Declined by shop",
+  no_show: "No show",
+  pending: "Not confirmed",
+  confirmed: "Not attended",
+};
 
 function formatMemberSince(date: string) {
   return new Date(date).toLocaleDateString(undefined, {
@@ -77,12 +89,18 @@ export function CustomerDashboard({
   user: ApiUser;
 }) {
   // Show the last loaded account at once while it refreshes in the background.
-  const [customer, setCustomer] = useState<ApiCustomer | null>(() => peekApiBody<{ customer?: ApiCustomer }>("/api/customers/me")?.customer ?? null);
-  const [barbers, setBarbers] = useState<ApiBarberAvailability[]>(() => peekApiBody<{ barbers?: ApiBarberAvailability[] }>("/api/barbers")?.barbers ?? []);
+  const [customer, setCustomer] = useState<ApiCustomer | null>(
+    () => peekApiBody<{ customer?: ApiCustomer }>("/api/customers/me")?.customer ?? null,
+  );
+  const [barbers, setBarbers] = useState<ApiBarberAvailability[]>(
+    () => peekApiBody<{ barbers?: ApiBarberAvailability[] }>("/api/barbers")?.barbers ?? [],
+  );
   const [bookingBarbers, setBookingBarbers] = useState<ApiBarberAvailability[]>([]);
   const [bookingServices, setBookingServices] = useState<Service[]>([]);
   const [bookingChoicesLoading, setBookingChoicesLoading] = useState(false);
-  const [bookings, setBookings] = useState<ApiBooking[]>(() => peekApiBody<{ bookings?: ApiBooking[] }>("/api/bookings")?.bookings ?? []);
+  const [bookings, setBookings] = useState<ApiBooking[]>(
+    () => peekApiBody<{ bookings?: ApiBooking[] }>("/api/bookings")?.bookings ?? [],
+  );
   const [draft, setDraft] = useState<ProfileDraft>({
     firstName: "",
     lastName: "",
@@ -115,9 +133,20 @@ export function CustomerDashboard({
           apiRequest("/api/bookings"),
           apiRequest("/api/barbers"),
         ]);
-        const customerBody = await readApiBody<{ success: boolean; customer?: ApiCustomer; message?: string }>(customerResponse);
-        const bookingBody = await readApiBody<{ success: boolean; bookings?: ApiBooking[]; message?: string }>(bookingResponse);
-        const barberBody = await readApiBody<{ success: boolean; barbers?: ApiBarberAvailability[] }>(barberResponse);
+        const customerBody = await readApiBody<{
+          success: boolean;
+          customer?: ApiCustomer;
+          message?: string;
+        }>(customerResponse);
+        const bookingBody = await readApiBody<{
+          success: boolean;
+          bookings?: ApiBooking[];
+          message?: string;
+        }>(bookingResponse);
+        const barberBody = await readApiBody<{
+          success: boolean;
+          barbers?: ApiBarberAvailability[];
+        }>(barberResponse);
 
         if (!customerResponse.ok || !customerBody?.success || !customerBody.customer) {
           throw new Error(customerBody?.message ?? "Unable to load customer dashboard");
@@ -147,18 +176,39 @@ export function CustomerDashboard({
     async function loadChoices() {
       setBookingChoicesLoading(true);
       try {
-        const [response, serviceResponse] = await Promise.all([apiRequest(`/api/barbers${branchQuery}`), apiRequest(`/api/services${branchQuery}`)]);
-        const body = await readApiBody<{ success: boolean; barbers?: ApiBarberAvailability[]; message?: string }>(response);
-        if (!response.ok || !body?.success) throw new Error(body?.message ?? "Unable to load appointment barbers");
-        const serviceBody = await readApiBody<{ success: boolean; services?: Service[]; message?: string }>(serviceResponse);
-        if (!serviceResponse.ok || !serviceBody?.success) throw new Error(serviceBody?.message ?? "Unable to load appointment services");
-        if (active) { setBookingBarbers(body.barbers ?? []); setBookingServices(serviceBody.services ?? []); }
+        const [response, serviceResponse] = await Promise.all([
+          apiRequest(`/api/barbers${branchQuery}`),
+          apiRequest(`/api/services${branchQuery}`),
+        ]);
+        const body = await readApiBody<{
+          success: boolean;
+          barbers?: ApiBarberAvailability[];
+          message?: string;
+        }>(response);
+        if (!response.ok || !body?.success)
+          throw new Error(body?.message ?? "Unable to load appointment barbers");
+        const serviceBody = await readApiBody<{
+          success: boolean;
+          services?: Service[];
+          message?: string;
+        }>(serviceResponse);
+        if (!serviceResponse.ok || !serviceBody?.success)
+          throw new Error(serviceBody?.message ?? "Unable to load appointment services");
+        if (active) {
+          setBookingBarbers(body.barbers ?? []);
+          setBookingServices(serviceBody.services ?? []);
+        }
       } catch (error) {
-        if (active) onToast(error instanceof Error ? error.message : "Unable to load appointment barbers");
-      } finally { if (active) setBookingChoicesLoading(false); }
+        if (active)
+          onToast(error instanceof Error ? error.message : "Unable to load appointment barbers");
+      } finally {
+        if (active) setBookingChoicesLoading(false);
+      }
     }
     void loadChoices();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [editingBooking, onToast]);
 
   function openProfileEditor() {
@@ -179,7 +229,11 @@ export function CustomerDashboard({
           preferredBarberId: draft.preferredBarberId ? Number(draft.preferredBarberId) : null,
         }),
       });
-      const body = await readApiBody<{ success: boolean; customer?: ApiCustomer; message?: string }>(response);
+      const body = await readApiBody<{
+        success: boolean;
+        customer?: ApiCustomer;
+        message?: string;
+      }>(response);
 
       if (!response.ok || !body?.success || !body.customer) {
         throw new Error(body?.message ?? "Unable to update your profile");
@@ -224,17 +278,25 @@ export function CustomerDashboard({
           notes: bookingDraft.notes,
         }),
       });
-      const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(response);
+      const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(
+        response,
+      );
       if (!response.ok || !body?.success || !body.booking) {
         throw new Error(body?.message ?? "Unable to update your appointment");
       }
-      setBookings((current) => current.map((booking) => booking.id === body.booking!.id ? body.booking! : booking));
+      setBookings((current) =>
+        current.map((booking) => (booking.id === body.booking!.id ? body.booking! : booking)),
+      );
       setEditingBooking(null);
       setBookingDraft(null);
-      onToast(body.booking.status === "pending" ? "Appointment updated. The shop will confirm the new time." : "Appointment updated");
+      onToast(
+        body.booking.status === "pending"
+          ? "Appointment updated. The shop will confirm the new time."
+          : "Appointment updated",
+      );
     } catch (error) {
       onToast(error instanceof Error ? error.message : "Unable to update your appointment");
-      setBookingDraft((current) => current ? { ...current, time: "" } : current);
+      setBookingDraft((current) => (current ? { ...current, time: "" } : current));
       setAvailabilityVersion((current) => current + 1);
     } finally {
       setBookingSaving(false);
@@ -249,11 +311,15 @@ export function CustomerDashboard({
         method: "PATCH",
         body: JSON.stringify({ status: "cancelled" }),
       });
-      const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(response);
+      const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(
+        response,
+      );
       if (!response.ok || !body?.success || !body.booking) {
         throw new Error(body?.message ?? "Unable to cancel your appointment");
       }
-      setBookings((current) => current.map((item) => item.id === body.booking!.id ? body.booking! : item));
+      setBookings((current) =>
+        current.map((item) => (item.id === body.booking!.id ? body.booking! : item)),
+      );
       setPendingCancellation(null);
       onToast("Appointment cancelled");
     } catch (error) {
@@ -263,13 +329,21 @@ export function CustomerDashboard({
     }
   }
 
-  const name = customer ? `${customer.firstName} ${customer.lastName}` : `${user.firstName} ${user.lastName}`;
+  const name = customer
+    ? `${customer.firstName} ${customer.lastName}`
+    : `${user.firstName} ${user.lastName}`;
   // Upcoming = still active and not yet over, soonest first. Appointments whose time has
   // passed without a visit move to history so the next real appointment is always on top.
-  const isOver = (booking: ApiBooking) => Date.parse(`${booking.date}T${booking.endTime ?? booking.time}:00+08:00`) < now;
-  const isActive = (booking: ApiBooking) => ["pending", "confirmed", "checked_in", "in_progress"].includes(booking.status);
+  const isOver = (booking: ApiBooking) =>
+    Date.parse(`${booking.date}T${booking.endTime ?? booking.time}:00+08:00`) < now;
+  const isActive = (booking: ApiBooking) =>
+    ["pending", "confirmed", "checked_in", "in_progress"].includes(booking.status);
   const upcoming = bookings
-    .filter((booking) => isActive(booking) && (booking.status === "checked_in" || booking.status === "in_progress" || !isOver(booking)))
+    .filter(
+      (booking) =>
+        isActive(booking) &&
+        (booking.status === "checked_in" || booking.status === "in_progress" || !isOver(booking)),
+    )
     .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const past = bookings
     .filter((booking) => !upcoming.includes(booking))
@@ -277,7 +351,10 @@ export function CustomerDashboard({
   const completedCount = past.filter((booking) => booking.status === "completed").length;
   const historyPageCount = Math.max(1, Math.ceil(past.length / HISTORY_PAGE_SIZE));
   const currentHistoryPage = Math.min(historyPage, historyPageCount);
-  const historyRows = past.slice((currentHistoryPage - 1) * HISTORY_PAGE_SIZE, currentHistoryPage * HISTORY_PAGE_SIZE);
+  const historyRows = past.slice(
+    (currentHistoryPage - 1) * HISTORY_PAGE_SIZE,
+    currentHistoryPage * HISTORY_PAGE_SIZE,
+  );
 
   return (
     <div className="customer-page customer-page--dashboard">
@@ -288,7 +365,9 @@ export function CustomerDashboard({
             <div>
               <h1>Welcome back, {name.split(" ")[0]}.</h1>
             </div>
-            <Button icon="calendar" onClick={() => go("customer-booking")}>Book appointment</Button>
+            <Button icon="calendar" onClick={() => go("customer-booking")}>
+              Book appointment
+            </Button>
           </div>
 
           {loading ? (
@@ -296,58 +375,139 @@ export function CustomerDashboard({
           ) : customer ? (
             <>
               <div className="metrics-grid metrics-grid--three">
-                <MetricCard label="Loyalty points" value={String(customer.loyaltyPoints)} icon="spark" accent="amber" />
-                <MetricCard label="Upcoming" value={String(upcoming.length)} icon="calendar" accent="blue" />
-                <MetricCard label="Completed visits" value={String(completedCount)} icon="check" accent="green" />
+                <MetricCard
+                  label="Loyalty points"
+                  value={String(customer.loyaltyPoints)}
+                  icon="spark"
+                  accent="amber"
+                />
+                <MetricCard
+                  label="Upcoming"
+                  value={String(upcoming.length)}
+                  icon="calendar"
+                  accent="blue"
+                />
+                <MetricCard
+                  label="Completed visits"
+                  value={String(completedCount)}
+                  icon="check"
+                  accent="green"
+                />
               </div>
 
               <div className="customer-dashboard__grid">
                 <Panel className="customer-summary-panel">
                   <SectionHeading
                     title="Your profile"
-                    action={<button className="link-button" type="button" onClick={openProfileEditor}>Edit details</button>}
+                    action={
+                      <button className="link-button" type="button" onClick={openProfileEditor}>
+                        Edit details
+                      </button>
+                    }
                   />
                   <div className="customer-summary">
-                    <Avatar initials={createInitials(name)} tone="slate" size="lg" className="customer-dashboard__avatar" />
+                    <Avatar
+                      initials={createInitials(name)}
+                      tone="slate"
+                      size="lg"
+                      className="customer-dashboard__avatar"
+                    />
                     <div>
                       <strong>{name}</strong>
                       <span>{customer.loyaltyPoints} loyalty points</span>
                     </div>
                   </div>
                   <dl className="customer-profile-facts">
-                    <div><dt>Email</dt><dd title={customer.email}>{customer.email}</dd></div>
-                    <div><dt>Phone</dt><dd>{customer.phone || "Not set"}</dd></div>
-                    <div><dt>Preferred barber</dt><dd>{customer.preferredBarberName ?? "Not set"}</dd></div>
-                    <div><dt>Member since</dt><dd>{formatMemberSince(customer.createdAt)}</dd></div>
+                    <div>
+                      <dt>Email</dt>
+                      <dd title={customer.email}>{customer.email}</dd>
+                    </div>
+                    <div>
+                      <dt>Phone</dt>
+                      <dd>{customer.phone || "Not set"}</dd>
+                    </div>
+                    <div>
+                      <dt>Preferred barber</dt>
+                      <dd>{customer.preferredBarberName ?? "Not set"}</dd>
+                    </div>
+                    <div>
+                      <dt>Member since</dt>
+                      <dd>{formatMemberSince(customer.createdAt)}</dd>
+                    </div>
                   </dl>
                 </Panel>
 
                 <Panel className="customer-bookings-panel matched-height-panel">
                   <SectionHeading
                     title="Upcoming appointments"
-                    action={<button className="link-button" type="button" onClick={() => go("customer-booking")}>Book</button>}
+                    action={
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() => go("customer-booking")}
+                      >
+                        Book
+                      </button>
+                    }
                   />
-                  <div className="panel-scroll-body" role="region" aria-label="Upcoming appointments" tabIndex={0}>
-                  {upcoming.length ? (
-                    <div className="customer-booking-list">
-                      {upcoming.map((booking) => (
-                        <div className="customer-booking-card" key={booking.id}>
-                          <div className="customer-booking-card__content">
-                            <strong>{formatDate(booking.date)}</strong>
-                            <span>{formatTimeRange(booking.time, booking.endTime)} · {booking.serviceName}</span>
-                            <small>with {booking.barberName} · {booking.branchName ?? "Main Branch"}</small>
+                  <div
+                    className="panel-scroll-body"
+                    role="region"
+                    aria-label="Upcoming appointments"
+                    tabIndex={0}
+                  >
+                    {upcoming.length ? (
+                      <div className="customer-booking-list">
+                        {upcoming.map((booking) => (
+                          <div className="customer-booking-card" key={booking.id}>
+                            <div className="customer-booking-card__content">
+                              <strong>{formatDate(booking.date)}</strong>
+                              <span>
+                                {formatTimeRange(booking.time, booking.endTime)} ·{" "}
+                                {booking.serviceName}
+                              </span>
+                              <small>
+                                with {booking.barberName} · {booking.branchName ?? "Main Branch"}
+                              </small>
+                            </div>
+                            <div className="customer-booking-card__actions">
+                              <Badge
+                                tone={
+                                  booking.status === "pending"
+                                    ? "warning"
+                                    : booking.status === "confirmed"
+                                      ? "success"
+                                      : "info"
+                                }
+                              >
+                                {upcomingLabel[booking.status] ?? booking.status}
+                              </Badge>
+                              {["pending", "confirmed"].includes(booking.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  icon="edit"
+                                  onClick={() => openBookingEditor(booking)}
+                                >
+                                  Manage
+                                </Button>
+                              )}
+                              {["pending", "confirmed"].includes(booking.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => setPendingCancellation(booking)}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="customer-booking-card__actions">
-                            <Badge tone={booking.status === "pending" ? "warning" : booking.status === "confirmed" ? "success" : "info"}>{upcomingLabel[booking.status] ?? booking.status}</Badge>
-                            {["pending", "confirmed"].includes(booking.status) && <Button size="sm" variant="secondary" icon="edit" onClick={() => openBookingEditor(booking)}>Manage</Button>}
-                            {["pending", "confirmed"].includes(booking.status) && <Button size="sm" variant="danger" onClick={() => setPendingCancellation(booking)}>Cancel</Button>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState icon="calendar" title="No upcoming appointments" />
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState icon="calendar" title="No upcoming appointments" />
+                    )}
                   </div>
                 </Panel>
               </div>
@@ -358,12 +518,23 @@ export function CustomerDashboard({
                   <>
                     <div className="customer-booking-list">
                       {historyRows.map((booking) => (
-                        <div className="customer-booking-card customer-booking-card--history" key={booking.id}>
+                        <div
+                          className="customer-booking-card customer-booking-card--history"
+                          key={booking.id}
+                        >
                           <strong>{formatDate(booking.date)}</strong>
                           <span>{booking.serviceName}</span>
                           <span>{booking.barberName}</span>
                           <small>{booking.branchName ?? "Main Branch"}</small>
-                          <Badge tone={booking.status === "completed" ? "success" : booking.status === "pending" || booking.status === "confirmed" ? "neutral" : "danger"}>
+                          <Badge
+                            tone={
+                              booking.status === "completed"
+                                ? "success"
+                                : booking.status === "pending" || booking.status === "confirmed"
+                                  ? "neutral"
+                                  : "danger"
+                            }
+                          >
                             {historyLabel[booking.status] ?? booking.status}
                           </Badge>
                         </div>
@@ -382,7 +553,18 @@ export function CustomerDashboard({
               </Panel>
             </>
           ) : (
-            <Panel><EmptyState icon="users" title="Account unavailable" description="Your customer details could not be loaded. Sign out, then sign in again to reload them." action={<Button variant="secondary" icon="logOut" onClick={onSignOut}>Sign out</Button>} /></Panel>
+            <Panel>
+              <EmptyState
+                icon="users"
+                title="Account unavailable"
+                description="Your customer details could not be loaded. Sign out, then sign in again to reload them."
+                action={
+                  <Button variant="secondary" icon="logOut" onClick={onSignOut}>
+                    Sign out
+                  </Button>
+                }
+              />
+            </Panel>
           )}
         </div>
       </main>
@@ -417,7 +599,11 @@ export function CustomerDashboard({
       <ConfirmDialog
         open={Boolean(pendingCancellation)}
         title="Cancel this appointment?"
-        description={pendingCancellation ? `${formatDate(pendingCancellation.date)} at ${formatTime(pendingCancellation.time)} will be marked cancelled.` : undefined}
+        description={
+          pendingCancellation
+            ? `${formatDate(pendingCancellation.date)} at ${formatTime(pendingCancellation.time)} will be marked cancelled.`
+            : undefined
+        }
         confirmLabel="Cancel appointment"
         danger
         busy={cancellingBookingId !== null}
@@ -425,25 +611,57 @@ export function CustomerDashboard({
         onConfirm={() => pendingCancellation && void cancelBooking(pendingCancellation)}
       />
 
-      <Modal
-        open={editing}
-        title="Edit your profile"
-        onClose={() => !saving && setEditing(false)}
-      >
+      <Modal open={editing} title="Edit your profile" onClose={() => !saving && setEditing(false)}>
         <form className="modal-form" onSubmit={saveProfile}>
           <div className="form-grid form-grid--two">
-            <TextField label="First name" value={draft.firstName} onChange={(event) => setDraft({ ...draft, firstName: event.target.value })} />
-            <TextField label="Last name" value={draft.lastName} onChange={(event) => setDraft({ ...draft, lastName: event.target.value })} />
+            <TextField
+              label="First name"
+              value={draft.firstName}
+              onChange={(event) => setDraft({ ...draft, firstName: event.target.value })}
+            />
+            <TextField
+              label="Last name"
+              value={draft.lastName}
+              onChange={(event) => setDraft({ ...draft, lastName: event.target.value })}
+            />
           </div>
-          <TextField label="Email address" type="email" value={draft.email} error={emailFieldError(draft.email)} onChange={(event) => setDraft({ ...draft, email: event.target.value })} icon="mail" />
-          <TextField label="Phone number" type="tel" inputMode="numeric" maxLength={11} value={draft.phone} error={phoneFieldError(draft.phone)} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} icon="phone" />
-          <SelectField label="Preferred barber" value={draft.preferredBarberId} onChange={(event) => setDraft({ ...draft, preferredBarberId: event.target.value })}>
+          <TextField
+            label="Email address"
+            type="email"
+            value={draft.email}
+            error={emailFieldError(draft.email)}
+            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+            icon="mail"
+          />
+          <TextField
+            label="Phone number"
+            type="tel"
+            inputMode="numeric"
+            maxLength={11}
+            value={draft.phone}
+            error={phoneFieldError(draft.phone)}
+            onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+            icon="phone"
+          />
+          <SelectField
+            label="Preferred barber"
+            value={draft.preferredBarberId}
+            onChange={(event) => setDraft({ ...draft, preferredBarberId: event.target.value })}
+          >
             <option value="">Not set</option>
-            {barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.firstName} {barber.lastName}</option>)}
+            {barbers.map((barber) => (
+              <option key={barber.id} value={barber.id}>
+                {barber.firstName} {barber.lastName}
+              </option>
+            ))}
           </SelectField>
           <div className="modal-actions">
-            <Button variant="secondary" type="button" onClick={() => setEditing(false)}>Cancel</Button>
-            <Button type="submit" icon="check" disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
+            <Button variant="secondary" type="button" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" icon="check" disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
           </div>
         </form>
       </Modal>

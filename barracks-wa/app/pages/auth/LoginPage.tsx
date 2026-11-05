@@ -1,18 +1,18 @@
 "use client";
 
-import { EMAIL_MESSAGE, PHONE_MESSAGE, isValidEmail, isValidPhone } from "@/app/utils/contact-validation";
+import {
+  EMAIL_MESSAGE,
+  PHONE_MESSAGE,
+  isValidEmail,
+  isValidPhone,
+} from "@/app/utils/contact-validation";
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import type { ViewId } from "@/app/types/domain";
 import { Button, Logo, Modal, TextField } from "@/app/components/ui";
 import { Icon } from "@/app/components/ui/icons";
 import { landingContact, landingHours } from "@/app/data/landing";
-import {
-  apiRequest,
-  readApiBody,
-  type ApiErrorBody,
-  type ApiUser,
-} from "@/app/lib/api";
+import { apiRequest, readApiBody, type ApiErrorBody, type ApiUser } from "@/app/lib/api";
 
 type LoginPageProps = {
   go: (view: ViewId) => void;
@@ -53,26 +53,19 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      const body = await readApiBody<
-        | ({ success: true; user: ApiUser })
-        | ApiErrorBody
-      >(response);
+      const body = await readApiBody<{ success: true; user: ApiUser } | ApiErrorBody>(response);
 
       if (!response.ok || !body || !body.success) {
         const errorBody = body && !body.success ? body : null;
         const validationMessage = errorBody?.errors
           ? Object.values(errorBody.errors).flat().join(" ")
           : undefined;
-        throw new Error(
-          validationMessage ?? errorBody?.message ?? "Unable to sign in",
-        );
+        throw new Error(validationMessage ?? errorBody?.message ?? "Unable to sign in");
       }
 
       onLogin(body.user);
     } catch (submitError) {
-      setError(
-        submitError instanceof Error ? submitError.message : "Unable to sign in",
-      );
+      setError(submitError instanceof Error ? submitError.message : "Unable to sign in");
     } finally {
       setSubmitting(false);
     }
@@ -118,14 +111,23 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
           preferredBarberId: null,
         }),
       });
-      const body = await readApiBody<{ success: boolean; user?: ApiUser; message?: string; errors?: Record<string, string[]> }>(response);
+      const body = await readApiBody<{
+        success: boolean;
+        user?: ApiUser;
+        message?: string;
+        errors?: Record<string, string[]>;
+      }>(response);
       if (!response.ok || !body?.success || !body.user) {
-        const validationMessage = body?.errors ? Object.values(body.errors).flat().join(" ") : undefined;
+        const validationMessage = body?.errors
+          ? Object.values(body.errors).flat().join(" ")
+          : undefined;
         throw new Error(validationMessage ?? body?.message ?? "Unable to create customer account");
       }
       onLogin(body.user);
     } catch (signupError) {
-      setError(signupError instanceof Error ? signupError.message : "Unable to create customer account");
+      setError(
+        signupError instanceof Error ? signupError.message : "Unable to create customer account",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -152,11 +154,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
 
         <div className="login-page__aside-content">
           <div>
-            <button
-              className="login-back"
-              type="button"
-              onClick={() => go("landing")}
-            >
+            <button className="login-back" type="button" onClick={() => go("landing")}>
               <Icon name="chevronLeft" size={14} />
               <span>Back to Barracks</span>
             </button>
@@ -219,9 +217,13 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
           <div className="login-card__head">
             <h1>
               {authMode === "login" ? (
-                <>WELCOME <span className="accent-crimson">BACK.</span></>
+                <>
+                  WELCOME <span className="accent-crimson">BACK.</span>
+                </>
               ) : (
-                <>JOIN THE <span className="accent-crimson">BARRACKS.</span></>
+                <>
+                  JOIN THE <span className="accent-crimson">BARRACKS.</span>
+                </>
               )}
             </h1>
           </div>
@@ -237,7 +239,9 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
                 required
               />
               <label className="field">
-                <span className="field__label">Password <span aria-hidden="true">*</span></span>
+                <span className="field__label">
+                  Password <span aria-hidden="true">*</span>
+                </span>
                 <span className="input-wrap">
                   <Icon name="lock" size={16} />
                   <input
@@ -257,11 +261,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
                 </span>
               </label>
               <div className="login-form__meta">
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => setRecoveryOpen(true)}
-                >
+                <button type="button" className="link-button" onClick={() => setRecoveryOpen(true)}>
                   Forgot password?
                 </button>
               </div>
@@ -303,7 +303,9 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
                 placeholder="09170000000"
               />
               <label className="field">
-                <span className="field__label">Password <span aria-hidden="true">*</span></span>
+                <span className="field__label">
+                  Password <span aria-hidden="true">*</span>
+                </span>
                 <span className="input-wrap">
                   <Icon name="lock" size={16} />
                   <input
@@ -339,13 +341,15 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
             </form>
           )}
 
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
 
           <div className="login-card__switch">
             <span>
-              {authMode === "login"
-                ? "Need a customer account?"
-                : "Already have an account?"}
+              {authMode === "login" ? "Need a customer account?" : "Already have an account?"}
             </span>
             <button
               type="button"
@@ -365,7 +369,10 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
         onClose={() => setRecoveryOpen(false)}
       >
         <div className="modal-form">
-          <p className="modal-copy">Staff: ask your administrator to set a new password from Staff management. Customers: call or visit any Barracks branch and the front desk will restore your access.</p>
+          <p className="modal-copy">
+            Staff: ask your administrator to set a new password from Staff management. Customers:
+            call or visit any Barracks branch and the front desk will restore your access.
+          </p>
           <div className="modal-actions">
             <Button type="button" onClick={() => setRecoveryOpen(false)}>
               Close

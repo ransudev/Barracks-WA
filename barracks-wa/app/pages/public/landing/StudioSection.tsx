@@ -12,9 +12,7 @@ export function StudioSection() {
           fill
           sizes="(max-width: 1024px) 100vw, 50vw"
         />
-        <div className="studio-visual-frame__tag">
-          BARRACKS · DAVAO BARBER CAFÉ
-        </div>
+        <div className="studio-visual-frame__tag">BARRACKS · DAVAO BARBER CAFÉ</div>
       </div>
 
       <div className="studio-text">
@@ -24,10 +22,10 @@ export function StudioSection() {
         </h2>
 
         <p>
-          Homegrown in Davao City since 2017, Barracks brings together the relaxed social
-          vibe of a specialty coffee lounge with the sharp precision of TESDA-certified
-          master barbers. Grab a fresh iced brew, kick back in our leather chairs, and
-          leave with sharp lines and effortless confidence.
+          Homegrown in Davao City since 2017, Barracks brings together the relaxed social vibe of a
+          specialty coffee lounge with the sharp precision of TESDA-certified master barbers. Grab a
+          fresh iced brew, kick back in our leather chairs, and leave with sharp lines and
+          effortless confidence.
         </p>
 
         <div className="studio-specs-list">
@@ -38,7 +36,16 @@ export function StudioSection() {
           <div className="studio-spec-item">
             <span>Shop Hotline</span>
             <a href={`tel:${landingContact.phoneHref}`}>
-              <Icon name="phone" size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6, color: "var(--color-secondary-bright)" }} />
+              <Icon
+                name="phone"
+                size={13}
+                style={{
+                  display: "inline-block",
+                  verticalAlign: "-2px",
+                  marginRight: 6,
+                  color: "var(--color-secondary-bright)",
+                }}
+              />
               {landingContact.phone}
             </a>
           </div>

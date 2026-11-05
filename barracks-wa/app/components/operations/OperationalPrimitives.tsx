@@ -19,11 +19,21 @@ export function ViewToggle({
 }) {
   return (
     <div className="inventory-view-toggle operational-view-toggle" role="group" aria-label={label}>
-      <button type="button" className={view === "cards" ? "is-active" : ""} aria-pressed={view === "cards"} onClick={() => onChange("cards")}>
+      <button
+        type="button"
+        className={view === "cards" ? "is-active" : ""}
+        aria-pressed={view === "cards"}
+        onClick={() => onChange("cards")}
+      >
         <Icon name="box" size={15} />
         <span>Cards</span>
       </button>
-      <button type="button" className={view === "table" ? "is-active" : ""} aria-pressed={view === "table"} onClick={() => onChange("table")}>
+      <button
+        type="button"
+        className={view === "table" ? "is-active" : ""}
+        aria-pressed={view === "table"}
+        onClick={() => onChange("table")}
+      >
         <Icon name="menu" size={15} />
         <span>List</span>
       </button>
@@ -51,24 +61,82 @@ export function FilterToolbar({
   return (
     <div className="operational-toolbar">
       <div className="operational-toolbar__inputs">
-        {typeof search === "string" && onSearchChange && <SearchInput className="operational-toolbar__search" value={search} onChange={onSearchChange} placeholder={placeholder} />}
+        {typeof search === "string" && onSearchChange && (
+          <SearchInput
+            className="operational-toolbar__search"
+            value={search}
+            onChange={onSearchChange}
+            placeholder={placeholder}
+          />
+        )}
         {filters}
         {children}
-        {onReset && <Button type="button" variant="ghost" onClick={onReset}>Reset filters</Button>}
+        {onReset && (
+          <Button type="button" variant="ghost" onClick={onReset}>
+            Reset filters
+          </Button>
+        )}
       </div>
       <div className="operational-toolbar__meta">
-        {typeof resultCount === "number" && <span>{resultCount} {resultCount === 1 ? "record" : "records"}</span>}
+        {typeof resultCount === "number" && (
+          <span>
+            {resultCount} {resultCount === 1 ? "record" : "records"}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-export function FreshnessBar({ updatedAt, loading, error, onRefresh }: { updatedAt: number | null; loading: boolean; error?: string; onRefresh: () => void }) {
-  return <div className="operational-freshness">
-    <span role="status">{loading ? "Updating…" : updatedAt ? <>Updated <time dateTime={new Date(updatedAt).toISOString()}>{new Date(updatedAt).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })}</time></> : "Not updated yet"}</span>
-    <Button type="button" size="sm" variant="secondary" icon="refresh" disabled={loading} onClick={onRefresh}>Refresh</Button>
-    {error && <p role="alert">Refresh failed: {error}{updatedAt ? ". Displayed data is from the last successful update." : ""}</p>}
-  </div>;
+export function FreshnessBar({
+  updatedAt,
+  loading,
+  error,
+  onRefresh,
+}: {
+  updatedAt: number | null;
+  loading: boolean;
+  error?: string;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="operational-freshness">
+      <span role="status">
+        {loading ? (
+          "Updating…"
+        ) : updatedAt ? (
+          <>
+            Updated{" "}
+            <time dateTime={new Date(updatedAt).toISOString()}>
+              {new Date(updatedAt).toLocaleTimeString("en-PH", {
+                timeZone: "Asia/Manila",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </time>
+          </>
+        ) : (
+          "Not updated yet"
+        )}
+      </span>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        icon="refresh"
+        disabled={loading}
+        onClick={onRefresh}
+      >
+        Refresh
+      </Button>
+      {error && (
+        <p role="alert">
+          Refresh failed: {error}
+          {updatedAt ? ". Displayed data is from the last successful update." : ""}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function RecordCard({
@@ -87,10 +155,17 @@ export function RecordCard({
   return (
     <article className={`operational-card ${className}`}>
       {onOpen ? (
-        <button className="operational-card__main" type="button" onClick={onOpen} aria-label={ariaLabel}>
+        <button
+          className="operational-card__main"
+          type="button"
+          onClick={onOpen}
+          aria-label={ariaLabel}
+        >
           {children}
         </button>
-      ) : children}
+      ) : (
+        children
+      )}
       {actions && <div className="operational-card__actions">{actions}</div>}
     </article>
   );
@@ -110,7 +185,15 @@ export function ResponsiveTable({
   return (
     <div className={`operational-table-wrap ${className}`}>
       <table className="operational-table">
-        <thead><tr>{headers.map((header) => <th key={header} scope="col">{header}</th>)}</tr></thead>
+        <thead>
+          <tr>
+            {headers.map((header) => (
+              <th key={header} scope="col">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
         <tbody>{children}</tbody>
       </table>
       {empty}
@@ -129,8 +212,12 @@ export function ActionMenu({
 }) {
   return (
     <details className="operational-action-menu">
-      <summary className="icon-button icon-button--small" aria-label={label} title={label}><Icon name={icon} size={16} /></summary>
-      <div className="operational-action-menu__content" role="menu">{children}</div>
+      <summary className="icon-button icon-button--small" aria-label={label} title={label}>
+        <Icon name={icon} size={16} />
+      </summary>
+      <div className="operational-action-menu__content" role="menu">
+        {children}
+      </div>
     </details>
   );
 }
@@ -146,7 +233,17 @@ export function ActionMenuItem({
   danger?: boolean;
   disabled?: boolean;
 }) {
-  return <button type="button" role="menuitem" className={`operational-action-menu__item ${danger ? "is-danger" : ""}`} onClick={onClick} disabled={disabled}>{children}</button>;
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={`operational-action-menu__item ${danger ? "is-danger" : ""}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function OperationalStatusBadge({
@@ -172,7 +269,18 @@ export function DrawerSection({
   children: ReactNode;
   className?: string;
 }) {
-  return <section className={`operational-drawer__section ${className}`}><div className="operational-drawer__section-heading"><div>{eyebrow && <span className="inventory-kicker">{eyebrow}</span>}{title && <h3>{title}</h3>}</div>{action}</div>{children}</section>;
+  return (
+    <section className={`operational-drawer__section ${className}`}>
+      <div className="operational-drawer__section-heading">
+        <div>
+          {eyebrow && <span className="inventory-kicker">{eyebrow}</span>}
+          {title && <h3>{title}</h3>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function DetailDrawer({
@@ -218,24 +326,34 @@ export function DetailDrawer({
   // that every consumer empties on close can still animate out with its content.
   // eslint-disable-next-line react-hooks/refs
   const cached = lastContent.current;
-  const content = !open || phase === "exiting" ? cached : { title, subtitle, eyebrow, children, footer };
-  const closeLabel = content.title.toLowerCase().endsWith("details") ? `Close ${content.title}` : `Close ${content.title} details`;
+  const content =
+    !open || phase === "exiting" ? cached : { title, subtitle, eyebrow, children, footer };
+  const closeLabel = content.title.toLowerCase().endsWith("details")
+    ? `Close ${content.title}`
+    : `Close ${content.title} details`;
 
-  useEffect(() => { onCloseRef.current = onClose; dirtyRef.current = dirty; openRef.current = open; }, [onClose, dirty, open]);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    dirtyRef.current = dirty;
+    openRef.current = open;
+  }, [onClose, dirty, open]);
 
   useEffect(() => {
     if (!mounted) return;
     const drawer = drawerRef.current;
     if (!drawer) return;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableSelector =
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       // A confirmation or edit modal above this drawer owns keyboard input.
       if (document.querySelector(".modal-backdrop")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         if (!openRef.current) return;
-        if (dirtyRef.current) setConfirmDiscard(true); else onCloseRef.current();
+        if (dirtyRef.current) setConfirmDiscard(true);
+        else onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -243,10 +361,17 @@ export function DetailDrawer({
       if (!controls.length) return;
       const first = controls[0];
       const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    const frame = window.requestAnimationFrame(() => closeRef.current?.focus({ preventScroll: true }));
+    const frame = window.requestAnimationFrame(() =>
+      closeRef.current?.focus({ preventScroll: true }),
+    );
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       window.cancelAnimationFrame(frame);
@@ -263,7 +388,8 @@ export function DetailDrawer({
   if (!mounted) return null;
 
   function requestClose() {
-    if (dirty) setConfirmDiscard(true); else onClose();
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
   }
 
   function discardChanges() {
@@ -274,14 +400,58 @@ export function DetailDrawer({
 
   return (
     <div className="operational-drawer-layer" role="presentation" data-state={phase}>
-      <button className="operational-drawer-scrim" type="button" aria-label={closeLabel} onClick={requestClose} />
-      <aside ref={drawerRef} className="operational-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <button
+        className="operational-drawer-scrim"
+        type="button"
+        aria-label={closeLabel}
+        onClick={requestClose}
+      />
+      <aside
+        ref={drawerRef}
+        className="operational-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <header className="operational-drawer__header">
-          <div><span className="inventory-kicker">{content.eyebrow}</span><h2 id={titleId}>{content.title}</h2>{content.subtitle && <p>{content.subtitle}</p>}</div>
-          <button ref={closeRef} className="icon-button" type="button" aria-label={closeLabel} title="Close details" onClick={requestClose}><Icon name="x" size={18} /></button>
+          <div>
+            <span className="inventory-kicker">{content.eyebrow}</span>
+            <h2 id={titleId}>{content.title}</h2>
+            {content.subtitle && <p>{content.subtitle}</p>}
+          </div>
+          <button
+            ref={closeRef}
+            className="icon-button"
+            type="button"
+            aria-label={closeLabel}
+            title="Close details"
+            onClick={requestClose}
+          >
+            <Icon name="x" size={18} />
+          </button>
         </header>
         <div className="operational-drawer__body">{content.children}</div>
-        {confirmDiscard && <div className="operational-drawer__unsaved" role="alert"><div><strong>Discard unsaved changes?</strong><span>Your edits will be lost.</span></div><div><Button size="sm" variant="ghost" type="button" onClick={() => setConfirmDiscard(false)}>Keep editing</Button><Button size="sm" variant="danger" type="button" onClick={discardChanges}>Discard</Button></div></div>}
+        {confirmDiscard && (
+          <div className="operational-drawer__unsaved" role="alert">
+            <div>
+              <strong>Discard unsaved changes?</strong>
+              <span>Your edits will be lost.</span>
+            </div>
+            <div>
+              <Button
+                size="sm"
+                variant="ghost"
+                type="button"
+                onClick={() => setConfirmDiscard(false)}
+              >
+                Keep editing
+              </Button>
+              <Button size="sm" variant="danger" type="button" onClick={discardChanges}>
+                Discard
+              </Button>
+            </div>
+          </div>
+        )}
         {content.footer && <footer className="operational-drawer__footer">{content.footer}</footer>}
       </aside>
     </div>
