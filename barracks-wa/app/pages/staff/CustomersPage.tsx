@@ -104,7 +104,6 @@ export function CustomersPage({
       try {
         const response = await apiRequest("/api/customers", {
           cache: "no-store",
-          reuseForMs: 15_000,
         });
         const body = await readApiBody<{
           success: boolean;

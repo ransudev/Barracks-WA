@@ -213,9 +213,9 @@ function BookingsPageContent({
         const [bookingResponse, customerResponse, barberResponse, serviceResponse] =
           await Promise.all([
             apiRequest(`/api/bookings?branchId=${branchId}`, { cache: "no-store" }),
-            apiRequest("/api/customers", { cache: "no-store", reuseForMs: 15_000 }),
+            apiRequest("/api/customers", { cache: "no-store" }),
             apiRequest(`/api/barbers?branchId=${branchId}`, { cache: "no-store" }),
-            apiRequest("/api/services", { cache: "no-store", reuseForMs: 15_000 }),
+            apiRequest("/api/services", { cache: "no-store" }),
           ]);
         const [bookings, customerData, barberData, serviceData] = await Promise.all([
           readApiBody<{ success: boolean; bookings?: ApiBooking[]; message?: string }>(

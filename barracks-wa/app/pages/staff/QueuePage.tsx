@@ -133,8 +133,8 @@ function QueuePageContent({
         const [queueResponse, customerResponse, serviceResponse, barberResponse] =
           await Promise.all([
             apiRequest(`/api/queue?view=active&branchId=${branchId}`, { cache: "no-store" }),
-            apiRequest("/api/customers", { cache: "no-store", reuseForMs: 15_000 }),
-            apiRequest("/api/services", { cache: "no-store", reuseForMs: 15_000 }),
+            apiRequest("/api/customers", { cache: "no-store" }),
+            apiRequest("/api/services", { cache: "no-store" }),
             apiRequest(`/api/barbers?branchId=${branchId}`, { cache: "no-store" }),
           ]);
         const [queueData, customerData, serviceData, barberData] = await Promise.all([
@@ -323,7 +323,6 @@ function QueuePageContent({
         try {
           const customerResponse = await apiRequest("/api/customers", {
             cache: "no-store",
-            reuseForMs: 15_000,
           });
           const customerBody = await readApiBody<{ success: boolean; customers?: ApiCustomer[] }>(
             customerResponse,

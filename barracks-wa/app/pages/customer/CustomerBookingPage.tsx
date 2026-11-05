@@ -166,7 +166,7 @@ function CustomerBookingWorkspace({
         const query = `?branchId=${branch.id}`;
         const [response, serviceResponse, hoursResponse] = await Promise.all([
           apiRequest(`/api/barbers${query}`),
-          apiRequest(`/api/services${query}`, { cache: "no-store", reuseForMs: 15_000 }),
+          apiRequest(`/api/services${query}`, { cache: "no-store" }),
           apiRequest(`/api/shop-hours${query}`),
         ]);
         const body = await readApiBody<{
