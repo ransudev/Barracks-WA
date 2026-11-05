@@ -13,10 +13,7 @@ import type { PublicUser } from "@/server/services/user.service";
 export type ApiUser = PublicUser;
 export type ApiRole = ApiUser["role"];
 export type ApiOperationalAvailability = OperationalAvailability;
-export type ApiBarber = Omit<BarberRecord, "earnedCommissionCentavos"> & {
-  earnedCommissionCentavos?: string;
-  operationalAvailability?: ApiOperationalAvailability;
-};
+export type ApiBarber = BarberRecord & { operationalAvailability?: ApiOperationalAvailability };
 export type ApiBarberAvailability = Pick<
   ApiBarber,
   "id" | "firstName" | "lastName" | "status" | "operationalAvailability"
@@ -27,7 +24,7 @@ export type ApiSupplier = SupplierRecord;
 export type ApiCustomer = CustomerRecord;
 export type ApiBooking = BookingRecord;
 export type ApiBookingStatus = ApiBooking["status"];
-export type ApiQueueEntry = Omit<QueueRecord, "branchId"> & { branchId?: number };
+export type ApiQueueEntry = QueueRecord;
 
 export type ApiAttendance = {
   branchId: number;

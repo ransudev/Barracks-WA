@@ -71,7 +71,6 @@ export function BarbersManagement({
   onToast: (message: string) => void;
   canDelete: boolean;
   canEditCommission: boolean;
-  canSetAllCommissions: boolean;
 }) {
   const { branches, branchId, setBranchId, branchError } = useBranchContext();
   const loadVersion = useRef(0);

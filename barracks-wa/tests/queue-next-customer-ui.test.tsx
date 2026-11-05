@@ -12,7 +12,7 @@ const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { QueuePage } = await import("@/app/pages/staff/QueuePage");
 
-const waiting: ApiQueueEntry = { id: 7, bookingId: null, visitType: "walk_in", scheduledDate: null, scheduledTime: null, bookingStatus: null, customerId: 3, customerName: "Next Customer", serviceId: "cut",
+const waiting: ApiQueueEntry = { branchId: 1, id: 7, bookingId: null, visitType: "walk_in", scheduledDate: null, scheduledTime: null, bookingStatus: null, customerId: 3, customerName: "Next Customer", serviceId: "cut",
   serviceName: "Basic Cut", barberId: null, barberName: null, status: "waiting", joinedAt: "2026-09-27T02:00:00Z",
   startedAt: null, completedAt: null, createdAt: "2026-09-27T02:00:00Z", updatedAt: "2026-09-27T02:00:00Z" };
 

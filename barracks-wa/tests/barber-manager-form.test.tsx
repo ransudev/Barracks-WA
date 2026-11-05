@@ -10,7 +10,7 @@ const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { BarbersManagement } = await import("@/app/pages/admin/BarbersManagement");
 const branch = { id: 1, name: "Main", code: "MAIN", address: "", phone: "", status: "active", createdAt: "", updatedAt: "" };
-const barber: ApiBarber = { id: 8, branchId: 1, firstName: "Manager", lastName: "Barber", status: "available", commissionRate: null, servicesDone: 0, revenue: 0, rating: null, scheduleDayCount: 7, createdAt: "", updatedAt: "" };
+const barber: ApiBarber = { id: 8, branchId: 1, firstName: "Manager", lastName: "Barber", status: "available", commissionRate: null, earnedCommissionCentavos: "0", servicesDone: 0, revenue: 0, rating: null, scheduleDayCount: 7, createdAt: "", updatedAt: "" };
 
 const click = async (label: string) => {
   const button = [...document.querySelectorAll("button")].find((element) => element.textContent?.trim() === label);
@@ -35,7 +35,7 @@ test("Manager barber form submits without commission or rating fields", async ()
   const container = document.createElement("div"); document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(async () => root.render(createElement(BarbersManagement, { onToast: () => undefined, canDelete: false, canEditCommission: false, canSetAllCommissions: false })));
+    await act(async () => root.render(createElement(BarbersManagement, { onToast: () => undefined, canDelete: false, canEditCommission: false })));
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
     await click("Add barber");
     assert.doesNotMatch(document.body.textContent ?? "", /Commission rate|Rating/);

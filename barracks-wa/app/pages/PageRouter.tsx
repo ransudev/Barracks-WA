@@ -151,7 +151,6 @@ export function PageRouter({ view, go, onToast, currentUser }: PageRouterProps) 
           onToast={onToast}
           canDelete={currentUser.role === "administrator"}
           canEditCommission={currentUser.role === "administrator"}
-          canSetAllCommissions={currentUser.role === "administrator"}
         />
       );
     case "admin-attendance":
