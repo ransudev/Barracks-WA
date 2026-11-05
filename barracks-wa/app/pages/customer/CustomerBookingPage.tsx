@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookingForm, type BookingFormValue } from "@/app/components/bookings/BookingForm";
 import { Button, EmptyState, Panel, SectionHeading, SelectField } from "@/app/components/ui";
 import type { ApiBarberAvailability, ApiBooking, ApiUser } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import type { Service, ViewId } from "@/app/types/domain";
 import { CustomerTopbar } from "@/app/pages/customer/CustomerTopbar";
 import { formatDate, formatTime, formatTimeRange } from "@/app/utils/format";
@@ -53,7 +53,7 @@ export function CustomerBookingPage(props: CustomerBookingProps) {
             null,
         );
       } catch (error) {
-        if (active) onToast(error instanceof Error ? error.message : "Unable to load branches");
+        if (active) onToast(errorMessage(error, "Unable to load branches"));
       } finally {
         if (active) setLoading(false);
       }
@@ -201,7 +201,7 @@ function CustomerBookingWorkspace({
             current.serviceId || serviceBody.services?.find((service) => service.active)?.id || "",
         }));
       } catch (error) {
-        if (active) onToast(error instanceof Error ? error.message : "Unable to load barbers");
+        if (active) onToast(errorMessage(error, "Unable to load barbers"));
       } finally {
         if (active) setLoading(false);
       }
@@ -238,7 +238,7 @@ function CustomerBookingWorkspace({
         throw new Error(body?.message ?? "Unable to create booking");
       setConfirmation(body.booking);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to create booking");
+      onToast(errorMessage(error, "Unable to create booking"));
       setValue((current) => ({ ...current, time: "" }));
       setAvailabilityVersion((current) => current + 1);
     } finally {

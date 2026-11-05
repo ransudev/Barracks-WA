@@ -2,7 +2,7 @@
 import { SkeletonRows } from "@/app/components/ui/Skeletons";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { apiRequest, readApiBody, type ApiRole } from "@/app/lib/api";
+import { apiRequest, readApiBody, type ApiRole, errorMessage } from "@/app/lib/api";
 import { useBranchContext } from "@/app/utils/use-branch-context";
 import {
   Badge,
@@ -162,8 +162,7 @@ function BranchPayroll({
           else setOverview(data);
         })
         .catch((cause) => {
-          if (!controller.signal.aborted)
-            setError(cause instanceof Error ? cause.message : "Unable to load payroll");
+          if (!controller.signal.aborted) setError(errorMessage(cause, "Unable to load payroll"));
         })
         .finally(() => {
           if (!controller.signal.aborted) setLoading(false);
@@ -241,7 +240,7 @@ function BranchPayroll({
       setRevision((current) => current + 1);
       onToast(result.message);
     } catch (cause) {
-      setFormError(cause instanceof Error ? cause.message : "Unable to save payroll");
+      setFormError(errorMessage(cause, "Unable to save payroll"));
     } finally {
       setSaving(false);
     }

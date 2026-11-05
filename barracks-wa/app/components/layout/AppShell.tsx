@@ -8,7 +8,13 @@ import { IconButton, Logo } from "@/app/components/ui";
 import { AccountMenu } from "@/app/components/layout/AccountMenu";
 import { ThemeToggle } from "@/app/components/ui/ThemeToggle";
 import { Icon } from "@/app/components/ui/icons";
-import { apiRequest, readApiBody, type ApiLowStockAlert, type ApiUser } from "@/app/lib/api";
+import {
+  apiRequest,
+  readApiBody,
+  type ApiLowStockAlert,
+  type ApiUser,
+  errorMessage,
+} from "@/app/lib/api";
 import type { ShellArea, ViewId } from "@/app/types/domain";
 import { BranchContextProvider, useBranchContext } from "@/app/utils/use-branch-context";
 
@@ -307,11 +313,7 @@ function Topbar({
                             branchRef.current !== selectedBranchId
                           )
                             return;
-                          onToast(
-                            error instanceof Error
-                              ? error.message
-                              : "Unable to acknowledge stock alerts",
-                          );
+                          onToast(errorMessage(error, "Unable to acknowledge stock alerts"));
                           void refreshLowStock();
                         })
                         .finally(() => {

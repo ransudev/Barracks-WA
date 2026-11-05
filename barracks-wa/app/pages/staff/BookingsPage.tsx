@@ -10,7 +10,7 @@ import type {
   ApiBookingStatus,
   ApiCustomer,
 } from "@/app/lib/api";
-import { apiRequest, peekApiBody, readApiBody } from "@/app/lib/api";
+import { apiRequest, peekApiBody, readApiBody, errorMessage } from "@/app/lib/api";
 import { ScheduleSkeleton } from "@/app/components/ui/Skeletons";
 import {
   Avatar,
@@ -257,8 +257,7 @@ function BookingsPageContent({
         setLoadError("");
         setUpdatedAt(Date.now());
       } catch (error) {
-        if (active)
-          setLoadError(error instanceof Error ? error.message : "Unable to load bookings");
+        if (active) setLoadError(errorMessage(error, "Unable to load bookings"));
       } finally {
         if (active) setLoading(false);
       }
@@ -288,9 +287,7 @@ function BookingsPageContent({
       } catch (cause) {
         if (active) {
           setContext(null);
-          setContextError(
-            cause instanceof Error ? cause.message : "Schedule constraints unavailable",
-          );
+          setContextError(errorMessage(cause, "Schedule constraints unavailable"));
         }
       }
     })();
@@ -383,7 +380,7 @@ function BookingsPageContent({
       setCreating(false);
       onToast("Booking saved");
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to save booking");
+      onToast(errorMessage(error, "Unable to save booking"));
       setDraft((current) => ({ ...current, time: "" }));
       setAvailabilityVersion((current) => current + 1);
     } finally {
@@ -408,7 +405,7 @@ function BookingsPageContent({
       setPendingCancellation(null);
       onToast(statusMessages[status] ?? `Booking marked ${label(status)}`);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to update booking");
+      onToast(errorMessage(error, "Unable to update booking"));
     } finally {
       setBusy(false);
     }
@@ -426,7 +423,7 @@ function BookingsPageContent({
       setPendingDeletion(null);
       onToast("Booking deleted");
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to delete booking");
+      onToast(errorMessage(error, "Unable to delete booking"));
     } finally {
       setBusy(false);
     }

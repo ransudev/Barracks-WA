@@ -22,7 +22,7 @@ import {
   workspaceAreaForView,
 } from "@/app/utils/view";
 import { isKnownAppPath, pathForView, viewForPath } from "@/app/utils/routes";
-import { apiRequest, clearApiCache, readApiBody, type ApiUser } from "@/app/lib/api";
+import { apiRequest, clearApiCache, readApiBody, type ApiUser, errorMessage } from "@/app/lib/api";
 
 const LoginPage = dynamic(
   () => import("@/app/pages/auth/LoginPage").then((module) => module.LoginPage),
@@ -218,7 +218,7 @@ export function BarracksApp() {
       const response = await apiRequest("/api/auth/logout", { method: "POST" });
       if (!response.ok) throw new Error("Unable to sign out");
     } catch (error) {
-      message = error instanceof Error ? error.message : "Unable to sign out";
+      message = errorMessage(error, "Unable to sign out");
     } finally {
       setCurrentUser(null);
       setPendingView(null);

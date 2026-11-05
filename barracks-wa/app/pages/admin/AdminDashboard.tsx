@@ -6,7 +6,7 @@ import type { ViewId } from "@/app/types/domain";
 import type { ApiUser } from "@/app/lib/api";
 import { ReportBranchScope } from "@/app/components/ReportBranchScope";
 import type { ManagementDashboardData } from "@/app/types/dashboard";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { formatCurrency } from "@/app/utils/format";
 import {
   Button,
@@ -66,7 +66,7 @@ function AdminDashboardContent({
         }
       } catch (cause) {
         if (active) {
-          const message = cause instanceof Error ? cause.message : "Unable to load dashboard";
+          const message = errorMessage(cause, "Unable to load dashboard");
           setLoadError(message);
           onToast(message);
         }

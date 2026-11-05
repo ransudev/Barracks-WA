@@ -142,3 +142,18 @@ export async function readApiBody<T>(response: Response): Promise<T | null> {
     return null;
   }
 }
+
+// The server's validation messages, or else its message, or else the fallback.
+export function apiErrorMessage(
+  body: { message?: string; errors?: Record<string, string[]> } | null,
+  fallback: string,
+): string {
+  const validationMessage = body?.errors
+    ? Object.values(body.errors).flat().filter(Boolean).join(" ")
+    : "";
+  return validationMessage || body?.message || fallback;
+}
+
+export function errorMessage(cause: unknown, fallback: string): string {
+  return cause instanceof Error ? cause.message : fallback;
+}

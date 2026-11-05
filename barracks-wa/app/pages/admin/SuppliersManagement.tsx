@@ -10,7 +10,7 @@ import {
 } from "@/app/utils/contact-validation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { ApiSupplier } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
 import {
   Badge,
   Button,
@@ -87,15 +87,6 @@ const emptySupplier: SupplierForm = {
   status: "active",
 };
 const emptyAccount: AccountForm = { firstName: "", lastName: "", email: "", password: "" };
-function responseMessage(
-  body: { message?: string; errors?: Record<string, string[]> } | null,
-  fallback: string,
-) {
-  return body?.errors
-    ? Object.values(body.errors).flat().join(" ") || body?.message || fallback
-    : body?.message || fallback;
-}
-
 export function SuppliersManagement({
   onToast,
   canManageLogins = false,
@@ -138,7 +129,7 @@ export function SuppliersManagement({
       setSuppliers(body.suppliers ?? []);
       setLoadError("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to load suppliers";
+      const message = errorMessage(error, "Unable to load suppliers");
       setLoadError(message);
       onToast(message);
     } finally {
@@ -193,7 +184,7 @@ export function SuppliersManagement({
         throw new Error(body?.message ?? "Unable to load supplier profile");
       setProfile(body.profile);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to load supplier profile");
+      onToast(errorMessage(error, "Unable to load supplier profile"));
     } finally {
       setProfileLoading(false);
     }
@@ -246,7 +237,7 @@ export function SuppliersManagement({
         errors?: Record<string, string[]>;
       }>(response);
       if (!response.ok || !body?.success)
-        throw new Error(responseMessage(body, "Unable to save supplier"));
+        throw new Error(apiErrorMessage(body, "Unable to save supplier"));
       setCreateOpen(false);
       setEditing(false);
       onToast(editing ? "Supplier updated" : "Supplier created. Now choose the items they supply.");
@@ -260,7 +251,7 @@ export function SuppliersManagement({
         }
       }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unable to save supplier");
+      setFormError(errorMessage(error, "Unable to save supplier"));
     } finally {
       setSubmitting(false);
     }
@@ -277,7 +268,7 @@ export function SuppliersManagement({
       closeDrawer();
       await load();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to deactivate supplier");
+      onToast(errorMessage(error, "Unable to deactivate supplier"));
     } finally {
       setDeleteBusy(false);
       setPendingDelete(null);
@@ -300,7 +291,7 @@ export function SuppliersManagement({
       onToast("Supplier login created");
       await load();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to create supplier account");
+      onToast(errorMessage(error, "Unable to create supplier account"));
     } finally {
       setAccountSubmitting(false);
     }

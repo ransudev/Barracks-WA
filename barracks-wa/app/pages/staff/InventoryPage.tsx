@@ -19,7 +19,7 @@ import {
   type ReactNode,
 } from "react";
 import type { ApiInventoryItem, ApiSupplier } from "@/app/lib/api";
-import { apiRequest, peekApiBody, readApiBody } from "@/app/lib/api";
+import { apiRequest, peekApiBody, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
 import { useBodyScrollLock } from "@/app/hooks/useBodyScrollLock";
 import { useDrawerPresence } from "@/app/hooks/useDrawerPresence";
 import { downloadCsv } from "@/app/utils/download";
@@ -188,16 +188,6 @@ function movementLabel(type: MovementType): string {
   return labels[type];
 }
 
-function responseMessage(
-  body: { message?: string; errors?: Record<string, string[]> } | null,
-  fallback: string,
-): string {
-  const validationMessage = body?.errors
-    ? Object.values(body.errors).flat().filter(Boolean).join(" ")
-    : "";
-  return validationMessage || body?.message || fallback;
-}
-
 function parseNumber(value: string, label: string, integer = false): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || (integer && !Number.isInteger(parsed)) || parsed < 0) {
@@ -348,7 +338,7 @@ function ItemPhotoField({
     try {
       onChange(await readImageAsDataUrl(file));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to use that image");
+      setError(errorMessage(cause, "Unable to use that image"));
     } finally {
       setBusy(false);
     }
@@ -1106,7 +1096,7 @@ function InventoryPageContent({
       );
       setLoadError("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to load inventory";
+      const message = errorMessage(error, "Unable to load inventory");
       setLoadError(message);
       onToast(message);
     } finally {
@@ -1249,7 +1239,7 @@ function InventoryPageContent({
       setDrawerHistory(body.movements ?? []);
     } catch (error) {
       setDrawerHistory([]);
-      onToast(error instanceof Error ? error.message : "Unable to load movement history");
+      onToast(errorMessage(error, "Unable to load movement history"));
     } finally {
       setDrawerHistoryLoading(false);
     }
@@ -1273,12 +1263,12 @@ function InventoryPageContent({
       }>(response);
       if (!active.current) return;
       if (!response.ok || !body?.success || !body.item)
-        throw new Error(responseMessage(body, "Unable to add inventory item"));
+        throw new Error(apiErrorMessage(body, "Unable to add inventory item"));
       setModalOpen(false);
       onToast(`${body.item.name} added to inventory`);
       await loadInventory();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unable to add inventory item");
+      setFormError(errorMessage(error, "Unable to add inventory item"));
     } finally {
       setSubmitting(false);
     }
@@ -1310,7 +1300,7 @@ function InventoryPageContent({
         }>(response);
         if (!active.current) return;
         if (!response.ok || !body?.success || !body.item)
-          throw new Error(responseMessage(body, "Unable to save inventory item"));
+          throw new Error(apiErrorMessage(body, "Unable to save inventory item"));
         saved = body.item;
       }
       if (changeStock) {
@@ -1338,7 +1328,7 @@ function InventoryPageContent({
         if (!active.current) return;
         if (!response.ok || !body?.success)
           throw new Error(
-            responseMessage(body, "Details saved, but the stock change could not be recorded"),
+            apiErrorMessage(body, "Details saved, but the stock change could not be recorded"),
           );
         saved = { ...saved, quantity: counted };
         void loadDrawerHistory(saved);
@@ -1349,7 +1339,7 @@ function InventoryPageContent({
       onToast(`${saved.name} updated${changeStock ? ` · stock now ${counted} ${saved.unit}` : ""}`);
       await loadInventory();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to save inventory item");
+      onToast(errorMessage(error, "Unable to save inventory item"));
     } finally {
       setDrawerSaving(false);
     }
@@ -1413,7 +1403,7 @@ function InventoryPageContent({
       }>(response);
       if (!active.current) return;
       if (!response.ok || !body?.success)
-        throw new Error(responseMessage(body, "Unable to record stock operation"));
+        throw new Error(apiErrorMessage(body, "Unable to record stock operation"));
       setMovementItem(null);
       onToast(
         `${movementLabel(movementForm.movementType)} recorded · ${movementItem.name} now ${movementItem.quantity + (delta ?? 0)} ${movementItem.unit}`,
@@ -1421,7 +1411,7 @@ function InventoryPageContent({
       await loadInventory();
       if (drawerItem?.id === movementItem.id) void loadDrawerHistory(movementItem);
     } catch (error) {
-      setMovementError(error instanceof Error ? error.message : "Unable to record stock operation");
+      setMovementError(errorMessage(error, "Unable to record stock operation"));
     } finally {
       setMovementSubmitting(false);
     }
@@ -1445,7 +1435,7 @@ function InventoryPageContent({
         throw new Error(body?.message ?? "Unable to load movement history");
       setHistory(body.movements ?? []);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to load movement history");
+      onToast(errorMessage(error, "Unable to load movement history"));
       setHistory([]);
     } finally {
       setHistoryLoading(false);
@@ -1489,11 +1479,11 @@ function InventoryPageContent({
       }>(response);
       if (!active.current) return;
       if (!response.ok || !body?.success)
-        throw new Error(responseMessage(body, "Unable to create restock request"));
+        throw new Error(apiErrorMessage(body, "Unable to create restock request"));
       setRestockItem(null);
       onToast(`Restock request submitted for ${restockItem.name}`);
     } catch (error) {
-      setRestockError(error instanceof Error ? error.message : "Unable to create restock request");
+      setRestockError(errorMessage(error, "Unable to create restock request"));
     } finally {
       setRestockSubmitting(false);
     }
@@ -1522,7 +1512,7 @@ function InventoryPageContent({
       );
       await loadInventory();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to delete inventory item");
+      onToast(errorMessage(error, "Unable to delete inventory item"));
     } finally {
       setDeleting(false);
     }

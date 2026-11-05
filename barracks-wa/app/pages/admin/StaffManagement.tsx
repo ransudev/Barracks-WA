@@ -3,7 +3,14 @@ import { SkeletonRows } from "@/app/components/ui/Skeletons";
 
 import { emailFieldError } from "@/app/utils/contact-validation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { apiRequest, readApiBody, type ApiRole, type ApiUser } from "@/app/lib/api";
+import {
+  apiRequest,
+  readApiBody,
+  type ApiRole,
+  type ApiUser,
+  apiErrorMessage,
+  errorMessage,
+} from "@/app/lib/api";
 import {
   canChangeStaffLifecycle,
   canCreateStaffUser,
@@ -67,15 +74,6 @@ function accountStatusLabel(status: AccountStatus) {
 function statusTone(status: AccountStatus): "success" | "warning" | "danger" {
   return status === "active" ? "success" : status === "pending" ? "warning" : "danger";
 }
-function responseMessage(
-  body: { message?: string; errors?: Record<string, string[]> } | null,
-  fallback: string,
-) {
-  return body?.errors
-    ? Object.values(body.errors).flat().join(" ") || body?.message || fallback
-    : body?.message || fallback;
-}
-
 export function StaffManagement({
   onToast,
   currentUserId,
@@ -133,7 +131,7 @@ export function StaffManagement({
       setBranches(body.branches ?? []);
       setLoadError("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to load user accounts";
+      const message = errorMessage(error, "Unable to load user accounts");
       setLoadError(message);
       onToast(message);
     } finally {
@@ -258,7 +256,7 @@ export function StaffManagement({
         errors?: Record<string, string[]>;
       }>(response);
       if (!response.ok || !body?.success || !body.user)
-        throw new Error(responseMessage(body, "Unable to save user account"));
+        throw new Error(apiErrorMessage(body, "Unable to save user account"));
       setItems((current) =>
         editing
           ? current.map((item) => (item.id === body.user!.id ? body.user! : item))
@@ -272,7 +270,7 @@ export function StaffManagement({
       }
       onToast(`${displayName(body.user)} ${editing ? "updated" : "created"}`);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unable to save user account");
+      setFormError(errorMessage(error, "Unable to save user account"));
     } finally {
       setSubmitting(false);
     }
@@ -295,14 +293,14 @@ export function StaffManagement({
         errors?: Record<string, string[]>;
       }>(response);
       if (!response.ok || !body?.success || !body.user)
-        throw new Error(responseMessage(body, "Unable to update account status"));
+        throw new Error(apiErrorMessage(body, "Unable to update account status"));
       setItems((current) => current.map((item) => (item.id === body.user!.id ? body.user! : item)));
       setSelected(body.user);
       onToast(
         `${displayName(body.user)} is now ${accountStatusLabel(accountStatus(body.user)).toLowerCase()}`,
       );
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to update account status");
+      onToast(errorMessage(error, "Unable to update account status"));
     } finally {
       setBusy(false);
       setPendingLifecycle(null);
@@ -323,7 +321,7 @@ export function StaffManagement({
       if (selected?.id === user.id) closeDrawer();
       onToast(`${displayName(user)} deactivated; the record was retained`);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to deactivate user account");
+      onToast(errorMessage(error, "Unable to deactivate user account"));
     } finally {
       setBusy(false);
       setPendingDelete(null);

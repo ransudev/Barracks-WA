@@ -10,6 +10,7 @@ import {
   type ApiAttendance,
   type ApiBarberAvailability,
   type ApiQueueEntry,
+  errorMessage,
 } from "@/app/lib/api";
 import {
   Avatar,
@@ -88,7 +89,7 @@ export function BarberFloorPage() {
       setError("");
     } catch (cause) {
       if (version !== loadVersion.current) return;
-      setError(cause instanceof Error ? cause.message : "Unable to load the barber floor");
+      setError(errorMessage(cause, "Unable to load the barber floor"));
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
@@ -124,7 +125,7 @@ export function BarberFloorPage() {
         throw new Error(body?.message ?? "Unable to update barber status");
       await load();
     } catch (cause) {
-      setStatusError(cause instanceof Error ? cause.message : "Unable to update barber status");
+      setStatusError(errorMessage(cause, "Unable to update barber status"));
     } finally {
       setSavingId(null);
     }
@@ -151,7 +152,7 @@ export function BarberFloorPage() {
         throw new Error(body?.message ?? "Unable to update attendance");
       await load();
     } catch (cause) {
-      setStatusError(cause instanceof Error ? cause.message : "Unable to update attendance");
+      setStatusError(errorMessage(cause, "Unable to update attendance"));
     } finally {
       setAttendanceSavingId(null);
     }

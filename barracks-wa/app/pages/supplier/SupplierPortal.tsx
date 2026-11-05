@@ -3,7 +3,7 @@ import { SkeletonRows } from "@/app/components/ui/Skeletons";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { ApiUser } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import {
   Avatar,
   Badge,
@@ -175,7 +175,7 @@ export function SupplierPortal({
       setProfile(profileBody.profile);
       setRestocks(restockBody.restocks ?? []);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to load supplier portal");
+      onToast(errorMessage(error, "Unable to load supplier portal"));
     } finally {
       setLoading(false);
     }
@@ -255,7 +255,7 @@ export function SupplierPortal({
       setConfirmPassword("");
       onToast("Password updated");
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to update password");
+      onToast(errorMessage(error, "Unable to update password"));
     } finally {
       setSavingPassword(false);
     }
@@ -308,7 +308,7 @@ export function SupplierPortal({
       setEditingProfile(false);
       onToast("Supplier details updated");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to update supplier details";
+      const message = errorMessage(error, "Unable to update supplier details");
       setProfileError(message);
       onToast(message);
     } finally {

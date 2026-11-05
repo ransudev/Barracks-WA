@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ApiInventoryItem, ApiSupplier } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { Button, Modal, SearchInput } from "@/app/components/ui";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 import { useBranchContext } from "@/app/utils/use-branch-context";
@@ -60,7 +60,7 @@ export function SupplierItemsModal({
         );
         setLoadedScope(selectionScope);
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : "Unable to load inventory");
+        if (active) setError(errorMessage(cause, "Unable to load inventory"));
       } finally {
         if (active) setLoading(false);
       }
@@ -101,7 +101,7 @@ export function SupplierItemsModal({
         throw new Error(body?.message ?? "Unable to save supplied items");
       onSaved(selected.size);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save supplied items");
+      setError(errorMessage(cause, "Unable to save supplied items"));
     } finally {
       setSaving(false);
     }

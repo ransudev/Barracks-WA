@@ -3,7 +3,7 @@
 import { formatTimeRange } from "@/app/utils/format";
 import { useEffect, useState } from "react";
 import type { ApiBarber } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { Button, Panel, SelectField, Tabs } from "@/app/components/ui";
 
 type Hours = { dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean };
@@ -58,7 +58,7 @@ export function ScheduleManagement({
             throw new Error(body?.message ?? "Unable to load hours");
           setHours(body.hours);
         } catch (cause) {
-          setHoursError(cause instanceof Error ? cause.message : "Unable to load hours");
+          setHoursError(errorMessage(cause, "Unable to load hours"));
         } finally {
           setHoursLoading(false);
         }
@@ -93,7 +93,7 @@ export function ScheduleManagement({
           setError("");
           setLoadedBarberId(barberId);
         } catch (cause) {
-          if (active) setError(cause instanceof Error ? cause.message : "Unable to load schedule");
+          if (active) setError(errorMessage(cause, "Unable to load schedule"));
         }
       })();
     });
@@ -115,7 +115,7 @@ export function ScheduleManagement({
       setHours(body.hours);
       onToast(`${days[hour.dayOfWeek]} shop hours saved`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save hours");
+      setError(errorMessage(cause, "Unable to save hours"));
     } finally {
       setBusy(false);
     }
@@ -144,7 +144,7 @@ export function ScheduleManagement({
       setShifts(body.schedules);
       onToast(`${days[shift.dayOfWeek]} shift saved`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save shift");
+      setError(errorMessage(cause, "Unable to save shift"));
     } finally {
       setBusy(false);
     }
@@ -170,7 +170,7 @@ export function ScheduleManagement({
       setReason("");
       onToast("Unavailable period added");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Check the dates and reason");
+      setError(errorMessage(cause, "Check the dates and reason"));
     } finally {
       setBusy(false);
     }
@@ -186,7 +186,7 @@ export function ScheduleManagement({
       setAbsences((current) => current.filter((item) => item.id !== id));
       onToast("Unavailable period removed");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to remove period");
+      setError(errorMessage(cause, "Unable to remove period"));
     } finally {
       setBusy(false);
     }

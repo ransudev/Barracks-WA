@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import type { ReportRange } from "./report-utils";
 
 export function useReport<T extends { success: boolean; message?: string }>(
@@ -32,7 +32,7 @@ export function useReport<T extends { success: boolean; message?: string }>(
         if (!cancelled) setResult({ key, data, error: null });
       } catch (error) {
         if (cancelled) return;
-        const message = error instanceof Error ? error.message : "Unable to load report";
+        const message = errorMessage(error, "Unable to load report");
         setResult({ key, data: null, error: message });
         onToast(message);
       }

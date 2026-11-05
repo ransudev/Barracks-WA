@@ -12,7 +12,13 @@ import type { ViewId } from "@/app/types/domain";
 import { Button, Logo, Modal, TextField } from "@/app/components/ui";
 import { Icon } from "@/app/components/ui/icons";
 import { landingContact, landingHours } from "@/app/data/landing";
-import { apiRequest, readApiBody, type ApiErrorBody, type ApiUser } from "@/app/lib/api";
+import {
+  apiRequest,
+  readApiBody,
+  type ApiErrorBody,
+  type ApiUser,
+  errorMessage,
+} from "@/app/lib/api";
 
 type LoginPageProps = {
   go: (view: ViewId) => void;
@@ -65,7 +71,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
 
       onLogin(body.user);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to sign in");
+      setError(errorMessage(submitError, "Unable to sign in"));
     } finally {
       setSubmitting(false);
     }
@@ -125,9 +131,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
       }
       onLogin(body.user);
     } catch (signupError) {
-      setError(
-        signupError instanceof Error ? signupError.message : "Unable to create customer account",
-      );
+      setError(errorMessage(signupError, "Unable to create customer account"));
     } finally {
       setSubmitting(false);
     }

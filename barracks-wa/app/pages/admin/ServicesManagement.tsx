@@ -3,7 +3,7 @@ import { SkeletonRows } from "@/app/components/ui/Skeletons";
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { Service } from "@/app/types/domain";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { createSlug, formatCurrency } from "@/app/utils/format";
 import {
   Badge,
@@ -57,7 +57,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
           throw new Error(body?.message ?? "Unable to load services");
         setItems(body.services ?? []);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Unable to load services");
+        setError(errorMessage(cause, "Unable to load services"));
       } finally {
         setLoading(false);
       }
@@ -120,7 +120,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
       setDraft(blank);
       onToast(`${saved.name} saved`);
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to save service");
+      onToast(errorMessage(cause, "Unable to save service"));
     } finally {
       setSaving(false);
     }
@@ -142,7 +142,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
       setPendingAction(null);
       onToast(`${service.name} ${service.active ? "archived" : "restored"}`);
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to update service");
+      onToast(errorMessage(cause, "Unable to update service"));
     } finally {
       setBusyId(null);
     }
@@ -177,7 +177,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
       setPendingAction(null);
       onToast(`${service.name} deleted`);
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to delete service");
+      onToast(errorMessage(cause, "Unable to delete service"));
     } finally {
       setBusyId(null);
     }

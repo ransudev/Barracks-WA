@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useBranchContext } from "@/app/utils/use-branch-context";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { formatCurrency } from "@/app/utils/format";
 import {
   Badge,
@@ -329,7 +329,7 @@ function PaymentBranch({
       setUpdatedAt(Date.now());
     } catch (error) {
       if (version === requestVersion.current)
-        setLoadError(error instanceof Error ? error.message : "Unable to load payments");
+        setLoadError(errorMessage(error, "Unable to load payments"));
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
@@ -428,7 +428,7 @@ function PaymentBranch({
       setReceipt(body.transaction);
     } catch (error) {
       if (version === receiptVersion.current)
-        setReceiptError(error instanceof Error ? error.message : "Unable to load receipt");
+        setReceiptError(errorMessage(error, "Unable to load receipt"));
     } finally {
       if (version === receiptVersion.current) setReceiptLoading(false);
     }
@@ -460,7 +460,7 @@ function PaymentBranch({
       onToast(`Transaction ${body.transaction.status}: ${body.transaction.reference}`);
       await load();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to update transaction");
+      setActionError(errorMessage(error, "Unable to update transaction"));
     } finally {
       setActionProcessing(false);
     }
@@ -504,7 +504,7 @@ function PaymentBranch({
       onToast(`Payment completed: ${body.transaction.reference}`);
       await load();
     } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Unable to complete payment");
+      setCheckoutError(errorMessage(error, "Unable to complete payment"));
       if (error instanceof Error && /already exists|already been paid/i.test(error.message))
         void load();
     } finally {

@@ -5,7 +5,7 @@ import { emailFieldError, phoneFieldError } from "@/app/utils/contact-validation
 import { useEffect, useState, type FormEvent } from "react";
 import { BookingForm, type BookingFormValue } from "@/app/components/bookings/BookingForm";
 import type { ApiBarberAvailability, ApiBooking, ApiCustomer, ApiUser } from "@/app/lib/api";
-import { apiRequest, peekApiBody, readApiBody } from "@/app/lib/api";
+import { apiRequest, peekApiBody, readApiBody, errorMessage } from "@/app/lib/api";
 import type { Service, ViewId } from "@/app/types/domain";
 import {
   Avatar,
@@ -160,7 +160,7 @@ export function CustomerDashboard({
         setBookings(bookingBody.bookings ?? []);
         if (barberResponse.ok && barberBody?.success) setBarbers(barberBody.barbers ?? []);
       } catch (error) {
-        onToast(error instanceof Error ? error.message : "Unable to load customer dashboard");
+        onToast(errorMessage(error, "Unable to load customer dashboard"));
       } finally {
         setLoading(false);
       }
@@ -199,8 +199,7 @@ export function CustomerDashboard({
           setBookingServices(serviceBody.services ?? []);
         }
       } catch (error) {
-        if (active)
-          onToast(error instanceof Error ? error.message : "Unable to load appointment barbers");
+        if (active) onToast(errorMessage(error, "Unable to load appointment barbers"));
       } finally {
         if (active) setBookingChoicesLoading(false);
       }
@@ -244,7 +243,7 @@ export function CustomerDashboard({
       setEditing(false);
       onToast("Profile updated");
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to update your profile");
+      onToast(errorMessage(error, "Unable to update your profile"));
     } finally {
       setSaving(false);
     }
@@ -295,7 +294,7 @@ export function CustomerDashboard({
           : "Appointment updated",
       );
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to update your appointment");
+      onToast(errorMessage(error, "Unable to update your appointment"));
       setBookingDraft((current) => (current ? { ...current, time: "" } : current));
       setAvailabilityVersion((current) => current + 1);
     } finally {
@@ -323,7 +322,7 @@ export function CustomerDashboard({
       setPendingCancellation(null);
       onToast("Appointment cancelled");
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to cancel your appointment");
+      onToast(errorMessage(error, "Unable to cancel your appointment"));
     } finally {
       setCancellingBookingId(null);
     }

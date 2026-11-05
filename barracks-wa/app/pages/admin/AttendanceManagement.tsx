@@ -9,6 +9,7 @@ import {
   type ApiAttendance,
   type ApiAttendanceCorrection,
   type ApiBarberAvailability,
+  errorMessage,
 } from "@/app/lib/api";
 import {
   Badge,
@@ -189,7 +190,7 @@ function AttendanceBranch({
       setUpdatedAt(Date.now());
     } catch (cause) {
       if (version === loadVersion.current)
-        setError(cause instanceof Error ? cause.message : "Unable to load attendance");
+        setError(errorMessage(cause, "Unable to load attendance"));
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
@@ -235,7 +236,7 @@ function AttendanceBranch({
       .catch((cause: unknown) => {
         if (active) {
           setScheduleData({});
-          setScheduleError(cause instanceof Error ? cause.message : "Schedule context unavailable");
+          setScheduleError(errorMessage(cause, "Schedule context unavailable"));
         }
       });
     return () => {
@@ -321,9 +322,7 @@ function AttendanceBranch({
       if (version === historyVersion.current) setCorrections(body.corrections ?? []);
     } catch (cause) {
       if (version === historyVersion.current)
-        setHistoryError(
-          cause instanceof Error ? cause.message : "Unable to load correction history",
-        );
+        setHistoryError(errorMessage(cause, "Unable to load correction history"));
     } finally {
       if (version === historyVersion.current) setHistoryLoading(false);
     }
@@ -374,7 +373,7 @@ function AttendanceBranch({
         setHistoryError("");
       }
     } catch (cause) {
-      setDetailError(cause instanceof Error ? cause.message : "Unable to save correction");
+      setDetailError(errorMessage(cause, "Unable to save correction"));
     } finally {
       setSaving(false);
     }

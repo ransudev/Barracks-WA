@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import type { ApiInventoryItem, ApiSupplier } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
 import {
   Badge,
   Button,
@@ -70,14 +70,6 @@ const emptyCreate: CreateForm = {
   reference: "",
   notes: "",
 };
-function responseMessage(
-  body: { message?: string; errors?: Record<string, string[]> } | null,
-  fallback: string,
-) {
-  return body?.errors
-    ? Object.values(body.errors).flat().join(" ") || body?.message || fallback
-    : body?.message || fallback;
-}
 function statusTone(status: Restock["status"]): "success" | "warning" | "danger" | "info" {
   return status === "Received"
     ? "success"
@@ -232,7 +224,7 @@ function RestockContent({
       setLoadError("");
       setUpdatedAt(Date.now());
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to load restock requests";
+      const message = errorMessage(error, "Unable to load restock requests");
       if (version === requestVersion.current) {
         setLoadError(message);
         onToast(message);
@@ -347,12 +339,12 @@ function RestockContent({
       }>(response);
       if (!active.current) return;
       if (!response.ok || !body?.success)
-        throw new Error(responseMessage(body, "Unable to create restock request"));
+        throw new Error(apiErrorMessage(body, "Unable to create restock request"));
       setCreateOpen(false);
       onToast("Restock request sent to supplier");
       await load();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to create restock request");
+      onToast(errorMessage(error, "Unable to create restock request"));
     } finally {
       setCreating(false);
     }
@@ -373,7 +365,7 @@ function RestockContent({
       setSelected(null);
       await load();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to cancel request");
+      onToast(errorMessage(error, "Unable to cancel request"));
     } finally {
       setCancelling(false);
     }
@@ -392,7 +384,7 @@ function RestockContent({
       onToast(`Restock #${restock.id} arrived. Receive it to add the stock`);
       await load();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to confirm delivery");
+      onToast(errorMessage(error, "Unable to confirm delivery"));
     } finally {
       setMarkingDelivered(null);
     }
@@ -431,7 +423,7 @@ function RestockContent({
       onToast("Delivery received and inventory updated");
       await load();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to receive delivery");
+      onToast(errorMessage(error, "Unable to receive delivery"));
     } finally {
       setReceiveSubmitting(false);
     }

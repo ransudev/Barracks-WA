@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { BranchContext } from "@/app/types/branch";
 import { resolveBranchSelection } from "@/app/utils/branch-context";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 
 type BranchContextValue = BranchContext & {
   branchId: number;
@@ -44,8 +44,7 @@ function useLocalBranchContext(enabled: boolean): BranchContextValue {
           setBranchId(linkedBranch?.id ?? resolveBranchSelection(body)?.id ?? 0);
         }
       } catch (error) {
-        if (active)
-          setBranchError(error instanceof Error ? error.message : "Unable to load branches");
+        if (active) setBranchError(errorMessage(error, "Unable to load branches"));
       } finally {
         if (active) setBranchLoading(false);
       }

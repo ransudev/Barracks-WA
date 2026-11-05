@@ -2,7 +2,7 @@
 import { SkeletonCards } from "@/app/components/ui/Skeletons";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { apiRequest, readApiBody, type ApiRole } from "@/app/lib/api";
+import { apiRequest, readApiBody, type ApiRole, errorMessage } from "@/app/lib/api";
 import type { Branch, BranchAssignment, BranchStaff } from "@/app/types/branch";
 import { roleLabel } from "@/app/constants/roles";
 import {
@@ -108,7 +108,7 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
       setEditing(null);
       onToast(`${body.branch.name} saved`);
     } catch (cause) {
-      setFormError(cause instanceof Error ? cause.message : "Unable to save branch");
+      setFormError(errorMessage(cause, "Unable to save branch"));
     } finally {
       setSaving(false);
     }
@@ -126,7 +126,7 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
         `${body.branch.name} ${body.branch.status === "active" ? "activated" : "deactivated"}`,
       );
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to update branch");
+      onToast(errorMessage(cause, "Unable to update branch"));
     } finally {
       setSaving(false);
     }
@@ -341,7 +341,7 @@ function AssignmentManager({
       setIsPrimary(false);
       onToast("Staff assignments updated");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to update assignment");
+      setError(errorMessage(cause, "Unable to update assignment"));
     } finally {
       setSaving(false);
     }

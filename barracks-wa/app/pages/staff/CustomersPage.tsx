@@ -4,7 +4,7 @@ import { SkeletonCards } from "@/app/components/ui/Skeletons";
 import { emailFieldError, phoneFieldError } from "@/app/utils/contact-validation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { ApiBarberAvailability, ApiCustomer } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
 import { createInitials } from "@/app/utils/format";
 import {
   Avatar,
@@ -56,14 +56,6 @@ function phoneForForm(customer: ApiCustomer) {
   return customer.userId === null && /^\+639\d{9}$/.test(digits)
     ? `0${digits.slice(3)}`
     : customer.phone;
-}
-function responseMessage(
-  body: { message?: string; errors?: Record<string, string[]> } | null,
-  fallback: string,
-) {
-  return body?.errors
-    ? Object.values(body.errors).flat().join(" ") || body?.message || fallback
-    : body?.message || fallback;
 }
 const PAGE_SIZE = 12;
 function formatMemberSince(date: string) {
@@ -118,7 +110,7 @@ export function CustomersPage({
         }
       } catch (error) {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : "Unable to load customers";
+          const message = errorMessage(error, "Unable to load customers");
           setLoadError(message);
           onToast(message);
         }
@@ -243,7 +235,7 @@ export function CustomersPage({
         errors?: Record<string, string[]>;
       }>(response);
       if (!response.ok || !body?.success || !body.customer)
-        throw new Error(responseMessage(body, "Unable to save customer"));
+        throw new Error(apiErrorMessage(body, "Unable to save customer"));
       setItems((current) =>
         editing
           ? current.map((item) => (item.id === body.customer!.id ? body.customer! : item))
@@ -255,7 +247,7 @@ export function CustomersPage({
       } else setCreateOpen(false);
       onToast(`${nameOf(body.customer)} ${editing ? "updated" : "created"}`);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unable to save customer");
+      setFormError(errorMessage(error, "Unable to save customer"));
     } finally {
       setSubmitting(false);
     }
@@ -271,7 +263,7 @@ export function CustomersPage({
       if (selected?.id === customer.id) closeDrawer();
       onToast(`${nameOf(customer)} deactivated; the customer record was retained`);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to delete customer");
+      onToast(errorMessage(error, "Unable to delete customer"));
     } finally {
       setDeletingId(null);
       setPendingDelete(null);

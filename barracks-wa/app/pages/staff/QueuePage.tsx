@@ -6,7 +6,7 @@ import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { ApiBarberAvailability, ApiCustomer, ApiQueueEntry } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import type { Service } from "@/app/types/domain";
 import { createInitials } from "@/app/utils/format";
 import { barberAvailabilityLabel, isBarberAvailable } from "@/app/utils/barber-availability";
@@ -181,7 +181,7 @@ function QueuePageContent({
         });
         setError("");
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : "Unable to load queue");
+        if (active) setError(errorMessage(cause, "Unable to load queue"));
       } finally {
         if (active) setLoading(false);
       }
@@ -211,10 +211,7 @@ function QueuePageContent({
           throw new Error(body?.message ?? "Unable to load completed queue");
         if (active) setCompleted(body.queue);
       } catch (cause) {
-        if (active)
-          setCompletedError(
-            cause instanceof Error ? cause.message : "Unable to load completed queue",
-          );
+        if (active) setCompletedError(errorMessage(cause, "Unable to load completed queue"));
       } finally {
         if (active) setCompletedLoading(false);
       }
@@ -261,7 +258,7 @@ function QueuePageContent({
         throw new Error(body?.message ?? "Unable to refresh barber availability");
       setBarbers(body.barbers);
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to refresh barber availability");
+      onToast(errorMessage(cause, "Unable to refresh barber availability"));
     }
   }
 
@@ -334,7 +331,7 @@ function QueuePageContent({
         }
       }
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to add walk-in");
+      onToast(errorMessage(cause, "Unable to add walk-in"));
     } finally {
       addInFlight.current = false;
       setBusy(false);
@@ -369,7 +366,7 @@ function QueuePageContent({
       onToast("Queue updated");
       await refreshAvailability();
     } catch (cause) {
-      onToast(cause instanceof Error ? cause.message : "Unable to update queue");
+      onToast(errorMessage(cause, "Unable to update queue"));
     } finally {
       setBusy(false);
     }
@@ -396,7 +393,7 @@ function QueuePageContent({
       if (!body.entry)
         setNextMessage(body.message ?? "No eligible customer is waiting for this barber.");
     } catch (cause) {
-      setNextMessage(cause instanceof Error ? cause.message : "Unable to find next customer");
+      setNextMessage(errorMessage(cause, "Unable to find next customer"));
     } finally {
       setNextBusy(false);
     }
@@ -424,7 +421,7 @@ function QueuePageContent({
       onToast("Barber assigned. Start service when ready.");
     } catch (cause) {
       setNextEntry(null);
-      setNextMessage(cause instanceof Error ? cause.message : "Unable to assign next customer");
+      setNextMessage(errorMessage(cause, "Unable to assign next customer"));
     } finally {
       setNextBusy(false);
     }

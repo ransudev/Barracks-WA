@@ -4,7 +4,7 @@ import { SkeletonRows } from "@/app/components/ui/Skeletons";
 import { ReportBranchScope } from "@/app/components/ReportBranchScope";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ApiBarberAvailability, ApiBooking, ApiQueueEntry } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import type { ViewId } from "@/app/types/domain";
 import {
   createInitials,
@@ -98,7 +98,7 @@ function StaffDashboardContent({
         setUpdatedAt(Date.now());
       } catch (error) {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : "Unable to load dashboard";
+          const message = errorMessage(error, "Unable to load dashboard");
           setLoadError(message);
           onToast(message);
         }
@@ -126,8 +126,7 @@ function StaffDashboardContent({
           setQueueError("");
         }
       } catch (error) {
-        if (!cancelled)
-          setQueueError(error instanceof Error ? error.message : "Unable to load queue");
+        if (!cancelled) setQueueError(errorMessage(error, "Unable to load queue"));
       } finally {
         if (!cancelled) setQueueLoading(false);
       }

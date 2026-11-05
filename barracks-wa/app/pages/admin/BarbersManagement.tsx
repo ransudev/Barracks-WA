@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useBranchContext } from "@/app/utils/use-branch-context";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 import type { ApiBarber } from "@/app/lib/api";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
 import { createInitials, formatCurrency } from "@/app/utils/format";
 import {
   Avatar,
@@ -63,15 +63,6 @@ function statusTone(status: ApiBarber["status"]): "success" | "warning" | "neutr
 function barberCommission(barber: ApiBarber) {
   return barber.earnedCommissionCentavos ?? "0";
 }
-function responseMessage(
-  body: { message?: string; errors?: Record<string, string[]> } | null,
-  fallback: string,
-) {
-  return body?.errors
-    ? Object.values(body.errors).flat().join(" ") || body?.message || fallback
-    : body?.message || fallback;
-}
-
 export function BarbersManagement({
   onToast,
   canDelete,
@@ -122,7 +113,7 @@ export function BarbersManagement({
       setLoadError("");
     } catch (error) {
       if (version !== loadVersion.current) return;
-      const message = error instanceof Error ? error.message : "Unable to load barbers";
+      const message = errorMessage(error, "Unable to load barbers");
       setLoadError(message);
       onToast(message);
     } finally {
@@ -244,7 +235,7 @@ export function BarbersManagement({
         errors?: Record<string, string[]>;
       }>(response);
       if (!response.ok || !body?.success || !body.barber)
-        throw new Error(responseMessage(body, "Unable to save barber"));
+        throw new Error(apiErrorMessage(body, "Unable to save barber"));
       await loadBarbers();
       if (editing) {
         setSelected(body.barber);
@@ -252,7 +243,7 @@ export function BarbersManagement({
       } else setCreateOpen(false);
       onToast(`${displayName(body.barber)} ${editing ? "updated" : "added"}`);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unable to save barber");
+      setFormError(errorMessage(error, "Unable to save barber"));
     } finally {
       setSubmitting(false);
     }
@@ -268,7 +259,7 @@ export function BarbersManagement({
       if (selected?.id === barber.id) closeDrawer();
       onToast(`${displayName(barber)} removed from the roster`);
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Unable to delete barber");
+      onToast(errorMessage(error, "Unable to delete barber"));
     } finally {
       setDeletingId(null);
       setPendingDelete(null);

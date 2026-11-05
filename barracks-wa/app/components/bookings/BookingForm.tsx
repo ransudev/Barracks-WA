@@ -3,7 +3,7 @@ import type { ApiBarberAvailability, ApiCustomer } from "@/app/lib/api";
 import type { Service } from "@/app/types/domain";
 import { Button, SelectField, TextField } from "@/app/components/ui";
 import { formatDate, formatTime, formatTimeRange } from "@/app/utils/format";
-import { apiRequest, readApiBody } from "@/app/lib/api";
+import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
 import { hasAppointmentCustomer, isAppointmentCustomer } from "@/app/utils/booking-customers";
 import {
   BookingCalendar,
@@ -122,9 +122,7 @@ export function BookingForm({
         setAvailabilityError("");
       } catch (error) {
         if (active && !quiet)
-          setAvailabilityError(
-            error instanceof Error ? error.message : "Unable to load available times",
-          );
+          setAvailabilityError(errorMessage(error, "Unable to load available times"));
       } finally {
         if (active && !quiet) setLoading(false);
       }
