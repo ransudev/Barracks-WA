@@ -38,6 +38,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      # LayoutProps and the route types are generated, not checked in.
+      - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm test
       - run: npm run build
