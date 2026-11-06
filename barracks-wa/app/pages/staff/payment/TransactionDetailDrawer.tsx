@@ -54,21 +54,23 @@ export function TransactionDetailDrawer({
                   onChange={(event) => setActionReason(event.target.value)}
                 />
                 {actionError && <p role="alert">{actionError}</p>}
-                <Button
-                  type="button"
-                  disabled={actionProcessing || !actionReason.trim()}
-                  onClick={() => setPendingAction("refund")}
-                >
-                  Refund full amount
-                </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  disabled={actionProcessing || !actionReason.trim()}
-                  onClick={() => setPendingAction("void")}
-                >
-                  Void transaction
-                </Button>
+                <div className="financial-action-buttons">
+                  <Button
+                    type="button"
+                    disabled={actionProcessing || !actionReason.trim()}
+                    onClick={() => setPendingAction("refund")}
+                  >
+                    Refund full amount
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    disabled={actionProcessing || !actionReason.trim()}
+                    onClick={() => setPendingAction("void")}
+                  >
+                    Void transaction
+                  </Button>
+                </div>
               </section>
             )}
             {canManageFinancialActions && (

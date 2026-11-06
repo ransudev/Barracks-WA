@@ -78,13 +78,21 @@ test("login and signup limits apply per account and address, and success resets 
     assert.equal(signups[10], 429);
 
     // Sign-in stays available if the counters cannot be used.
+    // Fail the queries directly: a renamed table would still resolve to a copy
+    // in public when the database has been migrated.
     const logged = mock.method(console, "error", () => undefined);
-    await disposable.db.query("ALTER TABLE auth_attempts RENAME TO auth_attempts_hidden");
+    activePool = {
+      query: (text: unknown, ...rest: unknown[]) =>
+        String(text).includes("auth_attempts")
+          ? Promise.reject(new Error("counters unavailable"))
+          : (disposable.db.query as (...args: unknown[]) => Promise<QueryResult>)(text, ...rest),
+      connect: () => disposable.db.connect(),
+    } as unknown as Pool;
     try {
       assert.equal((await attempt(email, "correct-horse-battery", "203.0.113.20")).status, 200);
-      assert.ok(logged.mock.callCount() > 0);
+      assert.ok(logged.mock.calls.some((call) => call.arguments[0] === "Unable to check auth attempt limits"));
     } finally {
-      await disposable.db.query("ALTER TABLE auth_attempts_hidden RENAME TO auth_attempts");
+      activePool = disposable.db;
       logged.mock.restore();
     }
   } finally {

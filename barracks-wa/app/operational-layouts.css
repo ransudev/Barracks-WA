@@ -89,6 +89,8 @@
 .operational-drawer .receipt-view { margin: 0; }
 .operational-drawer .receipt-paper { width: 100%; }
 .operational-drawer :is(.financial-action-panel, .financial-audit-panel) { margin-top: 28px; }
+.financial-action-panel .field { margin-top: 14px; }
+.financial-action-buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .management-activity-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; margin-bottom: 24px; }
 /* The neighboring panel sets the row height; list entries fill that space. */
 .management-attention-panel, .matched-height-panel { display: flex; flex-direction: column; min-height: 0; contain: size; }

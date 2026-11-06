@@ -79,7 +79,7 @@ export function AddItemDialog({
           disabled={submitting}
           onChange={(imageUrl) => setForm({ ...form, imageUrl })}
         />
-        <div className="form-grid form-grid--three">
+        <div className="form-grid form-grid--three inventory-identity-grid">
           <SelectField
             label="Category"
             required
