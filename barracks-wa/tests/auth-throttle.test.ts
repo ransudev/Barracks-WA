@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { Pool, type PoolClient, type QueryResult } from "pg";
-import { createDisposableSchema } from "./helpers/database";
+import { createDisposableSchema, databaseConfigured } from "./helpers/database";
 
 let activePool: Pool;
 const testPool = {
@@ -31,7 +31,7 @@ const customer = (email: string) => ({
   firstName: "Throttle", lastName: "Check", email, password: "correct-horse-battery", phone: "09123456789",
 });
 
-test("login and signup limits apply per account and address, and success resets the account", async () => {
+test("login and signup limits apply per account and address, and success resets the account", { skip: !databaseConfigured }, async () => {
   const disposable = await createDisposableSchema();
   activePool = disposable.db;
   try {
@@ -100,7 +100,7 @@ test("login and signup limits apply per account and address, and success resets 
   }
 });
 
-test("account and payment writes finish on a pool of one connection", async () => {
+test("account and payment writes finish on a pool of one connection", { skip: !databaseConfigured }, async () => {
   const disposable = await createDisposableSchema();
   const small = new Pool({
     connectionString: process.env.DATABASE_URL ?? process.env.POSTGRES_URL,

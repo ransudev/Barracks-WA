@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDisposableSchema } from "./helpers/database";
+import { createDisposableSchema, databaseConfigured } from "./helpers/database";
 import { createService, deleteService, findServiceById, updateService } from "@/server/services/service.service";
 import { updateCustomer } from "@/server/services/customer.service";
 import { addWalkIn } from "@/server/services/queue.service";
 import { walkinCustomerProfileSchema, walkinCustomerStaffProfileSchema } from "@/server/schemas/sprint.schema";
 
-test("unused services delete; used services archive and restore without losing queue history", async () => {
+test("unused services delete; used services archive and restore without losing queue history", { skip: !databaseConfigured }, async () => {
  const {db,cleanup}=await createDisposableSchema();
  try {
   const input={id:"sprint-probe",name:"Sprint probe",description:"Disposable",price:100,durationMinutes:15,active:true};
@@ -25,7 +25,7 @@ test("unused services delete; used services archive and restore without losing q
  } finally {await cleanup();}
 });
 
-test("walk-in edits persist without creating accounts and preserve loyalty on contact-only edits",async()=>{
+test("walk-in edits persist without creating accounts and preserve loyalty on contact-only edits", { skip: !databaseConfigured }, async()=>{
  const {db,cleanup}=await createDisposableSchema();
  try {
   const id=Number((await db.query("INSERT INTO customers(first_name,last_name,phone) VALUES('Before','Guest','09123456789') RETURNING id")).rows[0].id);

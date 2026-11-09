@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDisposableSchema } from "./helpers/database";
+import { createDisposableSchema, databaseConfigured } from "./helpers/database";
 import { createBooking } from "@/server/services/booking.service";
 import { listCustomers, updateCustomer } from "@/server/services/customer.service";
 import { addWalkIn, assignQueueBarber, updateWalkInStatus } from "@/server/services/queue.service";
 import { isAppointmentCustomer } from "@/app/utils/booking-customers";
 
-test("booking choices match registered-account policy while accountless editing and Queue service remain functional", async () => {
+test("booking choices match registered-account policy while accountless editing and Queue service remain functional", { skip: !databaseConfigured }, async () => {
   const { db, cleanup } = await createDisposableSchema(Infinity, "2026-10-13T02:00:00Z");
   try {
     const barberId = Number((await db.query("INSERT INTO barbers(first_name,last_name) VALUES('Policy','Barber') RETURNING id")).rows[0].id);

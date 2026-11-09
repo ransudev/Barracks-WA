@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { mock, test } from "node:test";
 import type { Pool, PoolClient, QueryResult } from "pg";
-import { createDisposableSchema } from "./helpers/database";
+import { createDisposableSchema, databaseConfigured } from "./helpers/database";
 
 let activePool: Pool;
 let sessionCookie: string | undefined;
@@ -41,7 +41,7 @@ function readCookie(response: Response): string | undefined {
     : undefined;
 }
 
-test("account routes persist signup, session, ownership, supplier linkage and password workflows", async () => {
+test("account routes persist signup, session, ownership, supplier linkage and password workflows", { skip: !databaseConfigured }, async () => {
   const disposable = await createDisposableSchema();
   activePool = disposable.db;
   sessionCookie = undefined;
