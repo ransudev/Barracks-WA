@@ -133,7 +133,13 @@ export const customerProfileSchema = z
   .strict();
 
 export const customerSelfProfileSchema = customerProfileSchema.omit({ loyaltyCardIssued: true }).strict();
+// A customer's own update; currentPassword is required when the email changes.
+export const customerSelfUpdateSchema = customerSelfProfileSchema
+  .extend({ currentPassword: z.string().min(1).max(128).optional() })
+  .strict();
+// Administrators may change a registered customer's login email; Front Desk may not.
 export const customerStaffProfileSchema = customerSelfProfileSchema;
+export const customerFrontDeskProfileSchema = customerSelfProfileSchema.omit({ email: true }).strict();
 export const walkinCustomerProfileSchema = customerProfileSchema.omit({ email: true }).strict();
 export const walkinCustomerStaffProfileSchema = walkinCustomerProfileSchema.omit({ loyaltyCardIssued: true }).strict();
 

@@ -9,10 +9,17 @@ const SIGNUP_WINDOW_SECONDS = 60 * 60;
 
 const hashKey = (key: string) => createHash("sha256").update(key).digest("hex");
 
-// Hosting proxies set this header. A forged value only affects the IP-based
-// rules, because the per-account login rule does not use the address.
+// Prefer the address header the hosting platform writes itself, which a visitor
+// cannot supply: Netlify sets x-nf-client-connection-ip and Vercel sets
+// x-vercel-forwarded-for. The first x-forwarded-for value is only a fallback for
+// other hosts and local runs, where a client could forge it. A forged value
+// only affects the IP-based rules; the per-account login rule ignores it.
 export function clientIp(request: Request): string | null {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  const platform = request.headers.get("x-nf-client-connection-ip")
+    ?? request.headers.get("x-vercel-forwarded-for")?.split(",")[0];
+  return platform?.trim()
+    || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || null;
 }
 
 // A wrong guess from one address stops early, so an attacker elsewhere cannot

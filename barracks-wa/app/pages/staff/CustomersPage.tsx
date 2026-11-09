@@ -73,6 +73,7 @@ export function CustomersPage({
   canDelete,
   canViewLoyaltyCards,
   canIssueLoyaltyCards,
+  canEditCustomerEmail = false,
 }: {
   onToast: (message: string) => void;
   canDelete: boolean;
@@ -80,6 +81,8 @@ export function CustomersPage({
   canViewLoyaltyCards: boolean;
   // Only Managers record that a card was handed out.
   canIssueLoyaltyCards: boolean;
+  // Managers and Administrators may change a registered customer's login email.
+  canEditCustomerEmail?: boolean;
 }) {
   const [items, setItems] = useState<ApiCustomer[]>([]);
   const [barbers, setBarbers] = useState<ApiBarberAvailability[]>([]);
@@ -219,7 +222,9 @@ export function CustomersPage({
       const base = {
         firstName: form.firstName,
         lastName: form.lastName,
-        ...(editing && selected?.userId === null ? {} : { email: form.email }),
+        ...(editing && (selected?.userId === null || !canEditCustomerEmail)
+          ? {}
+          : { email: form.email }),
         phone: form.phone,
         preferredBarberId: form.preferredBarberId ? Number(form.preferredBarberId) : null,
       };
@@ -302,11 +307,15 @@ export function CustomersPage({
             label="Email address"
             type="email"
             required
+            disabled={editing && !canEditCustomerEmail}
             value={form.email}
-            error={emailFieldError(form.email)}
+            error={editing && !canEditCustomerEmail ? undefined : emailFieldError(form.email)}
             onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
             icon="mail"
           />
+        )}
+        {editing && selected?.userId !== null && !canEditCustomerEmail && (
+          <p className="form-hint">Only a Manager or Administrator can change a login email.</p>
         )}
         <TextField
           label="Phone number"

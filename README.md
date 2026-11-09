@@ -394,9 +394,9 @@ The supplier portal is a responsive supplier-specific workspace with a split ove
 - `GET /api/bookings` — administrator/manager/front desk receive bookings for their authorized selected branch; customers receive only their own bookings.
 - `GET /api/bookings/availability/month?serviceId=...&month=YYYY-MM[&barberId=...][&branchId=...]` — every booking role; returns each day's open start count, the full list of times with `available` and a `reason` (`past`, `booked`, `break`, `away`, `outside_shift`) for unavailable ones, and a day `reason` (`closed`, `not_working`, `fully_booked`, `too_far`, …). The booking form loads this once per month (and prefetches the next), greys out unavailable dates and times with the reason, and refreshes every 30 seconds and on window focus. The per-day availability endpoint now also returns `times`.
 - `POST /api/bookings` — staff (front desk, manager, administrator) can select a customer and create a `confirmed` booking; customers can create only their own booking, which starts as `pending` until staff confirm or reject it. Dates more than 90 days ahead (Manila calendar) are refused. The request includes a barber ID (required for customers; staff may omit it or send null for Any Available Barber), service, date, server-generated time slot, and optional notes (500 characters maximum).
-- `PUT /api/bookings/:id` — staff can edit a pending or confirmed booking's customer, barber, service, date, time, and notes; customers can edit only their own pending or confirmed booking (a customer reschedule returns it to `pending`) and cannot change its customer ownership.
+- `PUT /api/bookings/:id` — staff can edit a pending or confirmed booking's customer, barber, service, date, time, and notes; customers can edit only their own pending or confirmed booking (a customer reschedule returns it to `pending`) and cannot change its customer ownership. Rescheduling keeps the price and service name the booking was made at; only choosing a different service re-prices it from the current catalog.
 - `PATCH /api/bookings/:id` — staff can `confirm` or `reject` a `pending` request, move `confirmed → checked_in → in_progress → completed`, cancel a pending, confirmed or checked-in booking, or mark a confirmed booking no-show once its start is at least 10 minutes past (the drawer shows when No Show unlocks). Customers may only cancel their own pending or confirmed booking.
-- `DELETE /api/bookings/:id` — staff can remove a booking that has not started or that closed without service (pending, confirmed, rejected, cancelled, no-show). Started and completed visits stay as records for payments and payroll.
+- `DELETE /api/bookings/:id` — Managers and Administrators only (Front Desk cancels or rejects instead, so closures stay on record) can remove a booking that has not started or that closed without service (pending, confirmed, rejected, cancelled, no-show). Started and completed visits stay as records for payments and payroll.
 
 Booking statuses are `pending`, `confirmed`, `rejected`, `checked_in`, `in_progress`, `completed`, `cancelled` and `no_show`. Migration `032_booking_approval.sql` adds `pending` and `rejected` and makes pending requests hold their slot in the same exclusion constraints as confirmed bookings. Because each request reserves a slot, a customer may have at most `MAX_PENDING_BOOKING_REQUESTS` (3, in `app/constants/booking.ts`) future requests awaiting approval; a further request returns `409` until staff answer one or the customer cancels one. Staff-entered bookings are confirmed on entry and are not limited. The staff Bookings page lists requests under Awaiting approval with one-click Confirm and Reject, hides closed bookings (cancelled, rejected, no-show) unless the status filter asks for them, and the management dashboard links to waiting requests. Customers see upcoming appointments soonest first; appointments whose time passed without a visit move to history.
 
@@ -498,7 +498,7 @@ Login and signup are throttled by `server/auth/auth-throttle.ts`, using counters
 | Login | IP address | 100 attempts in 15 minutes |
 | Signup | IP address | 10 attempts per hour |
 
-A correct password clears that account's counters. A login for an unknown email still runs the same scrypt password check against a fixed placeholder hash, so response time does not reveal which emails are registered. The IP address comes from the first `x-forwarded-for` value, which the hosting proxy must set. If the counters cannot be read, for example before migration 033 is applied, login and signup stay available and the server logs the error.
+A correct password clears that account's counters. A login for an unknown email still runs the same scrypt password check against a fixed placeholder hash, so response time does not reveal which emails are registered. The IP address comes from the header the hosting platform writes itself and visitors cannot supply (`x-nf-client-connection-ip` on Netlify, `x-vercel-forwarded-for` on Vercel). Only on other hosts and local runs does it fall back to the first `x-forwarded-for` value, which a client could forge. If the counters cannot be read, for example before migration 033 is applied, login and signup stay available and the server logs the error.
 
 Zod schemas live under `server/schemas/`:
 
@@ -764,7 +764,7 @@ Revenue uses the immutable transaction branch snapshot for sales and related fin
 
 Inventory valuation and stock counts use item ownership; movement totals use movement ownership, grouped by item and numeric branch. Legacy movements retain their own branch even when it differs from the item's branch; those rows show historical stock status without exposing another branch's current quantity/threshold. Supplier spending and received-delivery counts follow restock header ownership, including preserved legacy lines. Shared suppliers are grouped once and each delivery is counted once. Spending uses immutable restock line cost; if any delivered line cost is unknown, supplier spend is reported as unknown. Current stock valuation remains independent of report dates; movement/spending dates retain their existing range behavior.
 
-The management dashboard aggregates existing inventory value, low stock, open restocks, today's/upcoming bookings, active barber roster and recent deliveries directly in PostgreSQL. Booking counts use booking snapshots, while current roster counts use barber ownership. The customer count is labeled **Customers with visits**: customers have no branch column, so it counts distinct customers referenced by bookings or queue records in the selected branches. A customer with visits in two branches counts once globally. Front Desk requests existing branch-scoped booking, queue and barber endpoints. No existing report/dashboard attendance metric is present, so attendance screens and metrics remain unchanged.
+The management dashboard aggregates inventory value (active items only; archived items are excluded here and in the inventory report), low stock, open restocks, today's/upcoming bookings, active barber roster and recent deliveries directly in PostgreSQL. Booking counts use booking snapshots, while current roster counts use barber ownership. The customer count is labeled **Customers with visits**: customers have no branch column, so it counts distinct customers referenced by bookings or queue records in the selected branches. A customer with visits in two branches counts once globally. Front Desk requests existing branch-scoped booking, queue and barber endpoints. No existing report/dashboard attendance metric is present, so attendance screens and metrics remain unchanged.
 
 
 
@@ -821,6 +821,14 @@ Migrations 029–031 add internal database access controls, immutable visit-dura
 
 Migration 033 adds the `auth_attempts` table behind login and signup throttling.
 
+Operational safeguards added after the bug-hunt audit:
+
+- **Bookings:** a pending request whose time has passed can no longer be confirmed (`409`); staff see a note and can reject it or edit it to a new time. The dashboard's pending count only includes future requests. Checking in a confirmed appointment on a day other than its date asks staff to confirm first (the server still allows it, for early or late arrivals).
+- **Walk-ins:** while entering a new walk-in, the Add to Queue form suggests existing customers with the same phone number (09/+63 forms match) or full name, so returning customers keep one record.
+- **Restocks:** receiving a line with 0 delivered units no longer changes that item's unit cost.
+- **Inventory photos:** new or changed photos are limited to 600,000 characters (the upload form already shrinks photos to 720px, well under this), and image links to 2,048 characters. An older, larger photo can still be resent unchanged when editing other fields.
+- **Customer accounts:** Front Desk cannot change a registered customer's login email (`403`; Managers and Administrators can). A customer changing their own login email must enter their current password.
+
 Migration 035 replaces loyalty points with physical loyalty card tracking: it adds `customers.loyalty_card_issued_at` and `loyalty_card_issued_by` (a user reference that becomes empty if that user is removed). Existing point values are left in `loyalty_points` untouched and are not converted into cards.
 
 Migration 034 makes the barber branch-move guard also refuse moves while the barber has pending booking requests, which have reserved slots since migration 032. Without it, a pending request could stay at the old branch, be approved there, and then fail at check-in. The migration changes no bookings; it prints a notice listing any active bookings whose barber already belongs to another branch so staff can reassign or reject them.
@@ -842,7 +850,7 @@ Time-sensitive lifecycle tests use an opt-in clock in their disposable schema, a
 
 Changes made from the user-acceptance feedback sheet:
 
-- Customer bookings now need staff approval (pending → confirm/reject in one click), and staff can remove closed bookings so cancelled slots no longer clutter the schedule.
+- Customer bookings now need staff approval (pending → confirm/reject in one click), and Management can remove closed bookings so cancelled slots no longer clutter the schedule.
 - Booking calendar preloads the month, greys out unavailable dates and times with the reason, limits bookings to 90 days ahead, refreshes live, and explains why a booking failed.
 - Times display in 12-hour format; customer appointments are sorted soonest first.
 - Managers and administrators reach every module from one sidebar and can create, confirm, reject and run bookings and the queue.

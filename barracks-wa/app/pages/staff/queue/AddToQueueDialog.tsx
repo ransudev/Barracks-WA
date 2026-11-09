@@ -38,6 +38,9 @@ export function AddToQueueDialog({
     barberId: "",
   });
   const [newCustomer, setNewCustomer] = useState({ firstName: "", lastName: "", phone: "" });
+  // Walk-ins with the same phone or full name are probably returning customers.
+  const possibleMatches =
+    draft.customerId === "new" ? findWalkInMatches(customers, newCustomer) : [];
   const [busy, setBusy] = useState(false);
   const submissionKey = useRef<string | null>(globalThis.crypto.randomUUID());
   const addInFlight = useRef(false);
@@ -141,6 +144,29 @@ export function AddToQueueDialog({
                 setNewCustomer((current) => ({ ...current, lastName: event.target.value }));
               }}
             />
+            {possibleMatches.length > 0 && (
+              <div className="walk-in-matches" role="status">
+                <p className="form-hint">
+                  Possible existing customer. Use their record to keep visit history together:
+                </p>
+                {possibleMatches.map((customer) => (
+                  <Button
+                    key={customer.id}
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      submissionKey.current = globalThis.crypto.randomUUID();
+                      setDraft({ ...draft, customerId: String(customer.id) });
+                    }}
+                  >
+                    Use {customer.firstName} {customer.lastName}
+                    {customer.phone ? ` · ${customer.phone}` : ""}
+                  </Button>
+                ))}
+              </div>
+            )}
             <TextField
               label="Phone number (optional)"
               type="tel"
@@ -201,4 +227,28 @@ export function AddToQueueDialog({
       </form>
     </Modal>
   );
+}
+
+// Compare Philippine mobile numbers in their 11-digit 09 form.
+function normalizedPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return digits.startsWith("639") && digits.length === 12 ? `0${digits.slice(2)}` : digits;
+}
+
+export function findWalkInMatches(
+  customers: ApiCustomer[],
+  entry: { firstName: string; lastName: string; phone: string },
+): ApiCustomer[] {
+  const phone = normalizedPhone(entry.phone);
+  const name = `${entry.firstName} ${entry.lastName}`.trim().toLowerCase().replace(/\s+/g, " ");
+  const hasFullName = Boolean(entry.firstName.trim() && entry.lastName.trim());
+  return customers
+    .filter(
+      (customer) =>
+        (phone.length >= 11 && normalizedPhone(customer.phone) === phone) ||
+        (hasFullName &&
+          `${customer.firstName} ${customer.lastName}`.trim().toLowerCase().replace(/\s+/g, " ") ===
+            name),
+    )
+    .slice(0, 3);
 }

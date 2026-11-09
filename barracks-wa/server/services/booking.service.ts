@@ -2,7 +2,7 @@ import { resolveCustomerBranch, lockOperationalActor, requireBranchAccess, type 
 import type { Pool, PoolClient } from "pg";
 import { findServiceById } from "@/server/services/service.service";
 import { findAvailableBarbers, isBookingSlotAvailable } from "@/server/services/booking-availability.service";
-import { BOOKING_GRACE_MINUTES, BOOKING_WINDOW_DAYS, isWithinBookingWindow, MAX_PENDING_BOOKING_REQUESTS, mayMarkNoShow } from "@/app/constants/booking";
+import { BOOKING_GRACE_MINUTES, BOOKING_WINDOW_DAYS, bookingHasStarted, isWithinBookingWindow, MAX_PENDING_BOOKING_REQUESTS, mayMarkNoShow } from "@/app/constants/booking";
 import { isActiveBarberConflict, QueueServiceError, syncAppointmentQueue } from "@/server/services/queue.service";
 import { BarberOperationalAvailabilityError, getBarberOperationalAvailability, requireBarberOperationalAvailability } from "@/server/services/barber-operational-availability.service";
 import type {
@@ -305,6 +305,9 @@ export async function updateBooking(
     if (existing.status !== expected[input.status]) {
       throw new BookingServiceError("not_updatable", `Cannot mark a ${existing.status} booking ${input.status}`);
     }
+    if (input.status === "confirmed" && bookingHasStarted(existing.date, existing.time)) {
+      throw new BookingServiceError("not_updatable", "This request's time has passed, so it can no longer be confirmed. Reject it or move it to a new time");
+    }
     if (input.status === "no_show" && !mayMarkNoShow(existing.date, existing.time)) {
       throw new BookingServiceError("not_updatable", `No-show is available ${BOOKING_GRACE_MINUTES} minutes after the appointment starts`);
     }
@@ -387,14 +390,19 @@ export async function updateBookingDetails(
     throw new BookingServiceError("not_found", "Customer not found");
   }
 
+  // Rescheduling keeps the agreed price and name; only a change of service
+  // re-prices the booking from the current catalog.
+  const sameService = existingBooking.serviceId === service.id;
+  const chargedName = sameService ? existingBooking.serviceName : service.name;
+  const chargedPrice = sameService ? existingBooking.price : service.price;
   const candidates = await bookingCandidates(db, input, id);
   for (const barberId of candidates) {
     if (!await isBookingSlotAvailable(db, { ...input, barberId }, { excludeBookingId: id })) continue;
     try {
     const customerScope = scope?.customerId ? " AND customer_id = $11" : "";
     const values = scope?.customerId
-      ? [input.customerId, barberId, service.id, service.name, service.price, service.durationMinutes, input.date, input.time, input.notes?.trim() || null, id, scope.customerId]
-      : [input.customerId, barberId, service.id, service.name, service.price, service.durationMinutes, input.date, input.time, input.notes?.trim() || null, id];
+      ? [input.customerId, barberId, service.id, chargedName, chargedPrice, service.durationMinutes, input.date, input.time, input.notes?.trim() || null, id, scope.customerId]
+      : [input.customerId, barberId, service.id, chargedName, chargedPrice, service.durationMinutes, input.date, input.time, input.notes?.trim() || null, id];
     const updated = await db.query<{ id: number }>(
       `
         UPDATE bookings

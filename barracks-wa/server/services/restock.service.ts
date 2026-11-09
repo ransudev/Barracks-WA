@@ -148,8 +148,12 @@ export async function receiveRestock(db: Pool | PoolClient, id: number, userId: 
       if (!stock.rows[0]) throw new Error("INVENTORY_NOT_FOUND");
       const previous = Number(stock.rows[0].quantity);
       const next = previous + received.deliveredQuantity;
-      const cost = received.unitCost ?? Number(stock.rows[0].unit_cost);
-      await client.query("UPDATE inventory_items SET quantity=$1,unit_cost=$2,updated_at=NOW() WHERE id=$3", [next, cost, itemId]);
+      // A line that delivered nothing must not change the item's cost.
+      const cost = received.deliveredQuantity > 0
+        ? received.unitCost ?? Number(stock.rows[0].unit_cost)
+        : Number(stock.rows[0].unit_cost);
+      if (received.deliveredQuantity > 0)
+        await client.query("UPDATE inventory_items SET quantity=$1,unit_cost=$2,updated_at=NOW() WHERE id=$3", [next, cost, itemId]);
       await resolveLowStockAcknowledgements(client, itemId, next);
       await client.query("UPDATE restock_request_items SET delivered_quantity=$1,unit_cost=$2 WHERE id=$3", [received.deliveredQuantity, cost, received.restockRequestItemId]);
       if (received.deliveredQuantity > 0) {

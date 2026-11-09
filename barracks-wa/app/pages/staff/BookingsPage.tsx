@@ -36,7 +36,14 @@ import {
 } from "./bookings/model";
 import { useBookingsData } from "./bookings/useBookingsData";
 
-export function BookingsPage({ onToast }: { onToast: (message: string) => void }) {
+export function BookingsPage({
+  onToast,
+  canRemoveBookings = false,
+}: {
+  onToast: (message: string) => void;
+  // Management only; Front Desk cancels or rejects instead.
+  canRemoveBookings?: boolean;
+}) {
   const { branches, branchId, setBranchId, branchError, branchLoading } = useBranchContext();
   const branchControl = (
     <BranchSwitcher
@@ -53,6 +60,7 @@ export function BookingsPage({ onToast }: { onToast: (message: string) => void }
         branchId={branchId}
         branchControl={branchControl}
         onToast={onToast}
+        canRemoveBookings={canRemoveBookings}
       />
     );
   return (
@@ -81,10 +89,12 @@ function BookingsPageContent({
   onToast,
   branchId,
   branchControl,
+  canRemoveBookings,
 }: {
   onToast: (message: string) => void;
   branchId: number;
   branchControl: ReactNode;
+  canRemoveBookings: boolean;
 }) {
   const [tab, setTab] = useState("open");
   const [date, setDate] = useState(dateInputValue);
@@ -457,7 +467,7 @@ function BookingsPageContent({
         onUpdateStatus={updateStatus}
         onEdit={openEdit}
         onCancel={setPendingCancellation}
-        onRemove={setPendingDeletion}
+        onRemove={canRemoveBookings ? setPendingDeletion : undefined}
       />
       <ConfirmDialog
         open={Boolean(pendingCancellation)}

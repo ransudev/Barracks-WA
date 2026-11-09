@@ -31,6 +31,8 @@ type ProfileDraft = {
   email: string;
   phone: string;
   preferredBarberId: string;
+  // Required only when the login email changes.
+  currentPassword: string;
 };
 
 function profileForm(customer: ApiCustomer): ProfileDraft {
@@ -40,6 +42,7 @@ function profileForm(customer: ApiCustomer): ProfileDraft {
     email: customer.email,
     phone: customer.phone,
     preferredBarberId: customer.preferredBarberId ? String(customer.preferredBarberId) : "",
+    currentPassword: "",
   };
 }
 
@@ -108,6 +111,7 @@ export function CustomerDashboard({
     email: "",
     phone: "",
     preferredBarberId: "",
+    currentPassword: "",
   });
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(() => !peekApiBody("/api/customers/me"));
@@ -211,6 +215,10 @@ export function CustomerDashboard({
     };
   }, [editingBooking, onToast]);
 
+  // Changing the login email asks for the current password.
+  const emailChanged = Boolean(
+    customer && draft.email.trim().toLowerCase() !== customer.email.toLowerCase(),
+  );
   function openProfileEditor() {
     if (!customer) return;
     setDraft(profileForm(customer));
@@ -222,11 +230,13 @@ export function CustomerDashboard({
     setSaving(true);
 
     try {
+      const { currentPassword, ...profile } = draft;
       const response = await apiRequest("/api/customers/me", {
         method: "PUT",
         body: JSON.stringify({
-          ...draft,
+          ...profile,
           preferredBarberId: draft.preferredBarberId ? Number(draft.preferredBarberId) : null,
+          ...(emailChanged ? { currentPassword } : {}),
         }),
       });
       const body = await readApiBody<{
@@ -641,6 +651,18 @@ export function CustomerDashboard({
             onChange={(event) => setDraft({ ...draft, email: event.target.value })}
             icon="mail"
           />
+          {emailChanged && (
+            <TextField
+              label="Current password"
+              type="password"
+              required
+              autoComplete="current-password"
+              maxLength={128}
+              value={draft.currentPassword}
+              onChange={(event) => setDraft({ ...draft, currentPassword: event.target.value })}
+              icon="lock"
+            />
+          )}
           <TextField
             label="Phone number"
             type="tel"

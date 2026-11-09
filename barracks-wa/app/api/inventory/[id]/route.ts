@@ -48,6 +48,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (error instanceof Error && error.message === "DUPLICATE_SKU") {
       return Response.json({ success: false, message: "Another inventory item already uses this SKU" }, { status: 409 });
     }
+    if (error instanceof Error && error.message === "PHOTO_TOO_LARGE") {
+      return Response.json({ success: false, message: "Choose a smaller photo" }, { status: 400 });
+    }
     if (error instanceof Error && error.message === "ITEM_HAS_OPEN_RESTOCK") {
       return Response.json({ success: false, message: "Receive or cancel this item's open restock requests before changing its supplier" }, { status: 409 });
     }

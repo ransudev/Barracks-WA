@@ -169,7 +169,8 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const actor = await requireRolesUser(["administrator", "manager", "front_desk"]);
+  // Permanent removal is Management-only; Front Desk cancels or rejects instead.
+  const actor = await requireRolesUser(["administrator", "manager"]);
   if (actor instanceof Response) return actor;
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id < 1) {

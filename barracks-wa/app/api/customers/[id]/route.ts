@@ -2,6 +2,7 @@ import { requireAdministrator, requireStaffUser } from "@/server/auth/require-ro
 import { pool } from "@/server/db/pool";
 import {
   customerProfileSchema,
+  customerFrontDeskProfileSchema,
   customerStaffProfileSchema,
   walkinCustomerProfileSchema,
   walkinCustomerStaffProfileSchema,
@@ -54,9 +55,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const current = await findCustomerById(pool, id);
     if (!current) return Response.json({ success: false, message: "Customer not found" }, { status: 404 });
-    const profileSchema = current.userId === null ? walkinCustomerProfileSchema : customerProfileSchema;
-    const staffProfileSchema = current.userId === null ? walkinCustomerStaffProfileSchema : customerStaffProfileSchema;
-    const parsed = (canIssueLoyaltyCards(authorizationResult.role) ? profileSchema : staffProfileSchema).safeParse(body);
+    // Front Desk may not change a registered customer's login email. Resending
+    // the unchanged email is tolerated so older forms keep working.
+    const frontDesk = authorizationResult.role === "front_desk";
+    if (frontDesk && current.userId !== null && typeof body === "object" && body !== null && "email" in body) {
+      const { email, ...rest } = body as Record<string, unknown>;
+      if (typeof email !== "string" || email.trim().toLowerCase() !== current.email.toLowerCase())
+        return Response.json({ success: false, message: "Only a Manager or Administrator can change a customer's login email" }, { status: 403 });
+      body = rest;
+    }
+    const schema = current.userId === null
+      ? canIssueLoyaltyCards(authorizationResult.role) ? walkinCustomerProfileSchema : walkinCustomerStaffProfileSchema
+      : canIssueLoyaltyCards(authorizationResult.role) ? customerProfileSchema
+        : frontDesk ? customerFrontDeskProfileSchema : customerStaffProfileSchema;
+    const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return Response.json(
         { success: false, message: "Invalid customer information", errors: formatValidationErrors(parsed.error) },

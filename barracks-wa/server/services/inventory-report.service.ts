@@ -14,7 +14,8 @@ export async function getInventoryReport(db: Pool, actor: BranchActor, from: Dat
   const [valuation, supplierSpending, movements, usageSummary] = await Promise.all([
     db.query(`
       SELECT
-        COALESCE(SUM(quantity * unit_cost), 0) AS total_value,
+        -- Archived (inactive) items are excluded from stock value.
+        COALESCE(SUM(quantity * unit_cost) FILTER (WHERE status='active'), 0) AS total_value,
         COUNT(*) FILTER (WHERE status='active') AS active_items,
         COUNT(*) FILTER (WHERE status='active' AND quantity <= minimum_stock) AS low_stock_items
       FROM inventory_items WHERE branch_id=ANY($1::integer[])

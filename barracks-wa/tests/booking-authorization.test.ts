@@ -39,7 +39,7 @@ test("customer cancellation is owner-scoped and limited to confirmed bookings", 
     await assert.rejects(updateBooking(db, otherCustomer.id, { status: "cancelled" }, { customerId: customers[0] }), { kind: "forbidden" });
     assert.equal((await updateBooking(db, otherCustomer.id, { status: "cancelled" }, { customerId: customers[1] }))?.status, "cancelled");
     // Staff may remove bookings; the service keeps started/completed bookings on record.
-    assert.equal(canManageBooking("front_desk", "delete"), true);
+    assert.equal(canManageBooking("front_desk", "delete"), false);
     assert.equal(canManageBooking("front_desk", "cancel"), true);
     assert.equal(canManageBooking("manager", "delete"), true);
     assert.equal(canManageBooking("administrator", "delete"), true);

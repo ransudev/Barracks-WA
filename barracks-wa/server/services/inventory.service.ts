@@ -4,6 +4,7 @@ import type { InventoryItemInput } from "@/server/schemas/sprint.schema";
 import type { InventoryCreateInput, InventoryMetadataInput } from "@/server/schemas/sprint2.schema";
 import { getInventoryImageForName } from "../../app/data/inventory-images";
 import { assertSupplierChangeAllowed } from "@/server/services/supplier.service";
+import { MAX_INVENTORY_PHOTO_CHARS } from "@/server/schemas/sprint2.schema";
 
 type Queryable = Pool | PoolClient;
 
@@ -148,8 +149,9 @@ export async function updateInventoryMetadata(
         minimum_stock: number;
         maximum_stock: number | null;
         branch: string;
+        image_url: string | null;
       }>(
-        "SELECT minimum_stock, maximum_stock, branch FROM inventory_items WHERE id=$1 FOR UPDATE",
+        "SELECT minimum_stock, maximum_stock, branch, image_url FROM inventory_items WHERE id=$1 FOR UPDATE",
         [id],
       );
       const existing = current.rows[0];
@@ -157,6 +159,8 @@ export async function updateInventoryMetadata(
         return null;
       }
 
+      const image = normalizedImage(input.imageUrl);
+      if (image && image !== existing.image_url && image.length > MAX_INVENTORY_PHOTO_CHARS) throw new Error("PHOTO_TOO_LARGE");
       const previousMinimum = Number(existing.minimum_stock);
       const previousMaximum = existing.maximum_stock === null ? null : Number(existing.maximum_stock);
       await assertActiveSupplier(client, input.supplierId);

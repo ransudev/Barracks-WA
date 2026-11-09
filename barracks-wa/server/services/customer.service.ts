@@ -216,7 +216,7 @@ export async function createCustomer(
 export async function updateCustomer(
   db: Pool,
   id: number,
-  input: CustomerProfileInput | WalkinCustomerProfileInput,
+  input: CustomerProfileInput | WalkinCustomerProfileInput | Omit<CustomerProfileInput, "email">,
   actor?: CustomerActor,
 ): Promise<CustomerRecord | null> {
   const loyaltyCardIssued = "loyaltyCardIssued" in input ? input.loyaltyCardIssued : undefined;
@@ -252,14 +252,14 @@ export async function updateCustomer(
         [input.firstName, input.lastName, id],
       );
     } else {
-      if (!("email" in input)) throw new Error("Email is required for registered customers");
+      // Without an email (Front Desk edits) the login email stays unchanged.
       await client.query(
         `
           UPDATE users
-          SET first_name = $1, last_name = $2, email = $3, updated_at = NOW()
+          SET first_name = $1, last_name = $2, email = COALESCE($3, email), updated_at = NOW()
           WHERE id = $4
         `,
-        [input.firstName, input.lastName, input.email, target.rows[0].user_id],
+        [input.firstName, input.lastName, "email" in input ? input.email : null, target.rows[0].user_id],
       );
     }
     await client.query(

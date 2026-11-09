@@ -144,6 +144,7 @@ export function PageRouter({ view, go, onToast, currentUser }: PageRouterProps) 
           canDelete={currentUser.role === "administrator"}
           canViewLoyaltyCards
           canIssueLoyaltyCards={currentUser.role === "manager"}
+          canEditCustomerEmail={isManagementRole(currentUser.role)}
         />
       );
     case "admin-barbers":
@@ -159,7 +160,9 @@ export function PageRouter({ view, go, onToast, currentUser }: PageRouterProps) 
     case "barbers":
       return <BarberFloorPage />;
     case "bookings":
-      return <BookingsPage onToast={onToast} />;
+      return (
+        <BookingsPage onToast={onToast} canRemoveBookings={isManagementRole(currentUser.role)} />
+      );
     case "queue":
       return <QueuePage onToast={onToast} />;
     case "payments":

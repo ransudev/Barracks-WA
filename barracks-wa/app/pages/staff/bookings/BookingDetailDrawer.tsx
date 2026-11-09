@@ -3,7 +3,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Avatar, Badge, Button } from "@/app/components/ui";
 import { DetailDrawer, DrawerSection } from "@/app/components/operations/OperationalPrimitives";
-import { BOOKING_GRACE_MINUTES, mayMarkNoShow } from "@/app/constants/booking";
+import {
+  BOOKING_GRACE_MINUTES,
+  bookingHasStarted,
+  isBookingDay,
+  mayMarkNoShow,
+} from "@/app/constants/booking";
 import type { ApiBooking, ApiBookingStatus } from "@/app/lib/api";
 import {
   createInitials,
@@ -33,7 +38,8 @@ export function BookingDetailDrawer({
   onUpdateStatus: (booking: ApiBooking, status: ApiBookingStatus) => Promise<void>;
   onEdit: (booking: ApiBooking) => void;
   onCancel: (booking: ApiBooking) => void;
-  onRemove: (booking: ApiBooking) => void;
+  // Omitted for Front Desk: only Management may permanently remove bookings.
+  onRemove?: (booking: ApiBooking) => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -100,13 +106,15 @@ export function BookingDetailDrawer({
                 <div className="operational-drawer__actions">
                   {selected.status === "pending" && (
                     <>
-                      <Button
-                        icon="check"
-                        disabled={busy}
-                        onClick={() => void onUpdateStatus(selected, "confirmed")}
-                      >
-                        Confirm
-                      </Button>
+                      {!bookingHasStarted(selected.date, selected.time, new Date(now)) && (
+                        <Button
+                          icon="check"
+                          disabled={busy}
+                          onClick={() => void onUpdateStatus(selected, "confirmed")}
+                        >
+                          Confirm
+                        </Button>
+                      )}
                       <Button
                         variant="danger"
                         icon="x"
@@ -127,7 +135,16 @@ export function BookingDetailDrawer({
                       </Button>
                       <Button
                         disabled={busy}
-                        onClick={() => void onUpdateStatus(selected, "checked_in")}
+                        onClick={() => {
+                          // Early or late arrivals are allowed, but confirm the date first.
+                          if (
+                            isBookingDay(selected.date, new Date(now)) ||
+                            window.confirm(
+                              `This appointment is on ${formatDate(selected.date)}, not today. Check the customer in anyway?`,
+                            )
+                          )
+                            void onUpdateStatus(selected, "checked_in");
+                        }}
                       >
                         Check In
                       </Button>
@@ -163,7 +180,7 @@ export function BookingDetailDrawer({
                       Cancel
                     </Button>
                   )}
-                  {deletableStatuses.includes(selected.status) && (
+                  {onRemove && deletableStatuses.includes(selected.status) && (
                     <Button
                       variant="ghost"
                       icon="trash"
@@ -174,6 +191,19 @@ export function BookingDetailDrawer({
                     </Button>
                   )}
                 </div>
+                {selected.status === "pending" &&
+                  bookingHasStarted(selected.date, selected.time, new Date(now)) && (
+                    <p className="form-hint">
+                      This request&apos;s time has passed, so it can no longer be confirmed. Reject
+                      it, or edit it to a new time.
+                    </p>
+                  )}
+                {selected.status === "confirmed" && !isBookingDay(selected.date, new Date(now)) && (
+                  <p className="form-hint">
+                    This appointment is on {formatDate(selected.date)}. Checking in on another day
+                    asks for confirmation.
+                  </p>
+                )}
                 {selected.status === "confirmed" &&
                   !mayMarkNoShow(selected.date, selected.time, new Date(now)) && (
                     <p className="form-hint">
@@ -183,7 +213,8 @@ export function BookingDetailDrawer({
                   )}
                 {closedStatuses.includes(selected.status) && (
                   <p className="form-hint">
-                    This booking no longer holds its time slot. Remove it to clear it from the list.
+                    This booking no longer holds its time slot.
+                    {onRemove ? " Remove it to clear it from the list." : ""}
                   </p>
                 )}
               </DrawerSection>

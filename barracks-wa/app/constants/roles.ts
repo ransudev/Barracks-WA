@@ -92,6 +92,9 @@ export function canManageBooking(
   action: BookingAction,
   ownsBooking = false,
 ): boolean {
+  // Permanent removal has no audit trail, so it is limited to Management.
+  // Front Desk closes bookings by cancelling or rejecting them instead.
+  if (action === "delete") return isManagementRole(actorRole);
   if (isStaffRole(actorRole)) return true;
   return actorRole === "customer" && ownsBooking && (action === "edit" || action === "cancel");
 }

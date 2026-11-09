@@ -41,7 +41,13 @@ export const supplierAccountSchema = z.object({
   userId: positiveInt,
 }).strict();
 
-const inventoryImage = z.string().trim().max(2000000)
+// Photos are stored inline and sent with every inventory list, so keep them
+// small. The upload form already shrinks photos to 720px (well under this cap);
+// the limit stops oversized images sent straight to the API. Edits may resend
+// an older, larger photo unchanged; the service rejects only a changed one.
+export const MAX_INVENTORY_PHOTO_CHARS = 600_000;
+const LEGACY_INVENTORY_PHOTO_CHARS = 2_000_000;
+const inventoryImage = z.string().trim().max(LEGACY_INVENTORY_PHOTO_CHARS, "Choose a smaller photo")
   .refine(
     (value) => !value
       || /^https?:\/\//i.test(value)
@@ -49,6 +55,7 @@ const inventoryImage = z.string().trim().max(2000000)
       || /^\/[A-Za-z0-9._/-]+$/.test(value),
     { message: "Add an image link, local catalog image, or upload a PNG, JPG, or WebP file" },
   )
+  .refine((value) => value.startsWith("data:") || value.length <= 2048, { message: "Image links must be 2,048 characters or fewer" })
   .nullable()
   .optional();
 
@@ -77,6 +84,7 @@ export const inventoryMetadataSchema = z.object(inventoryMetadataShape).strict()
 
 export const inventoryCreateSchema = z.object({
   ...inventoryMetadataShape,
+  imageUrl: inventoryImage.refine((value) => !value || value.length <= MAX_INVENTORY_PHOTO_CHARS, "Choose a smaller photo"),
   initialQuantity: nonNegativeInt.default(0),
 }).strict().refine(maximumStockIsValid, {
   path: ["maximumStock"],

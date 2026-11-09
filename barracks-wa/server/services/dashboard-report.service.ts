@@ -11,12 +11,13 @@ export async function getDashboardReport(db: Pool, actor: BranchActor, rawBranch
 export async function getDashboardReportForBranches(db: Pool, branchIds: number[]) {
   const [metrics, attention, deliveries] = await Promise.all([
     db.query(`SELECT
-      (SELECT COALESCE(SUM(quantity * unit_cost),0) FROM inventory_items WHERE branch_id=ANY($1::integer[])) AS inventory_value,
+      (SELECT COALESCE(SUM(quantity * unit_cost),0) FROM inventory_items WHERE branch_id=ANY($1::integer[]) AND status='active') AS inventory_value,
       (SELECT COUNT(*) FROM inventory_items WHERE branch_id=ANY($1::integer[]) AND status='active' AND quantity<=minimum_stock) AS low_stock,
       (SELECT COUNT(*) FROM restock_requests WHERE branch_id=ANY($1::integer[]) AND status NOT IN ('Received','Cancelled')) AS open_restocks,
       (SELECT COUNT(*) FROM bookings WHERE branch_id=ANY($1::integer[]) AND booking_date=(NOW() AT TIME ZONE 'Asia/Manila')::date AND status NOT IN ('cancelled','rejected')) AS today_bookings,
       (SELECT COUNT(*) FROM bookings WHERE branch_id=ANY($1::integer[]) AND booking_date>=(NOW() AT TIME ZONE 'Asia/Manila')::date AND status='confirmed') AS upcoming_bookings,
-      (SELECT COUNT(*) FROM bookings WHERE branch_id=ANY($1::integer[]) AND status='pending') AS pending_bookings,
+      (SELECT COUNT(*) FROM bookings WHERE branch_id=ANY($1::integer[]) AND status='pending'
+        AND (booking_date + booking_time) AT TIME ZONE 'Asia/Manila' > NOW()) AS pending_bookings,
       (SELECT COUNT(*) FROM barbers WHERE branch_id=ANY($1::integer[]) AND status<>'unavailable') AS active_barbers,
       (SELECT COUNT(*) FROM customers c LEFT JOIN users u ON u.id=c.user_id LEFT JOIN roles r ON r.id=u.role_id
         WHERE (c.user_id IS NULL OR (u.deleted_at IS NULL AND r.name='customer')) AND

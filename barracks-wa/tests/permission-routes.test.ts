@@ -49,7 +49,7 @@ const routes: Route[] = [
   { path: "bookings", method: "POST", allowed: ["front_desk", "manager", "administrator", "customer"], body: {} },
   { path: "bookings/[id]", method: "PATCH", allowed: ["front_desk", "manager", "administrator", "customer"], body: {} },
   { path: "bookings/[id]", method: "PUT", allowed: ["front_desk", "manager", "administrator", "customer"], body: {} },
-  { path: "bookings/[id]", method: "DELETE", allowed: ["front_desk", "manager", "administrator"] },
+  { path: "bookings/[id]", method: "DELETE", allowed: ["manager", "administrator"] },
   { path: "customers", method: "GET", allowed: ["front_desk", "manager", "administrator"] },
   { path: "customers", method: "POST", allowed: ["front_desk", "manager", "administrator"], body: {} },
   { path: "customers/[id]", method: "PUT", allowed: ["front_desk", "manager", "administrator"], body: {} },

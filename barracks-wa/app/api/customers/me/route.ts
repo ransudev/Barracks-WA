@@ -1,7 +1,8 @@
 import { getCurrentUser } from "@/server/auth/session";
+import { verifyPassword } from "@/server/services/password.service";
 import { pool } from "@/server/db/pool";
 import {
-  customerSelfProfileSchema,
+  customerSelfUpdateSchema,
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
 import {
@@ -48,7 +49,7 @@ export async function PUT(request: Request) {
     } catch {
       return Response.json({ success: false, message: "Invalid customer information" }, { status: 400 });
     }
-    const parsed = customerSelfProfileSchema.safeParse(body);
+    const parsed = customerSelfUpdateSchema.safeParse(body);
     if (!parsed.success) {
       return Response.json(
         {
@@ -62,7 +63,17 @@ export async function PUT(request: Request) {
 
     const current = await findCustomerByUserId(pool, result.user.id);
     if (!current) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
-    const customer = await updateCustomer(pool, current.id, parsed.data);
+    const { currentPassword, ...profile } = parsed.data;
+    // A stolen session must not be able to move the account to a new email.
+    if (profile.email.trim().toLowerCase() !== current.email.toLowerCase()) {
+      if (!currentPassword)
+        return Response.json({ success: false, message: "Enter your current password to change your email" }, { status: 400 });
+      const stored = await pool.query<{ password_hash: string }>(
+        "SELECT password_hash FROM users WHERE id=$1 AND deleted_at IS NULL", [result.user.id]);
+      if (!stored.rows[0] || !(await verifyPassword(currentPassword, stored.rows[0].password_hash)))
+        return Response.json({ success: false, message: "Current password is incorrect" }, { status: 403 });
+    }
+    const customer = await updateCustomer(pool, current.id, profile);
     if (!customer) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
     return Response.json({ success: true, customer: customerForViewer(customer, "customer") });
   } catch (error) {
