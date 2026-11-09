@@ -2,7 +2,7 @@ import { resolveCustomerBranch, lockOperationalActor, requireBranchAccess, type 
 import type { Pool, PoolClient } from "pg";
 import { findServiceById } from "@/server/services/service.service";
 import { findAvailableBarbers, isBookingSlotAvailable } from "@/server/services/booking-availability.service";
-import { BOOKING_GRACE_MINUTES, BOOKING_WINDOW_DAYS, isWithinBookingWindow, mayMarkNoShow } from "@/app/constants/booking";
+import { BOOKING_GRACE_MINUTES, BOOKING_WINDOW_DAYS, isWithinBookingWindow, MAX_PENDING_BOOKING_REQUESTS, mayMarkNoShow } from "@/app/constants/booking";
 import { isActiveBarberConflict, QueueServiceError, syncAppointmentQueue } from "@/server/services/queue.service";
 import { BarberOperationalAvailabilityError, getBarberOperationalAvailability, requireBarberOperationalAvailability } from "@/server/services/barber-operational-availability.service";
 import type {
@@ -189,8 +189,23 @@ export async function createBooking(
   for (const barberId of candidates) {
     // Recheck immediately before writing. The exclusion constraints still decide races.
     if (!await isBookingSlotAvailable(db, { ...input, barberId })) continue;
+    const client = await db.connect();
     try {
-      const inserted = await db.query<{ id: number }>(
+      await client.query("BEGIN");
+      if ((input.status ?? "confirmed") === "pending") {
+        // Lock the customer so concurrent requests cannot both pass the count.
+        await client.query("SELECT id FROM customers WHERE id=$1 FOR UPDATE", [input.customerId]);
+        const open = await client.query<{ count: number }>(
+          `SELECT count(*)::int AS count FROM bookings WHERE customer_id=$1 AND status='pending'
+             AND (booking_date + booking_time) AT TIME ZONE 'Asia/Manila' > NOW()`,
+          [input.customerId],
+        );
+        if (open.rows[0].count >= MAX_PENDING_BOOKING_REQUESTS) {
+          throw new BookingServiceError("conflict",
+            `You already have ${MAX_PENDING_BOOKING_REQUESTS} booking requests awaiting approval. Wait for a reply or cancel one before requesting another`);
+        }
+      }
+      const inserted = await client.query<{ id: number }>(
       `
         INSERT INTO bookings
           (customer_id, barber_id, service_id, service_name, service_price, service_duration_minutes, booking_date, booking_time, end_time, notes, branch_id, status)
@@ -218,11 +233,14 @@ export async function createBooking(
       ],
     );
       if (!inserted.rows[0]) {
-        await resolveCustomerBranch(db, String(branchId));
+        await resolveCustomerBranch(client, String(branchId));
         throw new BookingServiceError("not_found", "Customer not found");
       }
-      return (await findBookingById(db, inserted.rows[0].id)) as BookingRecord;
+      const booking = (await findBookingById(client, inserted.rows[0].id)) as BookingRecord;
+      await client.query("COMMIT");
+      return booking;
     } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
       if (isOverlapViolation(error, "bookings_active_customer_overlap")) {
         throw new BookingServiceError("conflict", "You already have an appointment that overlaps this time");
       }
@@ -231,6 +249,8 @@ export async function createBooking(
         throw new BookingServiceError("conflict", "That barber was just booked. Choose another time or barber");
       }
       throw error;
+    } finally {
+      client.release();
     }
   }
   throw new BookingServiceError("conflict", input.barberId
