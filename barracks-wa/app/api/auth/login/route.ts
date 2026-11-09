@@ -7,10 +7,18 @@ import {
   loginSchema,
 } from "@/server/schemas/user.schema";
 import { findUserByEmail } from "@/server/services/user.service";
-import { verifyPassword } from "@/server/services/password.service";
+import { hashPassword, verifyPassword } from "@/server/services/password.service";
 import { supplierIdForUser } from "@/server/services/supplier.service";
 
 export const runtime = "nodejs";
+
+// Unknown emails still pay the full scrypt cost, so response time does not
+// reveal which emails are registered. Created once per server instance.
+let unknownAccountHash: Promise<string> | undefined;
+function unknownAccountPasswordHash(): Promise<string> {
+  unknownAccountHash ??= hashPassword("barracks-unknown-account");
+  return unknownAccountHash;
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -47,8 +55,12 @@ export async function POST(request: Request) {
     if (!throttle.allowed) return tooManyAttempts(throttle.retryAfterSeconds);
 
     const account = await findUserByEmail(pool, parsed.data.email);
+    const passwordMatches = await verifyPassword(
+      parsed.data.password,
+      account?.passwordHash ?? (await unknownAccountPasswordHash()),
+    );
 
-    if (!account || !(await verifyPassword(parsed.data.password, account.passwordHash))) {
+    if (!account || !passwordMatches) {
       return NextResponse.json(
         {
           success: false,
