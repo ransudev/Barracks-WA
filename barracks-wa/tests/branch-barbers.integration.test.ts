@@ -71,6 +71,25 @@ test("branch hours initialize barbers and drive availability; safe moves preserv
   } finally { await cleanup(); }
 });
 
+test("a pending booking request blocks a barber branch move until it is resolved", { skip: !databaseConfigured }, async () => {
+  const { db, cleanup } = await createDisposableSchema();
+  try {
+    const main = Number((await db.query("SELECT id FROM branches WHERE code='MAIN'")).rows[0].id);
+    const second = Number((await db.query("INSERT INTO branches(name,code) VALUES('Pending destination','PENDING') RETURNING id")).rows[0].id);
+    // Make the destination hours wide enough that only the booking can block the move.
+    await db.query("UPDATE shop_operating_hours SET open_time='00:00',close_time='23:59',is_closed=false WHERE branch_id=$1", [second]);
+    const barber = await createBarber(db, { branchId: main, firstName: "Pending", lastName: "Barber", status: "available" });
+    const customer = Number((await db.query("INSERT INTO customers(first_name,last_name) VALUES('Pending','Customer') RETURNING id")).rows[0].id);
+    const booking = Number((await db.query(`INSERT INTO bookings(customer_id,barber_id,service_id,service_name,service_price,service_duration_minutes,booking_date,booking_time,end_time,status,branch_id)
+      VALUES($1,$2,'barracks-basic','Cut',100,30,'2099-10-05','12:00','12:30','pending',$3) RETURNING id`, [customer, barber.id, main])).rows[0].id);
+    const move = () => updateBarber(db, barber.id, { branchId: second, firstName: "Pending", lastName: "Barber", status: "available" });
+    await assert.rejects(move(), /active bookings/);
+    assert.equal((await findBarberById(db, barber.id))?.branchId, main);
+    await db.query("UPDATE bookings SET status='rejected' WHERE id=$1", [booking]);
+    assert.equal((await move())?.branchId, second);
+  } finally { await cleanup(); }
+});
+
 test("barber roster metrics use branch-owned history after a move and retain portable counters untouched", { skip: !databaseConfigured }, async () => {
   const { db, cleanup } = await createDisposableSchema();
   try {
