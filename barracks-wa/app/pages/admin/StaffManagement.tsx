@@ -44,6 +44,7 @@ import {
   ViewToggle,
   type OperationalViewMode,
 } from "@/app/components/operations/OperationalPrimitives";
+import { personNameFieldError } from "@/app/utils/text-validation";
 
 type AccountStatus = "active" | "pending" | "blocked";
 type LifecycleAction = "verify" | "unverify" | "block" | "unblock";
@@ -344,6 +345,7 @@ export function StaffManagement({
             label="First name"
             required
             value={form.firstName}
+            error={personNameFieldError(form.firstName, "First name")}
             onChange={(event) =>
               setForm((current) => ({ ...current, firstName: event.target.value }))
             }
@@ -352,6 +354,7 @@ export function StaffManagement({
             label="Last name"
             required
             value={form.lastName}
+            error={personNameFieldError(form.lastName, "Last name")}
             onChange={(event) =>
               setForm((current) => ({ ...current, lastName: event.target.value }))
             }

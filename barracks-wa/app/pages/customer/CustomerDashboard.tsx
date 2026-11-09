@@ -1,11 +1,11 @@
 "use client";
 import { CustomerDashboardSkeleton, SkeletonForm } from "@/app/components/ui/Skeletons";
 
-import { emailFieldError, phoneFieldError } from "@/app/utils/contact-validation";
+import { emailFieldError, PHONE_INPUT_MAX, phoneFieldError } from "@/app/utils/contact-validation";
 import { useEffect, useState, type FormEvent } from "react";
 import { BookingForm, type BookingFormValue } from "@/app/components/bookings/BookingForm";
 import type { ApiBarberAvailability, ApiBooking, ApiCustomer, ApiUser } from "@/app/lib/api";
-import { apiRequest, peekApiBody, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, peekApiBody, readApiBody } from "@/app/lib/api";
 import type { Service, ViewId } from "@/app/types/domain";
 import {
   Avatar,
@@ -23,6 +23,7 @@ import {
 } from "@/app/components/ui";
 import { createInitials, formatDate, formatTime, formatTimeRange } from "@/app/utils/format";
 import { CustomerTopbar } from "@/app/pages/customer/CustomerTopbar";
+import { personNameFieldError } from "@/app/utils/text-validation";
 
 type ProfileDraft = {
   firstName: string;
@@ -235,7 +236,7 @@ export function CustomerDashboard({
       }>(response);
 
       if (!response.ok || !body?.success || !body.customer) {
-        throw new Error(body?.message ?? "Unable to update your profile");
+        throw new Error(apiErrorMessage(body, "Unable to update your profile"));
       }
 
       setCustomer(body.customer);
@@ -281,7 +282,7 @@ export function CustomerDashboard({
         response,
       );
       if (!response.ok || !body?.success || !body.booking) {
-        throw new Error(body?.message ?? "Unable to update your appointment");
+        throw new Error(apiErrorMessage(body, "Unable to update your appointment"));
       }
       setBookings((current) =>
         current.map((booking) => (booking.id === body.booking!.id ? body.booking! : booking)),
@@ -616,11 +617,13 @@ export function CustomerDashboard({
             <TextField
               label="First name"
               value={draft.firstName}
+              error={personNameFieldError(draft.firstName, "First name")}
               onChange={(event) => setDraft({ ...draft, firstName: event.target.value })}
             />
             <TextField
               label="Last name"
               value={draft.lastName}
+              error={personNameFieldError(draft.lastName, "Last name")}
               onChange={(event) => setDraft({ ...draft, lastName: event.target.value })}
             />
           </div>
@@ -635,8 +638,8 @@ export function CustomerDashboard({
           <TextField
             label="Phone number"
             type="tel"
-            inputMode="numeric"
-            maxLength={11}
+            inputMode="tel"
+            maxLength={PHONE_INPUT_MAX}
             value={draft.phone}
             error={phoneFieldError(draft.phone)}
             onChange={(event) => setDraft({ ...draft, phone: event.target.value })}

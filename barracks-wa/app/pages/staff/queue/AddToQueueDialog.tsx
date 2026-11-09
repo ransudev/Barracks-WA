@@ -3,15 +3,17 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Button, Modal, SelectField, TextField } from "@/app/components/ui";
 import {
+  type ApiBarberAvailability,
+  type ApiCustomer,
+  apiErrorMessage,
+  type ApiQueueEntry,
   apiRequest,
   errorMessage,
   readApiBody,
-  type ApiBarberAvailability,
-  type ApiCustomer,
-  type ApiQueueEntry,
 } from "@/app/lib/api";
 import type { Service } from "@/app/types/domain";
-import { phoneFieldError } from "@/app/utils/contact-validation";
+import { PHONE_INPUT_MAX, phoneFieldError } from "@/app/utils/contact-validation";
+import { personNameFieldError } from "@/app/utils/text-validation";
 
 export function AddToQueueDialog({
   branchId,
@@ -76,7 +78,7 @@ export function AddToQueueDialog({
         response,
       );
       if (!response.ok || !body?.success || !body.entry)
-        throw new Error(body?.message ?? "Unable to add walk-in");
+        throw new Error(apiErrorMessage(body, "Unable to add walk-in"));
       submissionKey.current = null;
       onAdded(body.entry, draft.customerId === "new");
     } catch (cause) {
@@ -121,6 +123,7 @@ export function AddToQueueDialog({
               disabled={busy}
               autoComplete="given-name"
               value={newCustomer.firstName}
+              error={personNameFieldError(newCustomer.firstName, "First name")}
               onChange={(event) => {
                 submissionKey.current = globalThis.crypto.randomUUID();
                 setNewCustomer((current) => ({ ...current, firstName: event.target.value }));
@@ -132,6 +135,7 @@ export function AddToQueueDialog({
               disabled={busy}
               autoComplete="family-name"
               value={newCustomer.lastName}
+              error={personNameFieldError(newCustomer.lastName, "Last name")}
               onChange={(event) => {
                 submissionKey.current = globalThis.crypto.randomUUID();
                 setNewCustomer((current) => ({ ...current, lastName: event.target.value }));
@@ -141,7 +145,7 @@ export function AddToQueueDialog({
               label="Phone number (optional)"
               type="tel"
               inputMode="tel"
-              maxLength={11}
+              maxLength={PHONE_INPUT_MAX}
               disabled={busy}
               value={newCustomer.phone}
               error={phoneFieldError(newCustomer.phone)}

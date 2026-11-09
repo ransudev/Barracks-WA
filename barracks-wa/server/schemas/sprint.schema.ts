@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { emailSchema, formatValidationErrors } from "@/server/schemas/user.schema";
-import { PHONE_MESSAGE, isValidPhone } from "@/app/utils/contact-validation";
+import { optionalPhoneSchema, personNameSchema, textSchema } from "@/server/schemas/text.schema";
 
 export { formatValidationErrors };
 
@@ -56,8 +56,8 @@ const bookingTimeSchema = z
 export const barberSchema = z
   .object({
     branchId: z.number().int().positive(),
-    firstName: z.string().trim().min(1, "First name is required").max(100),
-    lastName: z.string().trim().min(1, "Last name is required").max(100),
+    firstName: personNameSchema("First name"),
+    lastName: personNameSchema("Last name"),
     status: barberStatusSchema,
     commissionRate: percentageSchema.nullable(),
     rating: ratingSchema.nullable().optional(),
@@ -68,9 +68,9 @@ export const barberStaffSchema = barberSchema.omit({ commissionRate: true, ratin
 
 export const inventoryItemSchema = z
   .object({
-    name: z.string().trim().min(1, "Item name is required").max(160),
+    name: textSchema("Item name", 160, { required: true }),
     category: inventoryCategorySchema,
-    branch: z.string().trim().min(1, "Branch is required").max(120).default("Main Branch"),
+    branch: textSchema("Branch", 120, { required: true }).default("Main Branch"),
     quantity: z.number().finite().int().min(0, "Quantity cannot be negative").max(2147483647, "Quantity is too large"),
     minimumStock: z.number().finite().int().min(0, "Minimum stock cannot be negative").max(2147483647, "Minimum stock is too large"),
     unitCost: moneySchema,
@@ -90,7 +90,7 @@ export const bookingCreateSchema = z
     serviceId: z.string().trim().min(1).max(80),
     date: bookingDateSchema,
     time: bookingTimeSchema,
-    notes: z.string().trim().max(500).nullable().optional(),
+    notes: textSchema("Notes", 500, { multiline: true }).nullable().optional(),
   })
   .strict();
 
@@ -107,25 +107,21 @@ export const bookingEditSchema = z
     serviceId: z.string().trim().min(1).max(80),
     date: bookingDateSchema,
     time: bookingTimeSchema,
-    notes: z.string().trim().max(500).nullable().optional(),
+    notes: textSchema("Notes", 500, { multiline: true }).nullable().optional(),
   })
   .strict();
 
 export const customerBookingEditSchema = bookingEditSchema.omit({ customerId: true }).strict();
 
 // Optional for customers; when given it must be a real contact number.
-const phoneSchema = z
-  .string()
-  .trim()
-  .max(11, "Phone number cannot exceed 11 characters")
-  .refine((value) => !value || isValidPhone(value), PHONE_MESSAGE);
+const phoneSchema = optionalPhoneSchema;
 
 export const customerSignupSchema = z
   .object({
-    firstName: z.string().trim().min(1, "First name is required").max(100),
-    lastName: z.string().trim().min(1, "Last name is required").max(100),
+    firstName: personNameSchema("First name"),
+    lastName: personNameSchema("Last name"),
     email: emailSchema,
-    password: z.string().min(8, "Password must be at least 8 characters").max(128),
+    password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must be 128 characters or fewer"),
     phone: phoneSchema.default(""),
     preferredBarberId: z.number().int().positive().nullable().default(null),
   })
@@ -133,8 +129,8 @@ export const customerSignupSchema = z
 
 export const customerProfileSchema = z
   .object({
-    firstName: z.string().trim().min(1, "First name is required").max(100),
-    lastName: z.string().trim().min(1, "Last name is required").max(100),
+    firstName: personNameSchema("First name"),
+    lastName: personNameSchema("Last name"),
     email: emailSchema,
     phone: phoneSchema,
     preferredBarberId: z.number().int().positive().nullable(),

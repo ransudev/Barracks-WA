@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { textSchema } from "@/server/schemas/text.schema";
 
 export const attendanceStatus = z.enum(["present", "late", "absent"]);
 export const attendanceActionSchema = z.discriminatedUnion("action", [
@@ -19,7 +20,7 @@ export const attendanceCorrectionSchema = z.object({
   status: attendanceStatus,
   clockIn: z.iso.datetime({ offset: true }).nullable(),
   clockOut: z.iso.datetime({ offset: true }).nullable(),
-  reason: z.string().trim().min(1).max(1000),
+  reason: textSchema("Reason", 1000, { required: true, multiline: true }),
 }).strict().refine((value) => !value.clockOut || Boolean(value.clockIn && Date.parse(value.clockOut) >= Date.parse(value.clockIn)), {
   message: "Clock-out requires a clock-in and cannot precede it",
   path: ["clockOut"],

@@ -1,20 +1,20 @@
 import { z } from "zod";
-import { EMAIL_MESSAGE, PHONE_MESSAGE, isValidEmail, isValidPhone } from "@/app/utils/contact-validation";
+import { EMAIL_MESSAGE, isValidEmail } from "@/app/utils/contact-validation";
+import { optionalPhoneSchema, textSchema } from "@/server/schemas/text.schema";
 
 const money = z.number().finite().min(0).max(9999999999.99);
 const positiveInt = z.number().int().positive();
 const nonNegativeInt = z.number().int().min(0).max(2147483647);
-const phoneSchema = z.string().trim().max(11, "Phone number cannot exceed 11 characters")
-  .refine((value) => !value || isValidPhone(value), PHONE_MESSAGE);
-const optionalEmail = z.string().trim().max(320).refine((value) => !value || isValidEmail(value), { message: EMAIL_MESSAGE });
+const phoneSchema = optionalPhoneSchema;
+const optionalEmail = z.string().trim().max(320, "Email must be 320 characters or fewer").refine((value) => !value || isValidEmail(value), { message: EMAIL_MESSAGE });
 
 const supplierDetailsShape = {
-  companyName: z.string().trim().min(1).max(180),
-  contactPerson: z.string().trim().max(180).default(""),
+  companyName: textSchema("Company name", 180, { required: true }),
+  contactPerson: textSchema("Contact person", 180).default(""),
   phone: phoneSchema.default(""),
   email: optionalEmail.default(""),
-  address: z.string().trim().max(2000).default(""),
-  notes: z.string().trim().max(4000).default(""),
+  address: textSchema("Address", 2000, { multiline: true }).default(""),
+  notes: textSchema("Notes", 4000, { multiline: true }).default(""),
 } as const;
 
 function requireSupplierContact(data: { phone: string; email: string }, ctx: z.RefinementCtx) {
@@ -53,12 +53,12 @@ const inventoryImage = z.string().trim().max(2000000)
   .optional();
 
 const inventoryMetadataShape = {
-  name: z.string().trim().min(1).max(160),
+  name: textSchema("Item name", 160, { required: true }),
   category: z.enum(["Supplies", "Equipment", "Products"]),
-  branch: z.string().trim().min(1).max(160).default("Main Branch"),
+  branch: textSchema("Branch", 160, { required: true }).default("Main Branch"),
   supplierId: positiveInt.nullable(),
-  unit: z.string().trim().min(1).max(40),
-  sku: z.string().trim().max(100).nullable(),
+  unit: textSchema("Unit", 40, { required: true }),
+  sku: textSchema("SKU", 100).nullable(),
   imageUrl: inventoryImage,
   minimumStock: nonNegativeInt,
   maximumStock: nonNegativeInt.nullable(),
@@ -97,8 +97,8 @@ export const inventoryMovementSchema = z.object({
   quantity: positiveInt,
   supplierId: positiveInt.nullable().optional(),
   unitCost: money.nullable().optional(),
-  reference: z.string().trim().max(160).nullable().optional(),
-  notes: z.string().trim().max(4000).default(""),
+  reference: textSchema("Reference", 160).nullable().optional(),
+  notes: textSchema("Notes", 4000, { multiline: true }).default(""),
   adjustmentDirection: z.enum(["increase", "decrease"]).optional(),
 }).strict().superRefine((data, ctx) => {
   if (data.movementType === "ADJUSTMENT" && !data.adjustmentDirection) {
@@ -111,9 +111,9 @@ export const inventoryMovementSchema = z.object({
 
 export const restockCreateSchema = z.object({
   supplierId: positiveInt,
-  branch: z.string().trim().min(1).max(160).default("Main Branch"),
-  reference: z.string().trim().max(160).nullable().optional(),
-  notes: z.string().trim().max(4000).default(""),
+  branch: textSchema("Branch", 160, { required: true }).default("Main Branch"),
+  reference: textSchema("Reference", 160).nullable().optional(),
+  notes: textSchema("Notes", 4000, { multiline: true }).default(""),
   items: z.array(z.object({
     inventoryItemId: positiveInt,
     requestedQuantity: positiveInt,
@@ -131,8 +131,8 @@ export const restockStatusSchema = z.object({
 }).strict();
 
 export const receiveRestockSchema = z.object({
-  reference: z.string().trim().max(160).nullable().optional(),
-  notes: z.string().trim().max(4000).default(""),
+  reference: textSchema("Reference", 160).nullable().optional(),
+  notes: textSchema("Notes", 4000, { multiline: true }).default(""),
   items: z.array(z.object({
     restockRequestItemId: positiveInt,
     deliveredQuantity: nonNegativeInt,

@@ -2,7 +2,13 @@
 import { SkeletonCards } from "@/app/components/ui/Skeletons";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { apiRequest, readApiBody, type ApiRole, errorMessage } from "@/app/lib/api";
+import {
+  apiErrorMessage,
+  apiRequest,
+  type ApiRole,
+  errorMessage,
+  readApiBody,
+} from "@/app/lib/api";
 import type { Branch, BranchAssignment, BranchStaff } from "@/app/types/branch";
 import { roleLabel } from "@/app/constants/roles";
 import {
@@ -15,6 +21,10 @@ import {
   SelectField,
   TextField,
 } from "@/app/components/ui";
+import { PHONE_INPUT_MAX, phoneFieldError } from "@/app/utils/contact-validation";
+
+const BRANCH_CODE_HINT =
+  "Branch code can only use letters, numbers, hyphens (-), and underscores (_), and must start with a letter or number";
 
 type BranchBody = {
   success: boolean;
@@ -30,7 +40,7 @@ async function branchRequest(path: string, init?: RequestInit): Promise<BranchBo
   const response = await apiRequest(path, { cache: "no-store", ...init });
   const body = await readApiBody<BranchBody>(response);
   if (!response.ok || !body?.success)
-    throw new Error(body?.message ?? "Unable to process branch request");
+    throw new Error(apiErrorMessage(body, "Unable to process branch request"));
   return body;
 }
 
@@ -238,8 +248,15 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
             label="Branch code"
             required
             maxLength={40}
-            pattern="[A-Za-z0-9][A-Za-z0-9_-]*"
+            pattern="[A-Za-z0-9][A-Za-z0-9_\-]*"
+            title={BRANCH_CODE_HINT}
+            placeholder="MAIN or QC-2"
             value={draft.code}
+            error={
+              draft.code.trim() && !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(draft.code.trim())
+                ? BRANCH_CODE_HINT
+                : undefined
+            }
             onChange={(event) => setDraft({ ...draft, code: event.target.value })}
           />
           <TextField
@@ -251,8 +268,10 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
           <TextField
             label="Phone"
             type="tel"
-            maxLength={40}
+            inputMode="tel"
+            maxLength={PHONE_INPUT_MAX}
             value={draft.phone}
+            error={phoneFieldError(draft.phone)}
             onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
           />
           <SelectField

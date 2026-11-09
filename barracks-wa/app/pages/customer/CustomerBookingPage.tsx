@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookingForm, type BookingFormValue } from "@/app/components/bookings/BookingForm";
 import { Button, EmptyState, Panel, SectionHeading, SelectField } from "@/app/components/ui";
 import type { ApiBarberAvailability, ApiBooking, ApiUser } from "@/app/lib/api";
-import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import type { Service, ViewId } from "@/app/types/domain";
 import { CustomerTopbar } from "@/app/pages/customer/CustomerTopbar";
 import { formatDate, formatTime, formatTimeRange } from "@/app/utils/format";
@@ -235,7 +235,7 @@ function CustomerBookingWorkspace({
         response,
       );
       if (!response.ok || !body?.success || !body.booking)
-        throw new Error(body?.message ?? "Unable to create booking");
+        throw new Error(apiErrorMessage(body, "Unable to create booking"));
       setConfirmation(body.booking);
     } catch (error) {
       onToast(errorMessage(error, "Unable to create booking"));

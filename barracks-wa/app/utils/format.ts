@@ -30,8 +30,20 @@ export function createInitials(name: string) {
     .toUpperCase();
 }
 
+// Service IDs allow only lowercase letters, numbers and single hyphens, so any
+// display name works: "Haircut & Beard" -> "haircut-beard", "Kids' Cut" ->
+// "kids-cut", "Ahit Niño" -> "ahit-nino". Names with no usable letters fall
+// back to "service" plus a short suffix.
 export function createSlug(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, "-");
+  const slug = value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72)
+    .replace(/-+$/, "");
+  return slug || `service-${Date.now().toString(36)}`;
 }
 
 // "14:30" -> "2:30 PM". Shop times are stored as 24-hour Asia/Manila wall-clock values.

@@ -100,6 +100,7 @@ export function TransactionCalendar({
           <Icon name="search" size={16} />
           <input
             value={searchInput}
+            maxLength={100}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search reference or customer"
             aria-label="Reference or customer"

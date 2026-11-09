@@ -24,12 +24,12 @@ test("branch migration backfills only staff; CRUD, access, membership and primar
     assert.deepEqual((await listBranchStaff(db)).map((person) => person.role).sort(), ["front_desk", "manager"]);
     for (const role of roles) assert.equal((await getPrimaryBranch(db, { id: ids[role], role }))?.id ?? null, ["manager", "front_desk"].includes(role) ? main : null);
 
-    const second = await createBranch(db, branchSchema.parse({ name: "Second", code: "second", address: "Road", phone: "123" }));
+    const second = await createBranch(db, branchSchema.parse({ name: "Second", code: "second", address: "Road", phone: "(02) 8123 4567" }));
     assert.equal(second.code, "SECOND");
     await assert.rejects(createBranch(db, branchSchema.parse({ name: "Duplicate", code: "SECOND" })), (error: unknown) => (error as { code: string }).code === "23505");
     const changed = await updateBranch(db, second.id, branchUpdateSchema.parse({ status: "inactive" }));
-    assert.equal(changed?.address, "Road"); assert.equal(changed?.phone, "123"); assert.equal(changed?.status, "inactive");
-    assert.equal((await updateBranch(db, second.id, branchUpdateSchema.parse({ name: "Renamed", phone: "456" })))?.name, "Renamed");
+    assert.equal(changed?.address, "Road"); assert.equal(changed?.phone, "0281234567"); assert.equal(changed?.status, "inactive");
+    assert.equal((await updateBranch(db, second.id, branchUpdateSchema.parse({ name: "Renamed", phone: "+63 917 123 4567" })))?.name, "Renamed");
     assert.equal(await updateBranch(db, 2147483647, { name: "Missing" }), null);
     assert.equal((await findBranch(db, second.id))?.status, "inactive");
 

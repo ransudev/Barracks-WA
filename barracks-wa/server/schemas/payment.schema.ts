@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { textSchema } from "@/server/schemas/text.schema";
 
 export const paymentMethodSchema = z.enum(["cash", "card", "e_wallet", "bank_transfer", "other"]);
 export const paymentStatusSchema = z.enum(["pending", "completed", "failed", "voided", "partially_refunded", "refunded", "unknown"]);
@@ -22,7 +23,7 @@ export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
 export const financialActionSchema = z.object({
   action: z.enum(["refund", "void"]),
-  reason: z.string().trim().min(1).max(500),
+  reason: textSchema("Reason", 500, { required: true, multiline: true }),
   amount: z.number().finite().positive().max(9_999_999_999.99)
     .refine((value) => /^\d+(?:\.\d{1,2})?$/.test(String(value)), "Use at most two decimal places"),
 }).strict();
@@ -32,7 +33,7 @@ const dateSchema = z.iso.date();
 export const transactionHistorySchema = z.object({
   page: z.coerce.number().int().min(1).max(10000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().trim().max(100).default(""),
+  search: textSchema("Search", 100).default(""),
   paymentMethod: paymentMethodSchema.optional(),
   dateFrom: dateSchema.optional(),
   dateTo: dateSchema.optional(),

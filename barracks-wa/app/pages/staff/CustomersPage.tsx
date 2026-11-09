@@ -1,7 +1,7 @@
 "use client";
 import { SkeletonCards } from "@/app/components/ui/Skeletons";
 
-import { emailFieldError, phoneFieldError } from "@/app/utils/contact-validation";
+import { emailFieldError, PHONE_INPUT_MAX, phoneFieldError } from "@/app/utils/contact-validation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { ApiBarberAvailability, ApiCustomer } from "@/app/lib/api";
 import { apiRequest, readApiBody, apiErrorMessage, errorMessage } from "@/app/lib/api";
@@ -29,6 +29,7 @@ import {
   ViewToggle,
   type OperationalViewMode,
 } from "@/app/components/operations/OperationalPrimitives";
+import { personNameFieldError } from "@/app/utils/text-validation";
 
 type CustomerForm = {
   firstName: string;
@@ -277,6 +278,7 @@ export function CustomersPage({
             label="First name"
             required
             value={form.firstName}
+            error={personNameFieldError(form.firstName, "First name")}
             onChange={(event) =>
               setForm((current) => ({ ...current, firstName: event.target.value }))
             }
@@ -285,6 +287,7 @@ export function CustomersPage({
             label="Last name"
             required
             value={form.lastName}
+            error={personNameFieldError(form.lastName, "Last name")}
             onChange={(event) =>
               setForm((current) => ({ ...current, lastName: event.target.value }))
             }
@@ -304,8 +307,8 @@ export function CustomersPage({
         <TextField
           label="Phone number"
           type="tel"
-          inputMode="numeric"
-          maxLength={11}
+          inputMode="tel"
+          maxLength={PHONE_INPUT_MAX}
           value={form.phone}
           error={phoneFieldError(form.phone)}
           onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}

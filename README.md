@@ -58,7 +58,7 @@ The active `sprint-2` experience includes:
 
 - Public landing page with Barracks branding, service information, branches, contact details, and login/customer-account actions. Its full-bleed hero uses a landscape adaptation of the real Barracks shop photo at `barracks-wa/public/barracks/hero-barracks-landscape.png`, retaining the Barracks uniform and lightly altering the faces; it pairs with a left-aligned Barracks lockup, red establishment kicker, appointment/service actions, bottom benefits rail, responsive navigation/footer rules, smooth anchor scrolling, scroll-linked image depth, staged section reveals, fully visible responsive service numerals, and compact inline icon labels.
 - The public header fades in without a transform so the mobile navigation menu fills the viewport below the header and scrolls to all links and actions without being clipped.
-- Customer and supplier phone inputs are capped at 11 characters in the UI and server schemas, with the API enforcing the same limit for signup, profile, customer-management, and supplier-management payloads.
+- Phone inputs (signup, customer profile, customer management, walk-ins, suppliers, supplier portal, and branches) accept common formatting such as `0917 123 4567`, `+63 917-123-4567`, or `(02) 8123 4567`, up to 20 characters. The server removes the formatting and stores plain digits: an 11-digit mobile number starting with `09` or a 7–10 digit landline.
 - Staff management is available to administrators and managers: administrators can view all staff accounts and create, edit, manage lifecycle, and deactivate permitted accounts, but cannot deactivate themselves or manage another administrator account; managers can view and manage front-desk accounts only.
 - Customer signup, login, profile details, preferred barber, loyalty points, booking, and appointment history.
 - Service management supports creating, viewing, editing, archiving/restoring, and deleting services for administrators and managers. Delete is available only for services with no bookings, queue visits, or transactions; the backend rechecks usage under a row lock and rejects deletion with HTTP 409 if history exists. Archive marks a service inactive for new visits while retaining existing records. Both archive and deletion require confirmation in the interface; no database migration is needed.
@@ -504,6 +504,21 @@ Zod schemas live under `server/schemas/`:
 - `user.schema.ts` validates login, staff account creation/update, and lifecycle actions.
 - `sprint.schema.ts` validates barber, inventory, booking, customer signup, and customer profile input.
 - `sprint2.schema.ts` validates supplier records, supplier accounts, inventory metadata/create/movement payloads, and restock create/status/receive payloads.
+
+- `text.schema.ts` holds the shared text building blocks; `messages.ts` gives every schema plain-language fallback messages that name the field (for example "Branch name is required" instead of a generic Zod message).
+
+The browser and the server share the same character rules from `app/utils/text-validation.ts` and `app/utils/contact-validation.ts`, so a form shows the same message inline that the API would return:
+
+| Field type | Accepted | Rejected |
+| --- | --- | --- |
+| People's names (staff, barbers, customers, walk-ins, signup) | Letters from any alphabet, including accents (`María`, `Niño`, `李`); spaces, apostrophes (`O'Neil`, `D’Souza`), hyphens, and periods (`Ma. Cristina`). Repeated spaces are collapsed. | Digits, other symbols, emoji, and names that do not start with a letter. |
+| Email | ASCII letters, digits, and `. _ % + -` before a dotted domain | Spaces, non-ASCII characters, `..`, and a dot at the start or end of the part before `@` |
+| Phone | Digits with spaces, dashes, dots, parentheses, and an optional `+63` | Letters and other symbols, or numbers that are not Philippine mobiles or landlines |
+| Password | Any characters, including spaces and symbols, 8–128 characters | Nothing else is restricted |
+| Branch code | Letters, digits, hyphens, underscores; saved in uppercase | Spaces or other symbols, or a code starting with `-` or `_` |
+| Other text (company and item names, addresses, notes, reasons, references, SKUs, searches) | Any visible characters, including symbols, digits, accents, and emoji. Notes, addresses, descriptions, and reasons keep line breaks. | Control characters, text made only of invisible characters, and line breaks in single-line fields |
+
+Searches are matched literally with `strpos`, so `%`, `_`, and quotes are ordinary characters. Service IDs are generated from the service name with accents and symbols removed (`Haircut & Beard` becomes `haircut-beard`), so any service name can be saved.
 
 Schemas are strict, reject unknown fields, enforce bounds and enum values, and are applied before service/database work. `requireAdministrator`, `requireManagement`, `requireStaff`, `requireSupplierUser`, and `requireRoles` resolve the current session and return `401` or `403` responses before protected operations run. Account lifecycle changes use transactions and a PostgreSQL advisory lock to keep the last administrator rule safe under concurrent requests.
 

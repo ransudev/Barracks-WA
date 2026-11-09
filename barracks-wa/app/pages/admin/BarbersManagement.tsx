@@ -34,6 +34,7 @@ import {
   ViewToggle,
   type OperationalViewMode,
 } from "@/app/components/operations/OperationalPrimitives";
+import { personNameFieldError } from "@/app/utils/text-validation";
 
 type BarberForm = {
   branchId: number;
@@ -290,6 +291,7 @@ export function BarbersManagement({
             label="First name"
             required
             value={form.firstName}
+            error={personNameFieldError(form.firstName, "First name")}
             onChange={(event) =>
               setForm((current) => ({ ...current, firstName: event.target.value }))
             }
@@ -298,6 +300,7 @@ export function BarbersManagement({
             label="Last name"
             required
             value={form.lastName}
+            error={personNameFieldError(form.lastName, "Last name")}
             onChange={(event) =>
               setForm((current) => ({ ...current, lastName: event.target.value }))
             }

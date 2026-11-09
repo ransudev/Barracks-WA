@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Button, Modal, TextField } from "@/app/components/ui";
-import { apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import type { ReceiveLine, Restock } from "./model";
 
 export function ReceiveDialog({
@@ -55,7 +55,7 @@ export function ReceiveDialog({
       );
       const body = await readApiBody<{ success: boolean; message?: string }>(response);
       if (!response.ok || !body?.success)
-        throw new Error(body?.message ?? "Unable to receive delivery");
+        throw new Error(apiErrorMessage(body, "Unable to receive delivery"));
       onReceived();
     } catch (error) {
       onToast(errorMessage(error, "Unable to receive delivery"));

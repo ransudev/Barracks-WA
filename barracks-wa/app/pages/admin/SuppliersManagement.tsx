@@ -4,9 +4,10 @@ import { SkeletonCards, SkeletonRows } from "@/app/components/ui/Skeletons";
 import { SupplierItemsModal } from "@/app/components/inventory/SupplierItemsModal";
 import {
   EMAIL_MESSAGE,
-  PHONE_MESSAGE,
   isValidEmail,
   isValidPhone,
+  PHONE_INPUT_MAX,
+  PHONE_MESSAGE,
 } from "@/app/utils/contact-validation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { ApiSupplier } from "@/app/lib/api";
@@ -318,14 +319,12 @@ export function SuppliersManagement({
           <TextField
             label="Contact number"
             type="tel"
-            inputMode="numeric"
-            maxLength={11}
-            placeholder="09XXXXXXXXX"
+            inputMode="tel"
+            maxLength={PHONE_INPUT_MAX}
+            placeholder="0917 123 4567"
             value={form.phone}
             error={phoneError}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, phone: event.target.value.replace(/\D/g, "") }))
-            }
+            onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
           />
           <TextField
             label="Email"

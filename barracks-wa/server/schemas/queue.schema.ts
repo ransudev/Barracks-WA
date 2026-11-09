@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PHONE_MESSAGE, isValidPhone } from "@/app/utils/contact-validation";
+import { optionalPhoneSchema, personNameSchema } from "@/server/schemas/text.schema";
 
 const walkInFields = {
   serviceId: z.string().trim().min(1).max(80),
@@ -15,9 +15,9 @@ export const walkInSchema = z.union([
   z.object({
     ...walkInFields,
     customer: z.object({
-      firstName: z.string().trim().min(1, "First name is required").max(100),
-      lastName: z.string().trim().min(1, "Last name is required").max(100),
-      phone: z.string().trim().max(11, "Phone number cannot exceed 11 characters").refine((value) => !value || isValidPhone(value), PHONE_MESSAGE).default(""),
+      firstName: personNameSchema("First name"),
+      lastName: personNameSchema("Last name"),
+      phone: optionalPhoneSchema.default(""),
     }).strict(),
   }).strict(),
 ]);

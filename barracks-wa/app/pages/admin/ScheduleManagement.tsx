@@ -3,7 +3,7 @@
 import { formatTimeRange } from "@/app/utils/format";
 import { useEffect, useState } from "react";
 import type { ApiBarber } from "@/app/lib/api";
-import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import { Button, Panel, SelectField, Tabs } from "@/app/components/ui";
 
 type Hours = { dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean };
@@ -111,7 +111,8 @@ export function ScheduleManagement({
         body: JSON.stringify(hour),
       });
       const body = await readApiBody<{ hours?: Hours[]; message?: string }>(response);
-      if (!response.ok || !body?.hours) throw new Error(body?.message ?? "Unable to save hours");
+      if (!response.ok || !body?.hours)
+        throw new Error(apiErrorMessage(body, "Unable to save hours"));
       setHours(body.hours);
       onToast(`${days[hour.dayOfWeek]} shop hours saved`);
     } catch (cause) {
@@ -163,7 +164,7 @@ export function ScheduleManagement({
       });
       const body = await readApiBody<{ unavailability?: Absence; message?: string }>(response);
       if (!response.ok || !body?.unavailability)
-        throw new Error(body?.message ?? "Unable to add absence");
+        throw new Error(apiErrorMessage(body, "Unable to add absence"));
       setAbsences((current) => [...current, body.unavailability!]);
       setStart("");
       setEnd("");

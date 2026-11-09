@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import type { TransactionRecord } from "@/server/services/payment.service";
 
 export function useTransactionDetail({
@@ -82,7 +82,7 @@ export function useTransactionDetail({
         message?: string;
       }>(response);
       if (!response.ok || !body?.success || !body.transaction)
-        throw new Error(body?.message ?? "Unable to update transaction");
+        throw new Error(apiErrorMessage(body, "Unable to update transaction"));
       setReceipt(body.transaction);
       setActionReason("");
       onToast(`Transaction ${body.transaction.status}: ${body.transaction.reference}`);

@@ -4,7 +4,7 @@ import { useBranchContext } from "@/app/utils/use-branch-context";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { BookingForm, type BookingFormValue } from "@/app/components/bookings/BookingForm";
 import type { ApiBooking, ApiBookingStatus } from "@/app/lib/api";
-import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import { ScheduleSkeleton } from "@/app/components/ui/Skeletons";
 import {
   Button,
@@ -186,7 +186,7 @@ function BookingsPageContent({
         response,
       );
       if (!response.ok || !body?.success || !body.booking)
-        throw new Error(body?.message ?? "Unable to save booking");
+        throw new Error(apiErrorMessage(body, "Unable to save booking"));
       setItems((current) =>
         editing
           ? current.map((item) => (item.id === body.booking!.id ? body.booking! : item))
@@ -216,7 +216,7 @@ function BookingsPageContent({
         response,
       );
       if (!response.ok || !body?.success || !body.booking)
-        throw new Error(body?.message ?? "Unable to update booking");
+        throw new Error(apiErrorMessage(body, "Unable to update booking"));
       setItems((current) => current.map((item) => (item.id === booking.id ? body.booking! : item)));
       setSelected((current) => (current?.id === booking.id ? body.booking! : current));
       setPendingCancellation(null);

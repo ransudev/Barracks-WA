@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { userRoles } from "@/app/constants/roles";
 import { EMAIL_MESSAGE, isValidEmail } from "@/app/utils/contact-validation";
+import { personNameSchema } from "@/server/schemas/text.schema";
 
 export const emailSchema = z.string().trim().toLowerCase().max(320).refine(isValidEmail, EMAIL_MESSAGE);
 
@@ -9,10 +10,10 @@ export const staffRoleSchema = z.enum(["administrator", "manager", "front_desk"]
 
 export const createUserSchema = z
   .object({
-    firstName: z.string().trim().min(1, "First name is required").max(100),
-    lastName: z.string().trim().min(1, "Last name is required").max(100),
+    firstName: personNameSchema("First name"),
+    lastName: personNameSchema("Last name"),
     email: emailSchema,
-    password: z.string().min(8, "Password must be at least 8 characters").max(128),
+    password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must be 128 characters or fewer"),
     role: userRoleSchema,
   })
   .strict();
@@ -24,10 +25,10 @@ export const createStaffUserSchema = createUserSchema.extend({
 
 export const updateStaffUserSchema = z
   .object({
-    firstName: z.string().trim().min(1, "First name is required").max(100),
-    lastName: z.string().trim().min(1, "Last name is required").max(100),
+    firstName: personNameSchema("First name"),
+    lastName: personNameSchema("Last name"),
     email: emailSchema,
-    password: z.string().min(8, "Password must be at least 8 characters").max(128).optional(),
+    password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must be 128 characters or fewer").optional(),
     role: staffRoleSchema,
   })
   .strict();
@@ -41,7 +42,7 @@ export const userLifecycleSchema = z
 export const loginSchema = z
   .object({
     email: emailSchema,
-    password: z.string().min(1, "Password is required").max(128),
+    password: z.string().min(1, "Password is required").max(128, "Password must be 128 characters or fewer"),
   })
   .strict();
 

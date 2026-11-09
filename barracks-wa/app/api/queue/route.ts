@@ -21,7 +21,16 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ success: false, message: "Invalid walk-in" }, { status: 400 }); }
   const parsed = walkInSchema.safeParse(body);
-  if (!parsed.success) return Response.json({ success: false, message: "Choose an existing customer or enter a walk-in name, then choose a service and optional barber" }, { status: 400 });
+  if (!parsed.success) {
+    // A new walk-in's own field errors (name, phone) tell Front Desk what to fix.
+    const newCustomer = body && typeof body === "object" && "customer" in body ? walkInSchema.options[1].safeParse(body) : null;
+    const customerErrors = newCustomer && !newCustomer.success ? newCustomer.error.issues.filter((issue) => issue.path[0] === "customer") : [];
+    return Response.json({
+      success: false,
+      message: "Choose an existing customer or enter a walk-in name, then choose a service and optional barber",
+      ...(customerErrors.length ? { errors: { customer: customerErrors.map((issue) => issue.message) } } : {}),
+    }, { status: 400 });
+  }
   try { return Response.json({ success: true, entry: await addWalkIn(pool, { ...parsed.data, branchId: await visitBranch(pool, actor, request) }) }, { status: 201 }); }
   catch (error) {
     const branchResponse = visitBranchError(error);

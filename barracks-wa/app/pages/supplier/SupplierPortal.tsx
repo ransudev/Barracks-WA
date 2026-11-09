@@ -3,7 +3,7 @@ import { SkeletonRows } from "@/app/components/ui/Skeletons";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { ApiUser } from "@/app/lib/api";
-import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import {
   Avatar,
   Badge,
@@ -18,6 +18,7 @@ import {
 import { PortalTopbar } from "@/app/components/layout/PortalTopbar";
 import { DetailDrawer, DrawerSection } from "@/app/components/operations/OperationalPrimitives";
 import { Icon } from "@/app/components/ui/icons";
+import { PHONE_INPUT_MAX, phoneFieldError } from "@/app/utils/contact-validation";
 
 type SupplierRecord = {
   id: number;
@@ -249,7 +250,7 @@ export function SupplierPortal({
       });
       const body = await readApiBody<{ success: boolean; message?: string }>(response);
       if (!response.ok || !body?.success)
-        throw new Error(body?.message ?? "Unable to update password");
+        throw new Error(apiErrorMessage(body, "Unable to update password"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -615,9 +616,10 @@ export function SupplierPortal({
                   <TextField
                     label="Phone"
                     type="tel"
-                    inputMode="numeric"
-                    maxLength={11}
+                    inputMode="tel"
+                    maxLength={PHONE_INPUT_MAX}
                     value={profileForm.phone}
+                    error={phoneFieldError(profileForm.phone)}
                     onChange={(event) =>
                       setProfileForm((current) =>
                         current ? { ...current, phone: event.target.value } : current,

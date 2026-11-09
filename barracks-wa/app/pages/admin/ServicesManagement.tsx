@@ -3,7 +3,7 @@ import { SkeletonRows } from "@/app/components/ui/Skeletons";
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { Service } from "@/app/types/domain";
-import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import { createSlug, formatCurrency } from "@/app/utils/format";
 import {
   Badge,
@@ -108,7 +108,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
         response,
       );
       if (!response.ok || !body?.success || !body.service)
-        throw new Error(body?.message ?? "Unable to save service");
+        throw new Error(apiErrorMessage(body, "Unable to save service"));
       const saved = body.service;
       setItems((current) =>
         editing
@@ -137,7 +137,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
         response,
       );
       if (!response.ok || !body?.success || !body.service)
-        throw new Error(body?.message ?? "Unable to update service");
+        throw new Error(apiErrorMessage(body, "Unable to update service"));
       setItems((current) => current.map((item) => (item.id === service.id ? body.service! : item)));
       setPendingAction(null);
       onToast(`${service.name} ${service.active ? "archived" : "restored"}`);

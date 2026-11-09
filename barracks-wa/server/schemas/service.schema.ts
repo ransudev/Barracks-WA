@@ -1,12 +1,14 @@
 import { z } from "zod";
+import { textSchema } from "@/server/schemas/text.schema";
 
-export const serviceIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80);
+export const serviceIdSchema = z.string().max(80, "Service ID must be 80 characters or fewer")
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Service ID can only use lowercase letters, numbers, and single hyphens");
 export const serviceSchema = z.object({
   id: serviceIdSchema,
-  name: z.string().trim().min(1).max(160),
-  description: z.string().trim().max(500),
+  name: textSchema("Service name", 160, { required: true }),
+  description: textSchema("Description", 500, { multiline: true }),
   price: z.number().finite().min(0).max(9999999999.99).refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8, "Use up to 2 decimal places"),
-  durationMinutes: z.number().int().positive().max(2147483647),
+  durationMinutes: z.number().int("Duration must be a whole number of minutes").positive("Duration must be at least 1 minute").max(2147483647),
   active: z.boolean(),
 }).strict();
 export const serviceUpdateSchema = serviceSchema.omit({ id: true }).partial().strict();

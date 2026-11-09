@@ -2,9 +2,11 @@
 
 import {
   EMAIL_MESSAGE,
-  PHONE_MESSAGE,
   isValidEmail,
   isValidPhone,
+  PHONE_INPUT_MAX,
+  PHONE_MESSAGE,
+  phoneFieldError,
 } from "@/app/utils/contact-validation";
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
@@ -19,6 +21,7 @@ import {
   type ApiUser,
   errorMessage,
 } from "@/app/lib/api";
+import { personNameFieldError } from "@/app/utils/text-validation";
 
 type LoginPageProps = {
   go: (view: ViewId) => void;
@@ -86,6 +89,11 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
       setError("Enter your full name.");
       return;
     }
+    const nameError = personNameFieldError(name, "Full name");
+    if (nameError) {
+      setError(`${nameError}.`);
+      return;
+    }
     if (!isValidEmail(accountEmail)) {
       setError(`${EMAIL_MESSAGE}.`);
       return;
@@ -96,6 +104,10 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
     }
     if (signupPassword.length < 8) {
       setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (signupPassword.length > 128) {
+      setError("Password must be 128 characters or fewer.");
       return;
     }
 
@@ -284,6 +296,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
               <TextField
                 label="Full name"
                 value={signupName}
+                error={personNameFieldError(signupName, "Full name")}
                 onChange={(event) => setSignupName(event.target.value)}
                 icon="userPlus"
                 required
@@ -299,12 +312,13 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
               <TextField
                 label="Phone number"
                 type="tel"
-                inputMode="numeric"
-                maxLength={11}
+                inputMode="tel"
+                maxLength={PHONE_INPUT_MAX}
                 value={signupPhone}
+                error={phoneFieldError(signupPhone)}
                 onChange={(event) => setSignupPhone(event.target.value)}
                 icon="phone"
-                placeholder="09170000000"
+                placeholder="0917 000 0000"
               />
               <label className="field">
                 <span className="field__label">

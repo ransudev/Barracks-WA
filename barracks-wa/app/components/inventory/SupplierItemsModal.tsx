@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ApiInventoryItem, ApiSupplier } from "@/app/lib/api";
-import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
+import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import { Button, Modal, SearchInput } from "@/app/components/ui";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 import { useBranchContext } from "@/app/utils/use-branch-context";
@@ -98,7 +98,7 @@ export function SupplierItemsModal({
       );
       const body = await readApiBody<{ success: boolean; message?: string }>(response);
       if (!response.ok || !body?.success)
-        throw new Error(body?.message ?? "Unable to save supplied items");
+        throw new Error(apiErrorMessage(body, "Unable to save supplied items"));
       onSaved(selected.size);
     } catch (cause) {
       setError(errorMessage(cause, "Unable to save supplied items"));

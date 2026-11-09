@@ -4,12 +4,13 @@ import { useBranchContext } from "@/app/utils/use-branch-context";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
-  apiRequest,
-  readApiBody,
   type ApiAttendance,
   type ApiAttendanceCorrection,
   type ApiBarberAvailability,
+  apiErrorMessage,
+  apiRequest,
   errorMessage,
+  readApiBody,
 } from "@/app/lib/api";
 import {
   Badge,
@@ -352,7 +353,7 @@ function AttendanceBranch({
         message?: string;
       }>(response);
       if (!response.ok || !body?.success || !body.attendance)
-        throw new Error(body?.message ?? "Unable to save correction");
+        throw new Error(apiErrorMessage(body, "Unable to save correction"));
       await load();
       setSelected(body.attendance);
       setReason("");
