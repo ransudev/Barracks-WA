@@ -25,20 +25,21 @@ test("unused services delete; used services archive and restore without losing q
  } finally {await cleanup();}
 });
 
-test("walk-in edits persist without creating accounts and preserve loyalty on contact-only edits", { skip: !databaseConfigured }, async()=>{
+test("walk-in edits persist without creating accounts and preserve the loyalty card on contact-only edits", { skip: !databaseConfigured }, async()=>{
  const {db,cleanup}=await createDisposableSchema();
  try {
   const id=Number((await db.query("INSERT INTO customers(first_name,last_name,phone) VALUES('Before','Guest','09123456789') RETURNING id")).rows[0].id);
   const before=(await db.query("SELECT count(*) FROM users")).rows[0].count;
-  const input={firstName:"After",lastName:"Guest",phone:"09123456780",preferredBarberId:null,loyaltyPoints:65};
+  const input={firstName:"After",lastName:"Guest",phone:"09123456780",preferredBarberId:null,loyaltyCardIssued:true};
+  const manager=Number((await db.query("INSERT INTO users(first_name,last_name,email,password_hash,role_id) VALUES('Card','Manager','card.manager@test.local','x',(SELECT id FROM roles WHERE name='manager')) RETURNING id")).rows[0].id);
   assert.equal(walkinCustomerProfileSchema.safeParse(input).success,true);
   assert.equal(walkinCustomerStaffProfileSchema.safeParse(input).success,false);
   assert.equal(walkinCustomerProfileSchema.safeParse({...input,email:"unexpected@example.com"}).success,false);
-  const saved=await updateCustomer(db,id,input);
-  assert.equal(saved?.firstName,"After");assert.equal(saved?.phone,input.phone);assert.equal(saved?.userId,null);assert.equal(saved?.email,"");assert.equal(saved?.loyaltyPoints,65);
+  const saved=await updateCustomer(db,id,input,{id:manager,role:"manager"});
+  assert.equal(saved?.firstName,"After");assert.equal(saved?.phone,input.phone);assert.equal(saved?.userId,null);assert.equal(saved?.email,"");assert.ok(saved?.loyaltyCard?.issuedAt);
   const contact={firstName:input.firstName,lastName:input.lastName,phone:input.phone,preferredBarberId:input.preferredBarberId};
   assert.equal(walkinCustomerStaffProfileSchema.safeParse(contact).success,true);
-  assert.equal((await updateCustomer(db,id,{...contact,lastName:"Updated"}))?.loyaltyPoints,65);
-  assert.equal((await db.query("SELECT count(*) FROM users")).rows[0].count,before);
+  assert.equal((await updateCustomer(db,id,{...contact,lastName:"Updated"}))?.loyaltyCard?.issuedAt,saved?.loyaltyCard?.issuedAt);
+  assert.equal(Number((await db.query("SELECT count(*) FROM users")).rows[0].count),Number(before)+1);
  } finally {await cleanup();}
 });

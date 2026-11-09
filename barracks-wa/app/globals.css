@@ -140,6 +140,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .metrics-grid { display: grid; gap: 16px; margin-bottom: 14px; }
 .metrics-grid--four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .metrics-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metrics-grid--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .field__label { color: var(--text-soft); font-size: 11px; font-weight: 700; }
 .field__label span { color: var(--red); }
@@ -1229,6 +1230,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .modal > .operational-drawer-form { padding: 22px; }
 .operational-form-grid { padding: 0; gap: 10px; }
 .operational-drawer-form .modal-actions { padding-top: 4px; }
+.loyalty-card-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .supplier-card-mark { align-items: center; display: inline-flex; flex: 0 0 auto; width: 42px; height: 42px; justify-content: center; border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--brand-primary) 10%, var(--surface)); color: var(--brand-primary-bright); }.supplier-card-mark--large { width: 52px; height: 52px; }.supplier-card-mark--large > span { font-family: var(--font-numeric); font-size: 11px; }
 .drawer-mini-list { display: grid; gap: 0; }.drawer-mini-list > div { display: flex; flex-direction: column; gap: 3px; min-height: 48px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }.drawer-mini-list > div:last-child { border-bottom: 0; }.drawer-mini-list strong { color: var(--text-soft); font-size: 11px; }.drawer-mini-list span { color: var(--text-muted); font-size: 10px; }
 .operational-table-wrap { overflow-x: auto; padding: 0 13px 14px; }

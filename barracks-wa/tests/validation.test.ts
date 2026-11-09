@@ -106,15 +106,24 @@ test("inventory and barber schemas reject unsafe values", () => {
     email: "customer@example.com",
     phone: "",
     preferredBarberId: null,
-    loyaltyPoints: 100,
+    loyaltyCardIssued: true,
   }).success, true);
+  // Loyalty is a physical card, not a points balance.
   assert.equal(customerProfileSchema.safeParse({
     firstName: "Test",
     lastName: "Customer",
     email: "customer@example.com",
     phone: "",
     preferredBarberId: null,
-    loyaltyPoints: -1,
+    loyaltyPoints: 100,
+  }).success, false);
+  assert.equal(customerProfileSchema.safeParse({
+    firstName: "Test",
+    lastName: "Customer",
+    email: "customer@example.com",
+    phone: "",
+    preferredBarberId: null,
+    loyaltyCardIssued: "yes",
   }).success, false);
   assert.equal(customerSelfProfileSchema.safeParse({
     firstName: "Test",
@@ -122,7 +131,7 @@ test("inventory and barber schemas reject unsafe values", () => {
     email: "customer@example.com",
     phone: "",
     preferredBarberId: null,
-    loyaltyPoints: 100,
+    loyaltyCardIssued: true,
   }).success, false);
   assert.equal(customerSignupSchema.safeParse({
     firstName: "Test",

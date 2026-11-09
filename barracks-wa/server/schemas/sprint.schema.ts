@@ -22,13 +22,6 @@ const ratingSchema = z
   .max(5, "Rating cannot exceed 5")
   .refine((value) => Math.abs(value * 10 - Math.round(value * 10)) < 1e-8, "Use up to 1 decimal place");
 
-const loyaltyPointsSchema = z
-  .number()
-  .finite()
-  .int("Loyalty points must be a whole number")
-  .min(0, "Loyalty points cannot be negative")
-  .max(2147483647, "Loyalty points are too large");
-
 const moneySchema = z
   .number()
   .finite()
@@ -134,14 +127,15 @@ export const customerProfileSchema = z
     email: emailSchema,
     phone: phoneSchema,
     preferredBarberId: z.number().int().positive().nullable(),
-    loyaltyPoints: loyaltyPointsSchema.optional(),
+    // Manager-only: true records that the customer received a physical loyalty card.
+    loyaltyCardIssued: z.boolean().optional(),
   })
   .strict();
 
-export const customerSelfProfileSchema = customerProfileSchema.omit({ loyaltyPoints: true }).strict();
+export const customerSelfProfileSchema = customerProfileSchema.omit({ loyaltyCardIssued: true }).strict();
 export const customerStaffProfileSchema = customerSelfProfileSchema;
 export const walkinCustomerProfileSchema = customerProfileSchema.omit({ email: true }).strict();
-export const walkinCustomerStaffProfileSchema = walkinCustomerProfileSchema.omit({ loyaltyPoints: true }).strict();
+export const walkinCustomerStaffProfileSchema = walkinCustomerProfileSchema.omit({ loyaltyCardIssued: true }).strict();
 
 export type BarberInput = z.infer<typeof barberSchema>;
 export type BarberStaffInput = z.infer<typeof barberStaffSchema>;

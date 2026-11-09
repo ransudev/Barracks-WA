@@ -6,6 +6,7 @@ import {
 } from "@/server/schemas/sprint.schema";
 import {
   CustomerEmailTakenError,
+  customerForViewer,
   findCustomerByUserId,
   updateCustomer,
 } from "@/server/services/customer.service";
@@ -29,7 +30,7 @@ export async function GET() {
     if (result.response) return result.response;
     const customer = await findCustomerByUserId(pool, result.user.id);
     if (!customer) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
-    return Response.json({ success: true, customer });
+    return Response.json({ success: true, customer: customerForViewer(customer, "customer") });
   } catch (error) {
     console.error("Unable to load customer profile", error);
     return Response.json({ success: false, message: "Unable to load customer profile" }, { status: 500 });
@@ -63,7 +64,7 @@ export async function PUT(request: Request) {
     if (!current) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
     const customer = await updateCustomer(pool, current.id, parsed.data);
     if (!customer) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
-    return Response.json({ success: true, customer });
+    return Response.json({ success: true, customer: customerForViewer(customer, "customer") });
   } catch (error) {
     if (error instanceof CustomerEmailTakenError)
       return Response.json({ success: false, message: error.message }, { status: 409 });

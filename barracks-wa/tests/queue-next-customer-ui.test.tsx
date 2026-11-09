@@ -31,7 +31,7 @@ async function renderQueue(candidate: ApiQueueEntry | null, holdQueuePost = fals
     requests.push(`${init?.method ?? "GET"} ${path}`);
     if (path === "/api/queue?view=active") return Response.json({ success: true, queue: candidate ? [candidate] : [] });
     if (path === "/api/queue?view=completed-today") return Response.json({ success: true, queue: completed });
-    if (path === "/api/customers") return Response.json({ success: true, customers: [{ id: 3, userId: 8, firstName: "Next", lastName: "Customer", email: "next@test.local", phone: "", preferredBarberId: null, preferredBarberName: null, loyaltyPoints: 0, createdAt: "2026-09-27T02:00:00Z", updatedAt: "2026-09-27T02:00:00Z" }] });
+    if (path === "/api/customers") return Response.json({ success: true, customers: [{ id: 3, userId: 8, firstName: "Next", lastName: "Customer", email: "next@test.local", phone: "", preferredBarberId: null, preferredBarberName: null, createdAt: "2026-09-27T02:00:00Z", updatedAt: "2026-09-27T02:00:00Z" }] });
     if (path === "/api/services") return Response.json({ success: true, services: [{ id: "cut", name: "Basic Cut", active: true, durationMinutes: 45 }] });
     if (path === "/api/barbers") return Response.json({ success: true, barbers: [{ id: 1, firstName: "Test", lastName: "Barber", status: "available", operationalAvailability }] });
     if (path === "/api/queue/next?barberId=1") return Response.json({ success: true, entry: candidate, message: candidate ? null : "No eligible customer is waiting for this barber." });

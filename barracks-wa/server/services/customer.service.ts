@@ -16,10 +16,14 @@ type CustomerRow = {
   phone: string;
   preferred_barber_id: number | null;
   preferred_barber_name: string | null;
-  loyalty_points: number;
+  loyalty_card_issued_at: Date | string | null;
+  loyalty_card_issued_by_name: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
+
+// The owner hands out physical loyalty cards. The record says who holds one.
+export type LoyaltyCard = { issuedAt: string; issuedByName: string | null };
 
 export type CustomerRecord = {
   id: number;
@@ -30,16 +34,34 @@ export type CustomerRecord = {
   phone: string;
   preferredBarberId: number | null;
   preferredBarberName: string | null;
-  loyaltyPoints: number;
+  // Present only for Management viewers: null means no card, an object means
+  // a card was issued. Front Desk and customers never receive this field.
+  loyaltyCard?: LoyaltyCard | null;
   createdAt: string;
   updatedAt: string;
 };
 
 export type CreateCustomerInput = CustomerSignupInput;
+type CustomerActor = { id: number; role: string };
 
-// An expected user error; routes answer 409 instead of a server failure.
+// Expected user errors; routes answer 409/403 instead of a server failure.
 export class CustomerEmailTakenError extends Error {
   constructor() { super("A user with this email already exists"); }
+}
+export class LoyaltyCardForbiddenError extends Error {
+  constructor() { super("Only a Manager can record loyalty cards"); }
+}
+
+// Administrators may view card status; only Managers may change it.
+export const canViewLoyaltyCards = (role: string) => role === "manager" || role === "administrator";
+export const canIssueLoyaltyCards = (role: string) => role === "manager";
+
+// Strip loyalty card details for viewers who may not see them.
+export function customerForViewer<T extends CustomerRecord>(customer: T, role: string): T {
+  if (canViewLoyaltyCards(role)) return customer;
+  const { loyaltyCard: _hidden, ...visible } = customer;
+  void _hidden;
+  return visible as T;
 }
 export type RegisteredCustomerRecord = CustomerRecord & { userId: number };
 
@@ -56,12 +78,14 @@ const customerSelect = `
       WHEN b.id IS NULL THEN NULL
       ELSE CONCAT(b.first_name, ' ', b.last_name)
     END AS preferred_barber_name,
-    c.loyalty_points,
+    c.loyalty_card_issued_at,
+    NULLIF(btrim(concat_ws(' ', issuer.first_name, issuer.last_name)), '') AS loyalty_card_issued_by_name,
     c.created_at,
     c.updated_at
   FROM customers c
   LEFT JOIN users u ON u.id = c.user_id
   LEFT JOIN barbers b ON b.id = c.preferred_barber_id
+  LEFT JOIN users issuer ON issuer.id = c.loyalty_card_issued_by
 `;
 
 function toIso(value: Date | string): string {
@@ -78,7 +102,9 @@ function toCustomer(row: CustomerRow): CustomerRecord {
     phone: row.phone,
     preferredBarberId: row.preferred_barber_id === null ? null : Number(row.preferred_barber_id),
     preferredBarberName: row.preferred_barber_name,
-    loyaltyPoints: Number(row.loyalty_points),
+    loyaltyCard: row.loyalty_card_issued_at === null
+      ? null
+      : { issuedAt: toIso(row.loyalty_card_issued_at), issuedByName: row.loyalty_card_issued_by_name },
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
   };
@@ -185,7 +211,12 @@ export async function updateCustomer(
   db: Pool,
   id: number,
   input: CustomerProfileInput | WalkinCustomerProfileInput,
+  actor?: CustomerActor,
 ): Promise<CustomerRecord | null> {
+  const loyaltyCardIssued = "loyaltyCardIssued" in input ? input.loyaltyCardIssued : undefined;
+  if (loyaltyCardIssued !== undefined && !(actor && canIssueLoyaltyCards(actor.role))) {
+    throw new LoyaltyCardForbiddenError();
+  }
   const client = await db.connect();
 
   try {
@@ -229,10 +260,20 @@ export async function updateCustomer(
       `
         UPDATE customers
         SET phone = $1, preferred_barber_id = $2,
-            loyalty_points = COALESCE($3, loyalty_points), updated_at = NOW()
+            -- Issuing keeps the first issue date and issuer; clearing removes both.
+            loyalty_card_issued_by = CASE
+              WHEN $3::boolean IS NULL THEN loyalty_card_issued_by
+              WHEN $3::boolean AND loyalty_card_issued_at IS NULL THEN $5::integer
+              WHEN $3::boolean THEN loyalty_card_issued_by
+              ELSE NULL END,
+            loyalty_card_issued_at = CASE
+              WHEN $3::boolean IS NULL THEN loyalty_card_issued_at
+              WHEN $3::boolean THEN COALESCE(loyalty_card_issued_at, NOW())
+              ELSE NULL END,
+            updated_at = NOW()
         WHERE id = $4
       `,
-      [input.phone, input.preferredBarberId, input.loyaltyPoints ?? null, id],
+      [input.phone, input.preferredBarberId, loyaltyCardIssued ?? null, id, actor?.id ?? null],
     );
 
     const customer = await findCustomerById(client, id);

@@ -36,7 +36,7 @@ type CustomerForm = {
   lastName: string;
   email: string;
   phone: string;
-  loyaltyPoints: string;
+  loyaltyCardIssued: boolean;
   password: string;
   preferredBarberId: string;
 };
@@ -45,7 +45,7 @@ const emptyForm: CustomerForm = {
   lastName: "",
   email: "",
   phone: "",
-  loyaltyPoints: "0",
+  loyaltyCardIssued: false,
   password: "",
   preferredBarberId: "",
 };
@@ -62,15 +62,24 @@ const PAGE_SIZE = 12;
 function formatMemberSince(date: string) {
   return new Date(date).toLocaleDateString(undefined, { month: "short", year: "numeric" });
 }
+function loyaltyCardLabel(customer: ApiCustomer) {
+  return customer.loyaltyCard
+    ? `Card since ${formatMemberSince(customer.loyaltyCard.issuedAt)}`
+    : "No card";
+}
 
 export function CustomersPage({
   onToast,
   canDelete,
-  canManageLoyalty,
+  canViewLoyaltyCards,
+  canIssueLoyaltyCards,
 }: {
   onToast: (message: string) => void;
   canDelete: boolean;
-  canManageLoyalty: boolean;
+  // Administrators and Managers see who holds a physical loyalty card.
+  canViewLoyaltyCards: boolean;
+  // Only Managers record that a card was handed out.
+  canIssueLoyaltyCards: boolean;
 }) {
   const [items, setItems] = useState<ApiCustomer[]>([]);
   const [barbers, setBarbers] = useState<ApiBarberAvailability[]>([]);
@@ -149,8 +158,9 @@ export function CustomersPage({
       .sort((a, b) =>
         sort === "name"
           ? nameOf(a).localeCompare(nameOf(b))
-          : sort === "points"
-            ? b.loyaltyPoints - a.loyaltyPoints
+          : sort === "cards"
+            ? Number(Boolean(b.loyaltyCard)) - Number(Boolean(a.loyaltyCard)) ||
+              b.createdAt.localeCompare(a.createdAt)
             : b.createdAt.localeCompare(a.createdAt),
       );
   }, [items, search, sort]);
@@ -166,7 +176,7 @@ export function CustomersPage({
         lastName: selected.lastName,
         email: selected.email,
         phone: phoneForForm(selected),
-        loyaltyPoints: String(selected.loyaltyPoints),
+        loyaltyCardIssued: Boolean(selected.loyaltyCard),
         password: "",
         preferredBarberId: selected.preferredBarberId ? String(selected.preferredBarberId) : "",
       }),
@@ -189,7 +199,7 @@ export function CustomersPage({
       lastName: customer.lastName,
       email: customer.email,
       phone: phoneForForm(customer),
-      loyaltyPoints: String(customer.loyaltyPoints),
+      loyaltyCardIssued: Boolean(customer.loyaltyCard),
       password: "",
       preferredBarberId: customer.preferredBarberId ? String(customer.preferredBarberId) : "",
     });
@@ -206,12 +216,6 @@ export function CustomersPage({
     setFormError("");
     setSubmitting(true);
     try {
-      const loyaltyPoints = Number(form.loyaltyPoints);
-      if (
-        canManageLoyalty &&
-        (!Number.isSafeInteger(loyaltyPoints) || loyaltyPoints < 0 || loyaltyPoints > 2147483647)
-      )
-        throw new Error("Loyalty points must be a non-negative whole number.");
       const base = {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -221,8 +225,8 @@ export function CustomersPage({
       };
       const payload =
         editing && selected
-          ? canManageLoyalty
-            ? { ...base, loyaltyPoints }
+          ? canIssueLoyaltyCards
+            ? { ...base, loyaltyCardIssued: form.loyaltyCardIssued }
             : base
           : { ...base, password: form.password };
       const response = await apiRequest(
@@ -314,17 +318,17 @@ export function CustomersPage({
           onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
           icon="phone"
         />
-        {canManageLoyalty && (
-          <TextField
-            label="Loyalty points"
-            type="number"
-            min="0"
-            step="1"
-            value={form.loyaltyPoints}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, loyaltyPoints: event.target.value }))
-            }
-          />
+        {editing && canIssueLoyaltyCards && (
+          <label className="loyalty-card-toggle">
+            <input
+              type="checkbox"
+              checked={form.loyaltyCardIssued}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, loyaltyCardIssued: event.target.checked }))
+              }
+            />{" "}
+            Loyalty card issued
+          </label>
         )}
         {!editing && (
           <TextField
@@ -394,7 +398,9 @@ export function CustomersPage({
           </>
         }
       />
-      <div className="metrics-grid metrics-grid--three">
+      <div
+        className={`metrics-grid ${canViewLoyaltyCards ? "metrics-grid--three" : "metrics-grid--two"}`}
+      >
         <MetricCard
           label="Customer records"
           value={String(items.length)}
@@ -407,12 +413,14 @@ export function CustomersPage({
           icon="scissors"
           accent="green"
         />
-        <MetricCard
-          label="Loyalty points"
-          value={String(items.reduce((total, item) => total + item.loyaltyPoints, 0))}
-          icon="spark"
-          accent="amber"
-        />
+        {canViewLoyaltyCards && (
+          <MetricCard
+            label="Loyalty card holders"
+            value={String(items.filter((item) => item.loyaltyCard).length)}
+            icon="spark"
+            accent="amber"
+          />
+        )}
       </div>
       <Panel className="operational-panel">
         <div className="inventory-catalog-head">
@@ -438,7 +446,7 @@ export function CustomersPage({
             >
               <option value="recent">Recently joined</option>
               <option value="name">Name A–Z</option>
-              <option value="points">Most loyalty points</option>
+              {canViewLoyaltyCards && <option value="cards">Loyalty card holders first</option>}
             </SelectField>
           }
         />
@@ -483,10 +491,14 @@ export function CustomersPage({
                   {customer.phone || "No phone on file"}
                 </p>
                 <div className="operational-card__facts">
-                  <div>
-                    <span>Loyalty</span>
-                    <strong className="is-warning">{customer.loyaltyPoints} pts</strong>
-                  </div>
+                  {canViewLoyaltyCards && (
+                    <div>
+                      <span>Loyalty card</span>
+                      <strong className={customer.loyaltyCard ? "is-warning" : undefined}>
+                        {loyaltyCardLabel(customer)}
+                      </strong>
+                    </div>
+                  )}
                   <div>
                     <span>Preferred barber</span>
                     <strong>{customer.preferredBarberName || "Not set"}</strong>
@@ -498,7 +510,11 @@ export function CustomersPage({
         ) : (
           <ResponsiveTable
             className="customers-table"
-            headers={["Customer", "Contact", "Preferred barber", "Loyalty", "Joined", ""]}
+            headers={
+              canViewLoyaltyCards
+                ? ["Customer", "Contact", "Preferred barber", "Loyalty card", "Joined", ""]
+                : ["Customer", "Contact", "Preferred barber", "Joined", ""]
+            }
           >
             {pageItems.map((customer) => (
               <tr
@@ -530,7 +546,11 @@ export function CustomersPage({
                   </span>
                 </td>
                 <td>{customer.preferredBarberName || "Not set"}</td>
-                <td className="text-amber">{customer.loyaltyPoints} pts</td>
+                {canViewLoyaltyCards && (
+                  <td className={customer.loyaltyCard ? "text-amber" : undefined}>
+                    {loyaltyCardLabel(customer)}
+                  </td>
+                )}
                 <td>{formatMemberSince(customer.createdAt)}</td>
                 <td>
                   <span className="row-actions" onClick={(event) => event.stopPropagation()}>
@@ -607,10 +627,20 @@ export function CustomersPage({
               </DrawerSection>
               <DrawerSection eyebrow="Customer facts" title="Relationship snapshot">
                 <div className="operational-drawer__facts">
-                  <div>
-                    <span>Loyalty points</span>
-                    <strong>{selected.loyaltyPoints}</strong>
-                  </div>
+                  {canViewLoyaltyCards && (
+                    <div>
+                      <span>Loyalty card</span>
+                      <strong>
+                        {selected.loyaltyCard
+                          ? `Issued ${new Date(selected.loyaltyCard.issuedAt).toLocaleDateString()}${
+                              selected.loyaltyCard.issuedByName
+                                ? ` by ${selected.loyaltyCard.issuedByName}`
+                                : ""
+                            }`
+                          : "No card issued"}
+                      </strong>
+                    </div>
+                  )}
                   <div>
                     <span>Preferred barber</span>
                     <strong>{selected.preferredBarberName || "Not set"}</strong>

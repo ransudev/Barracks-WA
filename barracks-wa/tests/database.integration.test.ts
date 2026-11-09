@@ -191,16 +191,27 @@ test("PostgreSQL account, inventory, and barber lifecycle persists safely", { sk
     });
     assert.equal(createdCustomer.kind, "created");
     if (createdCustomer.kind !== "created") return;
-    const changedCustomer = await customers.updateCustomer(pool, createdCustomer.customer.id, {
+    assert.equal(createdCustomer.customer.loyaltyCard, null);
+    const cardInput = {
       firstName: createdCustomer.customer.firstName,
       lastName: createdCustomer.customer.lastName,
       email: createdCustomer.customer.email,
       phone: createdCustomer.customer.phone,
       preferredBarberId: createdCustomer.customer.preferredBarberId,
-      loyaltyPoints: 125,
-    });
-    assert.equal(changedCustomer?.loyaltyPoints, 125);
-    assert.equal((await customers.findCustomerById(pool, createdCustomer.customer.id))?.loyaltyPoints, 125);
+      loyaltyCardIssued: true,
+    };
+    // Only a Manager may record a loyalty card; the service enforces it too.
+    await assert.rejects(customers.updateCustomer(pool, createdCustomer.customer.id, cardInput, { id: userId!, role: "administrator" }),
+      customers.LoyaltyCardForbiddenError);
+    await assert.rejects(customers.updateCustomer(pool, createdCustomer.customer.id, cardInput),
+      customers.LoyaltyCardForbiddenError);
+    const changedCustomer = await customers.updateCustomer(pool, createdCustomer.customer.id, cardInput, { id: userId!, role: "manager" });
+    const issued = changedCustomer?.loyaltyCard;
+    assert.ok(issued?.issuedAt);
+    assert.equal(issued?.issuedByName, "Lifecycle Test");
+    // Saving "issued" again keeps the original issue date.
+    const reissued = await customers.updateCustomer(pool, createdCustomer.customer.id, cardInput, { id: userId!, role: "manager" });
+    assert.equal(reissued?.loyaltyCard?.issuedAt, issued?.issuedAt);
     const contactOnlyEdit = await customers.updateCustomer(pool, createdCustomer.customer.id, {
       firstName: createdCustomer.customer.firstName,
       lastName: createdCustomer.customer.lastName,
@@ -208,7 +219,11 @@ test("PostgreSQL account, inventory, and barber lifecycle persists safely", { sk
       phone: "09000000001",
       preferredBarberId: createdCustomer.customer.preferredBarberId,
     });
-    assert.equal(contactOnlyEdit?.loyaltyPoints, 125);
+    assert.equal(contactOnlyEdit?.loyaltyCard?.issuedAt, issued?.issuedAt);
+    assert.equal(customers.customerForViewer(contactOnlyEdit!, "front_desk").loyaltyCard, undefined);
+    assert.ok(customers.customerForViewer(contactOnlyEdit!, "administrator").loyaltyCard);
+    const cleared = await customers.updateCustomer(pool, createdCustomer.customer.id, { ...cardInput, loyaltyCardIssued: false }, { id: userId!, role: "manager" });
+    assert.equal(cleared?.loyaltyCard, null);
 
     const createdService = await services.createService(pool, {
       id: serviceId, name: "Test cut", description: "Testing snapshots", price: 425,

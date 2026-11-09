@@ -374,13 +374,7 @@ export function CustomerDashboard({
             <CustomerDashboardSkeleton />
           ) : customer ? (
             <>
-              <div className="metrics-grid metrics-grid--three">
-                <MetricCard
-                  label="Loyalty points"
-                  value={String(customer.loyaltyPoints)}
-                  icon="spark"
-                  accent="amber"
-                />
+              <div className="metrics-grid metrics-grid--two">
                 <MetricCard
                   label="Upcoming"
                   value={String(upcoming.length)}
@@ -414,7 +408,6 @@ export function CustomerDashboard({
                     />
                     <div>
                       <strong>{name}</strong>
-                      <span>{customer.loyaltyPoints} loyalty points</span>
                     </div>
                   </div>
                   <dl className="customer-profile-facts">

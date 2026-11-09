@@ -9,7 +9,7 @@ Object.assign(globalThis, { document: dom.window.document, window: dom.window, H
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { BookingForm } = await import("@/app/components/bookings/BookingForm");
-const registered: ApiCustomer = { id: 1, userId: 10, firstName: "Registered", lastName: "Customer", email: "registered@test.local", phone: "", preferredBarberId: null, preferredBarberName: null, loyaltyPoints: 0, createdAt: "", updatedAt: "" };
+const registered: ApiCustomer = { id: 1, userId: 10, firstName: "Registered", lastName: "Customer", email: "registered@test.local", phone: "", preferredBarberId: null, preferredBarberName: null, createdAt: "", updatedAt: "" };
 const walkIn: ApiCustomer = { ...registered, id: 2, userId: null, firstName: "Accountless", email: "" };
 
 test("appointment picker excludes accountless profiles, submits eligible selection, and blocks invalid/stale selections", async () => {

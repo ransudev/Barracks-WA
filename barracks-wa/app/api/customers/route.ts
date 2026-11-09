@@ -1,19 +1,20 @@
-import { requireStaff } from "@/server/auth/require-role";
+import { requireStaffUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
 import {
   customerSignupSchema,
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
-import { createCustomer, listCustomers } from "@/server/services/customer.service";
+import { createCustomer, customerForViewer, listCustomers } from "@/server/services/customer.service";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const authorizationResponse = await requireStaff();
-  if (authorizationResponse) return authorizationResponse;
+  const actor = await requireStaffUser();
+  if (actor instanceof Response) return actor;
 
   try {
-    return Response.json({ success: true, customers: await listCustomers(pool) });
+    const customers = await listCustomers(pool);
+    return Response.json({ success: true, customers: customers.map((customer) => customerForViewer(customer, actor.role)) });
   } catch (error) {
     console.error("Unable to list customers", error);
     return Response.json({ success: false, message: "Unable to load customers" }, { status: 500 });
@@ -21,8 +22,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authorizationResponse = await requireStaff();
-  if (authorizationResponse) return authorizationResponse;
+  const actor = await requireStaffUser();
+  if (actor instanceof Response) return actor;
 
   let body: unknown;
   try {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    return Response.json({ success: true, customer: result.customer }, { status: 201 });
+    return Response.json({ success: true, customer: customerForViewer(result.customer, actor.role) }, { status: 201 });
   } catch (error) {
     console.error("Unable to create customer", error);
     return Response.json({ success: false, message: "Unable to create customer" }, { status: 500 });
