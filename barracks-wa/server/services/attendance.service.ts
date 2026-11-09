@@ -111,7 +111,17 @@ export async function correctAttendance(db: Pool, id: number, actorId: number, i
     if (!current.rows[0]) { await client.query("ROLLBACK"); return null; }
     await requireBranchAccess(client, actor, Number(current.rows[0].branch_id));
     const before = toAttendance(current.rows[0]);
-    const next = { status: input.status, clockIn: input.clockIn, clockOut: input.clockOut };
+    // Compare instants, not strings: "+08:00" and "Z" forms of one time are equal.
+    const next = { status: input.status, clockIn: iso(input.clockIn), clockOut: iso(input.clockOut) };
+    const dayStart = Date.parse(`${before.date}T00:00:00+08:00`);
+    const dayEnd = dayStart + 86_400_000;
+    const now = (await client.query<{ now: Date }>("SELECT clock_timestamp() AS now")).rows[0].now.getTime();
+    for (const value of [next.clockIn, next.clockOut]) {
+      if (value === null) continue;
+      const instant = Date.parse(value);
+      if (instant < dayStart || instant >= dayEnd) throw new AttendanceConflict("Clock times must fall on the attendance date (Asia/Manila)");
+      if (instant > now) throw new AttendanceConflict("Clock times cannot be in the future");
+    }
     const previous = { status: before.status, clockIn: before.clockIn, clockOut: before.clockOut };
     if (JSON.stringify(previous) === JSON.stringify(next)) throw new AttendanceConflict("Correction must change the record");
     await client.query(`UPDATE barber_attendance SET status=$2, clock_in=$3, clock_out=$4,
