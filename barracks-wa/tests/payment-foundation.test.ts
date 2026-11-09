@@ -238,7 +238,11 @@ test("exact cash checkout uses the booking snapshot and persists a balanced tend
     assert.equal(paid.cashierName, "Cash Desk");
     assert.equal(paid.paymentStatus, "completed");
     const saved = await findTransactionByReference(db, paid.reference);
-    assert.deepEqual(saved, paid);
+    // A single-transaction read also says whether it can be voided; a paid
+    // visit has a payroll snapshot, so it can only be refunded.
+    const { voidable, ...savedTransaction } = saved!;
+    assert.deepEqual(savedTransaction, paid);
+    assert.equal(voidable, false);
     const tender = (await db.query<{ amount: string; amount_received: string; change_amount: string }>(
       "SELECT amount,amount_received,change_amount FROM transaction_payments WHERE transaction_id=$1", [paid.id],
     )).rows[0];

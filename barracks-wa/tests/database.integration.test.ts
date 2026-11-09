@@ -208,7 +208,8 @@ test("PostgreSQL account, inventory, and barber lifecycle persists safely", { sk
     const changedCustomer = await customers.updateCustomer(pool, createdCustomer.customer.id, cardInput, { id: userId!, role: "manager" });
     const issued = changedCustomer?.loyaltyCard;
     assert.ok(issued?.issuedAt);
-    assert.equal(issued?.issuedByName, "Lifecycle Test");
+    const issuer = (await pool.query("SELECT concat_ws(' ',first_name,last_name) AS name FROM users WHERE id=$1", [userId])).rows[0].name;
+    assert.equal(issued?.issuedByName, issuer);
     // Saving "issued" again keeps the original issue date.
     const reissued = await customers.updateCustomer(pool, createdCustomer.customer.id, cardInput, { id: userId!, role: "manager" });
     assert.equal(reissued?.loyaltyCard?.issuedAt, issued?.issuedAt);
