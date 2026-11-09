@@ -16,6 +16,7 @@ type TransactionRow = VisitRow & {
   payment_method: PaymentMethod | "mixed"; status: PaymentStatus; created_at: Date | string;
   amount_received: string | null; change_amount: string | null;
   actions?: FinancialActionRow[] | null;
+  voidable?: boolean | null;
 };
 
 type FinancialActionRow = { id: string; transaction_id: string; action_type: "refund" | "void"; amount: string; reason: string; staff_id: number | null; staff_name: string; created_at: Date | string };
@@ -31,6 +32,9 @@ export type TransactionRecord = {
   amountReceived: number | null; change: number | null;
   status: PaymentStatus; paymentStatus: PaymentStatus; createdAt: string;
   actions?: FinancialActionRecord[];
+  // Present on single-transaction reads. False once the visit has a payroll
+  // snapshot, because earned-commission sales can only be refunded.
+  voidable?: boolean;
 };
 
 export type EligibleVisit = {
@@ -61,13 +65,15 @@ function toTransaction(row: TransactionRow): TransactionRecord {
       action: action.action_type, amount: Number(action.amount), reason: action.reason,
       staffId: action.staff_id === null ? null : Number(action.staff_id), staffName: action.staff_name,
       createdAt: new Date(action.created_at).toISOString() })) }),
+    ...(typeof row.voidable === "boolean" && { voidable: row.voidable }),
   };
 }
 
 export async function findTransactionByReference(db: Db, reference: string, branchIds?: number[]): Promise<TransactionRecord | null> {
   const result = await db.query<TransactionRow>(
     `SELECT t.*,p.amount_received,p.change_amount,
-       (SELECT json_agg(a ORDER BY a.created_at,a.id) FROM transaction_financial_actions a WHERE a.transaction_id=t.id) AS actions
+       (SELECT json_agg(a ORDER BY a.created_at,a.id) FROM transaction_financial_actions a WHERE a.transaction_id=t.id) AS actions,
+       NOT EXISTS (SELECT 1 FROM payroll_service_snapshots s WHERE s.visit_type=t.visit_type AND s.visit_record_id=t.visit_record_id) AS voidable
      FROM transactions t JOIN transaction_payments p ON p.transaction_id=t.id WHERE t.reference=$1 AND ($2::integer[] IS NULL OR t.branch_id=ANY($2))`, [reference, branchIds ?? null]);
   return result.rows[0] ? toTransaction(result.rows[0]) : null;
 }

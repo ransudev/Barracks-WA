@@ -41,11 +41,18 @@ export function TransactionDetailDrawer({
             <Receipt transaction={receipt} onClose={close} />
             {canManageFinancialActions && receipt.status === "completed" && (
               <section className="financial-action-panel">
-                <SectionHeading title="Refund or void transaction" />
+                <SectionHeading
+                  title={receipt.voidable ? "Refund or void transaction" : "Refund transaction"}
+                />
                 <p>
                   Full amount: {money(receipt.total)}. A reason is required and the original receipt
                   is retained.
                 </p>
+                {!receipt.voidable && (
+                  <p>
+                    This sale has earned barber commission, so it can be refunded but not voided.
+                  </p>
+                )}
                 <TextField
                   label="Reason"
                   value={actionReason}
@@ -62,14 +69,16 @@ export function TransactionDetailDrawer({
                   >
                     Refund full amount
                   </Button>
-                  <Button
-                    type="button"
-                    variant="danger"
-                    disabled={actionProcessing || !actionReason.trim()}
-                    onClick={() => setPendingAction("void")}
-                  >
-                    Void transaction
-                  </Button>
+                  {receipt.voidable && (
+                    <Button
+                      type="button"
+                      variant="danger"
+                      disabled={actionProcessing || !actionReason.trim()}
+                      onClick={() => setPendingAction("void")}
+                    >
+                      Void transaction
+                    </Button>
+                  )}
                 </div>
               </section>
             )}

@@ -115,11 +115,28 @@ test("Management sees transaction history and financial controls without checkou
     assert.equal(dom.window.document.body.textContent?.includes("Complete payment"), false);
     assert.equal(page.requests.some((request) => request.includes("view=eligible")), false);
     page.setHistory([paid]);
+    page.setReceipt({ ...paid, voidable: true });
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "Refresh")!.click(); });
     await openDay(page.container);
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "View details")!.click(); });
     await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
     assert.match(dom.window.document.querySelector(".financial-action-panel")?.textContent ?? "", /Refund full amount[\s\S]*Void transaction/);
+  } finally { await page.cleanup(); }
+});
+
+test("Management cannot void a sale that has earned commission, only refund it", async () => {
+  const page = await renderPayment({ canCheckout: false, canManageFinancialActions: true });
+  try {
+    page.setHistory([paid]);
+    page.setReceipt({ ...paid, voidable: false });
+    await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "Refresh")!.click(); });
+    await openDay(page.container);
+    await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "View details")!.click(); });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
+    const panel = dom.window.document.querySelector(".financial-action-panel")?.textContent ?? "";
+    assert.match(panel, /Refund full amount/);
+    assert.match(panel, /can be refunded but not voided/);
+    assert.equal(panel.includes("Void transaction"), false);
   } finally { await page.cleanup(); }
 });
 
