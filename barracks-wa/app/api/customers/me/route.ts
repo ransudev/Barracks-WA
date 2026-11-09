@@ -5,6 +5,7 @@ import {
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
 import {
+  CustomerEmailTakenError,
   findCustomerByUserId,
   updateCustomer,
 } from "@/server/services/customer.service";
@@ -64,10 +65,9 @@ export async function PUT(request: Request) {
     if (!customer) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
     return Response.json({ success: true, customer });
   } catch (error) {
+    if (error instanceof CustomerEmailTakenError)
+      return Response.json({ success: false, message: error.message }, { status: 409 });
     console.error("Unable to update customer profile", error);
-    return Response.json(
-      { success: false, message: error instanceof Error ? error.message : "Unable to update customer profile" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, message: "Unable to update customer profile" }, { status: 500 });
   }
 }

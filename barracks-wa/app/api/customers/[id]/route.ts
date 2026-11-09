@@ -8,7 +8,7 @@ import {
   walkinCustomerStaffProfileSchema,
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
-import { deleteCustomer, findCustomerById, updateCustomer } from "@/server/services/customer.service";
+import { CustomerEmailTakenError, deleteCustomer, findCustomerById, updateCustomer } from "@/server/services/customer.service";
 import { parseRouteId } from "@/server/schemas/route-id";
 
 export const runtime = "nodejs";
@@ -61,11 +61,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!customer) return Response.json({ success: false, message: "Customer not found" }, { status: 404 });
     return Response.json({ success: true, customer });
   } catch (error) {
+    if (error instanceof CustomerEmailTakenError)
+      return Response.json({ success: false, message: error.message }, { status: 409 });
     console.error("Unable to update customer", error);
-    return Response.json(
-      { success: false, message: error instanceof Error ? error.message : "Unable to update customer" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, message: "Unable to update customer" }, { status: 500 });
   }
 }
 

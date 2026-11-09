@@ -36,6 +36,11 @@ export type CustomerRecord = {
 };
 
 export type CreateCustomerInput = CustomerSignupInput;
+
+// An expected user error; routes answer 409 instead of a server failure.
+export class CustomerEmailTakenError extends Error {
+  constructor() { super("A user with this email already exists"); }
+}
 export type RegisteredCustomerRecord = CustomerRecord & { userId: number };
 
 const customerSelect = `
@@ -235,7 +240,7 @@ export async function updateCustomer(
     return customer;
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
-    if (isUniqueViolation(error)) throw new Error("A user with this email already exists");
+    if (isUniqueViolation(error)) throw new CustomerEmailTakenError();
     throw error;
   } finally {
     client.release();
