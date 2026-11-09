@@ -76,7 +76,7 @@ export function CustomersPage({
 }: {
   onToast: (message: string) => void;
   canDelete: boolean;
-  // Administrators and Managers see who holds a physical loyalty card.
+  // Staff see who holds a physical loyalty card.
   canViewLoyaltyCards: boolean;
   // Only Managers record that a card was handed out.
   canIssueLoyaltyCards: boolean;

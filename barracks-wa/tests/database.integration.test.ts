@@ -220,7 +220,11 @@ test("PostgreSQL account, inventory, and barber lifecycle persists safely", { sk
       preferredBarberId: createdCustomer.customer.preferredBarberId,
     });
     assert.equal(contactOnlyEdit?.loyaltyCard?.issuedAt, issued?.issuedAt);
-    assert.equal(customers.customerForViewer(contactOnlyEdit!, "front_desk").loyaltyCard, undefined);
+    // Customers see their own card date but not who issued it; suppliers see nothing.
+    assert.equal(customers.customerForViewer(contactOnlyEdit!, "customer").loyaltyCard?.issuedAt, issued?.issuedAt);
+    assert.equal(customers.customerForViewer(contactOnlyEdit!, "customer").loyaltyCard?.issuedByName, null);
+    assert.equal(customers.customerForViewer(contactOnlyEdit!, "supplier").loyaltyCard, undefined);
+    assert.ok(customers.customerForViewer(contactOnlyEdit!, "front_desk").loyaltyCard);
     assert.ok(customers.customerForViewer(contactOnlyEdit!, "administrator").loyaltyCard);
     const cleared = await customers.updateCustomer(pool, createdCustomer.customer.id, { ...cardInput, loyaltyCardIssued: false }, { id: userId!, role: "manager" });
     assert.equal(cleared?.loyaltyCard, null);

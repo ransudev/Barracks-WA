@@ -34,8 +34,8 @@ export type CustomerRecord = {
   phone: string;
   preferredBarberId: number | null;
   preferredBarberName: string | null;
-  // Present only for Management viewers: null means no card, an object means
-  // a card was issued. Front Desk and customers never receive this field.
+  // null means no card, an object means a card was issued. Customers see only
+  // their own record, without the issuing staff member's name.
   loyaltyCard?: LoyaltyCard | null;
   createdAt: string;
   updatedAt: string;
@@ -52,16 +52,22 @@ export class LoyaltyCardForbiddenError extends Error {
   constructor() { super("Only a Manager can record loyalty cards"); }
 }
 
-// Administrators may view card status; only Managers may change it.
-export const canViewLoyaltyCards = (role: string) => role === "manager" || role === "administrator";
+// Staff and the customer themself may view card status; only Managers may change it.
+export const canViewLoyaltyCards = (role: string) =>
+  role === "manager" || role === "administrator" || role === "front_desk" || role === "customer";
 export const canIssueLoyaltyCards = (role: string) => role === "manager";
 
-// Strip loyalty card details for viewers who may not see them.
+// Shape loyalty card details for the viewer. Customers see whether and when
+// they received a card, but not which staff member recorded it.
 export function customerForViewer<T extends CustomerRecord>(customer: T, role: string): T {
-  if (canViewLoyaltyCards(role)) return customer;
-  const { loyaltyCard: _hidden, ...visible } = customer;
-  void _hidden;
-  return visible as T;
+  if (!canViewLoyaltyCards(role)) {
+    const { loyaltyCard: _hidden, ...visible } = customer;
+    void _hidden;
+    return visible as T;
+  }
+  if (role === "customer" && customer.loyaltyCard)
+    return { ...customer, loyaltyCard: { ...customer.loyaltyCard, issuedByName: null } };
+  return customer;
 }
 export type RegisteredCustomerRecord = CustomerRecord & { userId: number };
 

@@ -116,8 +116,8 @@ test("account routes persist signup, session, ownership, supplier linkage and pa
       phone: "09123456788", preferredBarberId: null, loyaltyCardIssued: true,
     }));
     assert.equal(loyaltyAttempt.status, 400);
-    // Customers never see loyalty card details on their own profile.
-    assert.equal("loyaltyCard" in (await (await customerProfile.GET()).json()).customer, false);
+    // Customers see their own card status (none yet), without staff details.
+    assert.equal((await (await customerProfile.GET()).json()).customer.loyaltyCard, null);
     const ownerSpoof = await customerProfile.PUT(request({
       customerId: Number(customer.id), firstName: "Other", lastName: "Owner",
       email: customerEmail, phone: "09123456788", preferredBarberId: null,

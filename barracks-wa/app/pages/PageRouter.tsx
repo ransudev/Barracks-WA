@@ -142,7 +142,7 @@ export function PageRouter({ view, go, onToast, currentUser }: PageRouterProps) 
         <CustomersPage
           onToast={onToast}
           canDelete={currentUser.role === "administrator"}
-          canViewLoyaltyCards={isManagementRole(currentUser.role)}
+          canViewLoyaltyCards
           canIssueLoyaltyCards={currentUser.role === "manager"}
         />
       );

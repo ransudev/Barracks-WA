@@ -374,7 +374,13 @@ export function CustomerDashboard({
             <CustomerDashboardSkeleton />
           ) : customer ? (
             <>
-              <div className="metrics-grid metrics-grid--two">
+              <div className="metrics-grid metrics-grid--three">
+                <MetricCard
+                  label="Loyalty card"
+                  value={customer.loyaltyCard ? "Card holder" : "No card yet"}
+                  icon="spark"
+                  accent="amber"
+                />
                 <MetricCard
                   label="Upcoming"
                   value={String(upcoming.length)}
@@ -408,6 +414,13 @@ export function CustomerDashboard({
                     />
                     <div>
                       <strong>{name}</strong>
+                      <span>
+                        {customer.loyaltyCard
+                          ? `Loyalty card holder since ${new Date(
+                              customer.loyaltyCard.issuedAt,
+                            ).toLocaleDateString(undefined, { month: "short", year: "numeric" })}`
+                          : "No loyalty card yet"}
+                      </span>
                     </div>
                   </div>
                   <dl className="customer-profile-facts">
