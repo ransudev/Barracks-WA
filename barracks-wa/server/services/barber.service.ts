@@ -46,8 +46,9 @@ const barberSelect = `
     COALESCE((SELECT sum(e.amount_centavos)::text FROM barber_commission_entries e WHERE e.barber_id=barbers.id AND e.branch_id=barbers.branch_id),'0') AS earned_commission_centavos,
     (SELECT COUNT(*) FROM bookings b WHERE b.barber_id=barbers.id AND b.branch_id=barbers.branch_id AND b.status='completed')
       + (SELECT COUNT(*) FROM queue_entries q WHERE q.barber_id=barbers.id AND q.branch_id=barbers.branch_id AND q.status='completed' AND q.booking_id IS NULL) AS services_done,
+    -- Net paid sales, matching Revenue Reports: refunds and voids are full reversals.
     COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.barber_id=barbers.id AND t.branch_id=barbers.branch_id
-      AND t.status IN ('completed','partially_refunded','refunded','voided')), 0) AS revenue,
+      AND t.status='completed'), 0) AS revenue,
     rating, created_at, updated_at,
     (SELECT COUNT(*) FROM barber_schedules s WHERE s.barber_id = barbers.id) AS schedule_day_count
   FROM barbers
