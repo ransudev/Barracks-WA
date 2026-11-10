@@ -13,14 +13,14 @@ This guide matches the current repository. Run app and database commands from `b
 On Windows, open **PowerShell** and adjust the path for your computer:
 
 ```powershell
-cd "C:\Users\your-name\Documents\Barracks-WA-sprint-2\barracks-wa"
+cd "C:\Users\your-name\Documents\Barracks-WA\barracks-wa"
 Get-ChildItem
 ```
 
 On macOS or Linux:
 
 ```bash
-cd "/path/to/Barracks-WA-sprint-2/barracks-wa"
+cd "/path/to/Barracks-WA/barracks-wa"
 ls
 ```
 

@@ -50,11 +50,11 @@ Only for a fresh disposable demo database, run `node --env-file=.env.local --imp
 
 The current seeded demo emails end in `@barracks.app`; credentials and role walkthroughs are maintained in [the demo guide](DEMO_README.md#demo-accounts). Existing administrator passwords are not changed by reseeding: use `node --env-file=.env.local --import tsx scripts/reset-admin-password.ts` only when deliberately resetting the account identified by `INITIAL_ADMIN_EMAIL`.
 
-## Product and sprint scope
+## Product scope
 
 Barracks connects the daily rhythm of a barbershop—bookings, barber availability, customers, inventory, and management oversight—inside one shared product. Staff need fast scanning and low-friction updates on the shop floor; administrators need a wider business view; customers need a simple account and booking path.
 
-The active `sprint-2` experience includes:
+The current app includes:
 
 - Public landing page with Barracks branding, service information, branches, contact details, and login/customer-account actions. Its full-bleed hero uses a landscape adaptation of the real Barracks shop photo at `barracks-wa/public/barracks/hero-barracks-landscape.png`, retaining the Barracks uniform and lightly altering the faces; it pairs with a left-aligned Barracks lockup, red establishment kicker, appointment/service actions, bottom benefits rail, responsive navigation/footer rules, smooth anchor scrolling, scroll-linked image depth, staged section reveals, fully visible responsive service numerals, and compact inline icon labels.
 - The public header fades in without a transform so the mobile navigation menu fills the viewport below the header and scrolls to all links and actions without being clipped.
@@ -466,7 +466,7 @@ The schema supports local PostgreSQL or the intended hosted Supabase database; e
 
 Important database constraints include case-insensitive unique user email, explicit account lifecycle columns, valid role/status/category values, non-blank names, non-negative quantities and monetary values with two-decimal precision, commission bounds, customer/user uniqueness, foreign keys, and exclusion constraints preventing overlapping active barber/customer booking intervals, including pending approval requests. Inventory adds a case-insensitive unique SKU per branch (ignoring blank SKUs) and a maximum-stock check that tracks the minimum, suppliers add a case-insensitive unique active company name plus one account per supplier and per user, and restock requests enforce one line per item with a constrained status set.
 
-`scripts/seed-admin.ts` creates the initial administrator from `INITIAL_ADMIN_*` variables and is safe to rerun for the same administrator email. `scripts/seed-demo.ts` is a local Sprint 2 seed: it runs in one transaction, preserves administrator accounts, and loads the current supplier, inventory, restock, customer, booking, and transaction showcase records. It succeeds on a fresh disposable database; a repeat run is rejected once finalized financial records exist, preserving their history. Do not run it against production data.
+`scripts/seed-admin.ts` creates the initial administrator from `INITIAL_ADMIN_*` variables and is safe to rerun for the same administrator email. `scripts/seed-demo.ts` is a local demo data seed: it runs in one transaction, preserves administrator accounts, and loads the current supplier, inventory, restock, customer, booking, and transaction showcase records. It succeeds on a fresh disposable database; a repeat run is rejected once finalized financial records exist, preserving their history. Do not run it against production data.
 
 For an already seeded demo database, use `node --env-file=.env.local --import tsx scripts/refresh-demo.ts` from `barracks-wa/`, or `npm run db:refresh-demo` with the intended environment already exported. The command runs `refresh-demo.sql` and `working-demo.sql` in one transaction. Apply all current migrations first. It requires the original supplier-linked demo inventory, roster, services, and active administrator. With the current branch schema, the four named satellite branches must already exist; the script resolves their IDs but does not create the directory. See [the demo prerequisites](DEMO_README.md#refresh-an-existing-demo). Do not use a demo refresh against real operating data.
 
