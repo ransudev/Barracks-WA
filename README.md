@@ -7,6 +7,14 @@ This is the canonical project guide. It combines the product context, design dir
 - [Running Barracks locally](running.md) covers environment setup, migrations, seeding, and troubleshooting.
 - [Demo guide](DEMO_README.md) covers demo accounts, seeded showcase data, and the recommended walkthrough.
 
+## Claude Code GitHub integration
+
+A proposed `@claude` GitHub assistant workflow lives at [`.github/workflows/claude.yml`](.github/workflows/claude.yml). Once merged into the default branch and connected by a repository administrator, collaborators with write access can mention `@claude` in issues and pull request comments to request help. It does not automatically merge pull requests or deploy the application.
+
+To enable it, install the [Claude GitHub App](https://github.com/apps/claude) for this repository and add an `ANTHROPIC_API_KEY` repository Actions secret under **Settings → Secrets and variables → Actions**. Do not place the key in tracked files. The workflow references the secret, uses the official `anthropics/claude-code-action@v1`, and limits each session to 10 turns. API usage may incur charges. A repository administrator must finish the app/secret setup; simply adding the workflow is not enough.
+
+Claude receives repository guidance from root `CLAUDE.md`, which points at `barracks-pwa/CLAUDE.md` and `barracks-pwa/AGENTS.md`. Keep `main` stable and follow the project's opt-in validation rules.
+
 ## Barber payroll
 
 The management workspace at `/admin/payroll` implements the commission-only payroll rules described in this section. Administrators can review and record payment in permitted branches; assigned Managers alone can approve payroll or confirm a missing historical rate. Front Desk, customer, and supplier accounts cannot access payroll navigation, pages, or APIs.
