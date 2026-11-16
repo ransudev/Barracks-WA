@@ -4,6 +4,7 @@ import { weeklyScheduleSchema, unavailabilitySchema } from "@/server/schemas/sch
 import { addBarberUnavailability, listBarberSchedules, listBarberUnavailability, removeBarberUnavailability, saveBarberSchedule } from "@/server/services/schedule.service";
 import { withAuthorizedBarber } from "@/server/auth/branch-access";
 import { branchApiError } from "@/server/services/branch-api";
+import { barberScheduleLocks } from "@/server/services/record-locks";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -12,7 +13,9 @@ export async function GET(_request: Request, context: Context) {
   const actor = await requireManagementUser(); if (actor instanceof Response) return actor;
   const id = await barberId(context); if (!id) return Response.json({ success: false, message: "Invalid barber" }, { status: 400 });
   try {
-    return await withAuthorizedBarber(pool, actor, id, async (client) => Response.json({ success: true, schedules: await listBarberSchedules(client, id), unavailability: await listBarberUnavailability(client, id) }));
+    return await withAuthorizedBarber(pool, actor, id, async (client) => Response.json({ success: true, schedules: await listBarberSchedules(client, id), unavailability: await listBarberUnavailability(client, id),
+      // Weekdays whose shift cannot be edited, with how many upcoming bookings depend on each.
+      lockedDays: await barberScheduleLocks(client, id) }));
   } catch (error) { return branchApiError(error); }
 }
 export async function PUT(request: Request, context: Context) {

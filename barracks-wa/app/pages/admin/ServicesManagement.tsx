@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Service } from "@/app/types/domain";
 import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import { createSlug, formatCurrency } from "@/app/utils/format";
+import { Icon } from "@/app/components/ui/icons";
 import {
   Badge,
   Button,
@@ -25,8 +26,19 @@ type Draft = {
   durationMinutes: string;
   price: string;
   active: boolean;
+  // One inclusion per line.
+  inclusions: string;
 };
-const blank: Draft = { name: "", description: "", durationMinutes: "", price: "", active: true };
+const blank: Draft = {
+  name: "",
+  description: "",
+  durationMinutes: "",
+  price: "",
+  active: true,
+  inclusions: "",
+};
+const lockTitle = (service: Service) =>
+  `Locked: ${service.activeUses} active booking${service.activeUses === 1 ? "" : "s"} or queue visit${service.activeUses === 1 ? "" : "s"} use this service`;
 
 export function ServicesManagement({ onToast }: { onToast: (message: string) => void }) {
   const [items, setItems] = useState<Service[]>([]);
@@ -73,6 +85,7 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
       durationMinutes: String(service.durationMinutes ?? ""),
       price: String(service.price),
       active: service.active,
+      inclusions: (service.inclusions ?? []).join("\n"),
     });
   }
 
@@ -99,6 +112,10 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
         price,
         durationMinutes,
         active: draft.active,
+        inclusions: draft.inclusions
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean),
       };
       const response = await apiRequest(editing ? `/api/services/${editing.id}` : "/api/services", {
         method: editing ? "PATCH" : "POST",
@@ -251,6 +268,11 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
               <div className="services-table__row" key={service.id}>
                 <span>
                   <strong>{service.name}</strong>
+                  {(service.activeUses ?? 0) > 0 && (
+                    <small className="lock-note" title={lockTitle(service)}>
+                      <Icon name="lock" size={12} /> Locked · {service.activeUses} in use
+                    </small>
+                  )}
                 </span>
                 <span>{service.description}</span>
                 <span>
@@ -266,7 +288,8 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
                   <button
                     className="row-action"
                     type="button"
-                    disabled={busyId !== null}
+                    disabled={busyId !== null || (service.activeUses ?? 0) > 0}
+                    title={(service.activeUses ?? 0) > 0 ? lockTitle(service) : undefined}
                     onClick={() => openEdit(service)}
                   >
                     Edit
@@ -274,7 +297,8 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
                   <button
                     className="row-action"
                     type="button"
-                    disabled={busyId !== null}
+                    disabled={busyId !== null || (service.activeUses ?? 0) > 0}
+                    title={(service.activeUses ?? 0) > 0 ? lockTitle(service) : undefined}
                     onClick={() =>
                       service.active
                         ? setPendingAction({ service, kind: "archive" })
@@ -362,6 +386,19 @@ export function ServicesManagement({ onToast }: { onToast: (message: string) => 
               onChange={(event) => setDraft({ ...draft, price: event.target.value })}
             />
           </div>
+          <label className="field">
+            <span className="field__label">Package inclusions</span>
+            <textarea
+              className="field__textarea"
+              rows={4}
+              value={draft.inclusions}
+              placeholder={"One per line, e.g.\nHaircut\nHot towel\nStyling"}
+              onChange={(event) => setDraft({ ...draft, inclusions: event.target.value })}
+            />
+            <span className="field__hint">
+              Shown to customers on the booking page so they can see what the package includes.
+            </span>
+          </label>
           {!editing && (
             <SelectField
               label="Status"

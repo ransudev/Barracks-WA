@@ -32,3 +32,15 @@ export function lastBookableDate(now = new Date()): string {
 export function isWithinBookingWindow(date: string, now = new Date()): boolean {
   return date <= lastBookableDate(now);
 }
+
+// A booking is held with a partial payment: half the service price, in whole pesos.
+export const BOOKING_DEPOSIT_RATE = 0.5;
+export function bookingDeposit(price: number): number {
+  return price > 0 ? Math.min(price, Math.ceil(price * BOOKING_DEPOSIT_RATE)) : 0;
+}
+
+// Minutes an unattended appointment is past its start, or 0 while it is not yet late.
+export function minutesLate(date: string, time: string, now = new Date()): number {
+  const late = Math.floor((now.getTime() - Date.parse(`${date}T${time}:00+08:00`)) / 60_000);
+  return late > BOOKING_GRACE_MINUTES ? late : 0;
+}

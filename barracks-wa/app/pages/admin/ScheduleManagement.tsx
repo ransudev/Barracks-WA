@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { ApiBarber } from "@/app/lib/api";
 import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/lib/api";
 import { Button, Panel, SelectField, Tabs } from "@/app/components/ui";
+import { Icon } from "@/app/components/ui/icons";
 
 type Hours = { dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean };
 type Break = { startTime: string; endTime: string };
@@ -18,8 +19,20 @@ type Shift = {
 type Absence = { id: number; startsAt: string; endsAt: string; reason: string };
 const minute = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const timeInput = (value: string, onChange: (value: string) => void) => (
-  <input type="time" value={value} onChange={(event) => onChange(event.target.value)} />
+const timeInput = (value: string, onChange: (value: string) => void, disabled = false) => (
+  <input
+    type="time"
+    value={value}
+    disabled={disabled}
+    onChange={(event) => onChange(event.target.value)}
+  />
+);
+// A day that upcoming bookings depend on cannot be edited until they are moved or cancelled.
+const lockNote = (count: number) => (
+  <small className="lock-note schedule-management__lock" role="note">
+    <Icon name="lock" size={12} /> Locked · {count} upcoming booking{count === 1 ? "" : "s"} depend
+    on this day
+  </small>
 );
 
 export function ScheduleManagement({
@@ -45,6 +58,9 @@ export function ScheduleManagement({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loadedBarberId, setLoadedBarberId] = useState(0);
+  // Weekday -> number of upcoming bookings that lock it, for shop hours and for the chosen barber.
+  const [hourLocks, setHourLocks] = useState<Record<number, number>>({});
+  const [shiftLocks, setShiftLocks] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const id = window.requestAnimationFrame(() => {
@@ -53,10 +69,15 @@ export function ScheduleManagement({
           const response = await apiRequest(`/api/shop-hours?branchId=${branchId}`, {
             cache: "no-store",
           });
-          const body = await readApiBody<{ hours?: Hours[]; message?: string }>(response);
+          const body = await readApiBody<{
+            hours?: Hours[];
+            lockedDays?: Record<number, number>;
+            message?: string;
+          }>(response);
           if (!response.ok || !body?.hours)
             throw new Error(body?.message ?? "Unable to load hours");
           setHours(body.hours);
+          setHourLocks(body.lockedDays ?? {});
         } catch (cause) {
           setHoursError(errorMessage(cause, "Unable to load hours"));
         } finally {
@@ -83,11 +104,13 @@ export function ScheduleManagement({
           const body = await readApiBody<{
             schedules?: Shift[];
             unavailability?: Absence[];
+            lockedDays?: Record<number, number>;
             message?: string;
           }>(response);
           if (!response.ok || !body?.schedules)
             throw new Error(body?.message ?? "Unable to load schedule");
           if (!active) return;
+          setShiftLocks(body.lockedDays ?? {});
           setShifts(body.schedules);
           setAbsences(body.unavailability ?? []);
           setError("");
@@ -243,6 +266,7 @@ export function ScheduleManagement({
                   <input
                     type="checkbox"
                     checked={hour.isClosed}
+                    disabled={Boolean(hourLocks[hour.dayOfWeek])}
                     onChange={(event) =>
                       updateHour(hour.dayOfWeek, { isClosed: event.target.checked })
                     }
@@ -251,24 +275,29 @@ export function ScheduleManagement({
                 </label>
                 <label className="schedule-management__time">
                   <span>Opens</span>
-                  {timeInput(hour.openTime, (value) =>
-                    updateHour(hour.dayOfWeek, { openTime: value }),
+                  {timeInput(
+                    hour.openTime,
+                    (value) => updateHour(hour.dayOfWeek, { openTime: value }),
+                    Boolean(hourLocks[hour.dayOfWeek]),
                   )}
                 </label>
                 <label className="schedule-management__time">
                   <span>Closes</span>
-                  {timeInput(hour.closeTime, (value) =>
-                    updateHour(hour.dayOfWeek, { closeTime: value }),
+                  {timeInput(
+                    hour.closeTime,
+                    (value) => updateHour(hour.dayOfWeek, { closeTime: value }),
+                    Boolean(hourLocks[hour.dayOfWeek]),
                   )}
                 </label>
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={busy}
+                  disabled={busy || Boolean(hourLocks[hour.dayOfWeek])}
                   onClick={() => void saveHour(hour)}
                 >
                   Save
                 </Button>
+                {hourLocks[hour.dayOfWeek] ? lockNote(hourLocks[hour.dayOfWeek]) : null}
               </div>
             ))}
           </div>
@@ -390,34 +419,44 @@ export function ScheduleManagement({
                       setShifts((current) => [...current, { ...shift, ...patch }]);
                     else updateShift(dayOfWeek, patch);
                   };
+                  const locked = shiftLocks[dayOfWeek] ?? 0;
                   return (
-                    <div className="schedule-management__row" key={day}>
+                    <div
+                      className={`schedule-management__row${locked ? " is-locked" : ""}`}
+                      key={day}
+                    >
                       <strong className="schedule-management__day">{day}</strong>
                       <label className="schedule-management__toggle">
                         <input
                           type="checkbox"
                           checked={shift.isWorking}
+                          disabled={locked > 0}
                           onChange={(event) => update({ isWorking: event.target.checked })}
                         />{" "}
                         Working
                       </label>
                       <label className="schedule-management__time">
                         <span>Starts</span>
-                        {timeInput(shift.startTime, (value) => update({ startTime: value }))}
+                        {timeInput(
+                          shift.startTime,
+                          (value) => update({ startTime: value }),
+                          locked > 0,
+                        )}
                       </label>
                       <label className="schedule-management__time">
                         <span>Ends</span>
-                        {timeInput(shift.endTime, (value) => update({ endTime: value }))}
+                        {timeInput(shift.endTime, (value) => update({ endTime: value }), locked > 0)}
                       </label>
                       <Button
                         variant="secondary"
                         size="sm"
-                        disabled={busy || loadedBarberId !== barberId}
+                        disabled={busy || loadedBarberId !== barberId || locked > 0}
                         onClick={() => void saveShift(shift)}
                       >
                         Save shift
                       </Button>
-                      <div className="schedule-management__breaks">
+                      {locked > 0 && lockNote(locked)}
+                      <div className="schedule-management__breaks" inert={locked > 0}>
                         <span>Breaks</span>
                         {shift.breaks.map((item, index) => (
                           <div className="schedule-management__break" key={index}>

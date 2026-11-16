@@ -2,6 +2,7 @@ import { inTransaction, type Db } from "@/server/db/transaction";
 import { BranchError } from "@/server/services/branch.service";
 import type { z } from "zod";
 import { hoursSchema, weeklyScheduleSchema, unavailabilitySchema } from "@/server/schemas/schedule.schema";
+import { requireBarberDayUnlocked, requireBranchDayUnlocked, requireNoBookingsInPeriod } from "@/server/services/record-locks";
 
 export type ShopHours = z.infer<typeof hoursSchema>;
 export type WeeklySchedule = z.infer<typeof weeklyScheduleSchema>;
@@ -22,6 +23,10 @@ export async function listShopHours(db: Db, branchId: number): Promise<ShopHours
 
 export async function saveShopHours(db: Db, input: ShopHours, branchId: number): Promise<ShopHours[]> {
   hoursSchema.parse(input);
+  // Hours that upcoming bookings were made against are locked.
+  const current = (await listShopHours(db, branchId)).find((day) => day.dayOfWeek === input.dayOfWeek);
+  const changed = !current || current.isClosed !== input.isClosed || current.openTime !== input.openTime || current.closeTime !== input.closeTime;
+  if (changed) await requireBranchDayUnlocked(db, branchId, input.dayOfWeek);
   await db.query("UPDATE shop_operating_hours SET open_time=$2, close_time=$3, is_closed=$4, updated_at=NOW() WHERE day_of_week=$1 AND branch_id=$5", [input.dayOfWeek, input.openTime, input.closeTime, input.isClosed, branchId]);
   return listShopHours(db, branchId);
 }
@@ -41,6 +46,10 @@ export async function saveBarberSchedule(db: Db, barberId: number, input: Weekly
   return inTransaction(db, async (client) => {
     const barber = await client.query<{ branch_id: number }>("SELECT branch_id FROM barbers WHERE id=$1 FOR UPDATE", [barberId]);
     if (!barber.rowCount) throw new Error("Barber not found");
+    // A shift that upcoming bookings depend on is locked until they are moved or cancelled.
+    const existing = (await listBarberSchedules(client, barberId)).find((day) => day.dayOfWeek === input.dayOfWeek);
+    if (!existing || JSON.stringify(existing) !== JSON.stringify({ ...input, breaks: [...input.breaks].sort((a, b) => a.startTime.localeCompare(b.startTime)) }))
+      await requireBarberDayUnlocked(client, barberId, input.dayOfWeek);
     const hours = (await listShopHours(client, barber.rows[0].branch_id)).find((day) => day.dayOfWeek === input.dayOfWeek);
     if (!hours || (input.isWorking && (hours.isClosed || input.startTime < hours.openTime || input.endTime > hours.closeTime)))
       throw new BranchError("Shift must fit the barber's branch operating hours", 400);
@@ -63,6 +72,7 @@ export async function listBarberUnavailability(db: Db, barberId: number, from?: 
 
 export async function addBarberUnavailability(db: Db, barberId: number, input: UnavailabilityInput): Promise<Unavailability> {
   unavailabilitySchema.parse(input);
+  await requireNoBookingsInPeriod(db, barberId, input.startsAt, input.endsAt);
   const result = await db.query<{ id: number }>(`INSERT INTO barber_unavailability (barber_id,starts_at,ends_at,reason)
     SELECT id,$2,$3,$4 FROM barbers WHERE id=$1 RETURNING id`, [barberId, input.startsAt, input.endsAt, input.reason]);
   if (!result.rows[0]) throw new Error("Barber not found");

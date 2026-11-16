@@ -4,11 +4,12 @@ import { useBranchContext } from "@/app/utils/use-branch-context";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiRequest, readApiBody, errorMessage } from "@/app/lib/api";
-import { Button, EmptyState, PageHeader, Panel, SectionHeading } from "@/app/components/ui";
+import { Button, EmptyState, Modal, PageHeader, Panel } from "@/app/components/ui";
+import { Icon } from "@/app/components/ui/icons";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 import { FreshnessBar } from "@/app/components/operations/OperationalPrimitives";
 import type { EligibleVisit, TransactionRecord } from "@/server/services/payment.service";
-import { CheckoutWorkspace } from "./payment/CheckoutWorkspace";
+import { CheckoutWorkspace, type PartialPayment } from "./payment/CheckoutWorkspace";
 import { loadMonthHistory } from "./payment/history";
 import { manilaDate, methodLabel, money } from "./payment/labels";
 import { TransactionCalendar } from "./payment/TransactionCalendar";
@@ -93,6 +94,7 @@ function PaymentBranch({
   const monthDayCount = new Date(Date.UTC(monthYear, monthNumber, 0)).getUTCDate();
   const dateTo = `${month}-${String(monthDayCount).padStart(2, "0")}`;
   const [completed, setCompleted] = useState<TransactionRecord | null>(null);
+  const [partial, setPartial] = useState<PartialPayment | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const requestVersion = useRef(0);
@@ -202,9 +204,14 @@ function PaymentBranch({
           loading={loading}
           loadError={loadError}
           onToast={onToast}
+          canVoid={canManageFinancialActions}
           onVisitSelected={() => setCompleted(null)}
           onCompleted={async (transaction) => {
             setCompleted(transaction);
+            await load();
+          }}
+          onPartial={async (result) => {
+            setPartial(result);
             await load();
           }}
           onReload={load}
@@ -242,30 +249,85 @@ function PaymentBranch({
           onViewDetails={openDetails}
         />
       )}
-      {canCheckout && completed && (
-        <Panel>
-          <SectionHeading title="Payment completed" />
-          <p>
-            Reference: <strong>{completed.reference}</strong>
-          </p>
-          <p>
-            {completed.customerName} · {completed.serviceName} · {completed.barberName}
-          </p>
-          <p>
-            Service price: {money(completed.subtotal)} · Total: {money(completed.total)} ·{" "}
-            {methodLabel(completed.paymentMethod)}
-          </p>
-          {completed.paymentMethod === "cash" && (
-            <p>
-              Received: {money(completed.amountReceived ?? 0)} · Change:{" "}
-              {money(completed.change ?? 0)}
+      <Modal
+        open={canCheckout && Boolean(completed)}
+        title="Payment complete"
+        onClose={() => setCompleted(null)}
+      >
+        {completed && (
+          <div className="payment-popup" role="status">
+            <span className="payment-popup__icon" aria-hidden="true">
+              <Icon name="check" size={28} />
+            </span>
+            <p className="payment-popup__amount">
+              {money(completed.receiptTotal ?? completed.total)}
             </p>
-          )}
-          <Button type="button" onClick={() => openDetails(completed.reference, true)}>
-            Print Receipt
-          </Button>
-        </Panel>
-      )}
+            <p>
+              <strong>{completed.customerName}</strong> has paid in full.
+            </p>
+            <ul className="payment-popup__lines">
+              {(completed.lines ?? []).map((line) => (
+                <li key={line.reference}>
+                  <span>{line.serviceName}</span>
+                  <span>{money(line.amount)}</span>
+                </li>
+              ))}
+            </ul>
+            <p>
+              {methodLabel(completed.paymentMethod)}
+              {(completed.receiptPriorPaid ?? 0) > 0 &&
+                ` · Deposit / paid earlier ${money(completed.receiptPriorPaid ?? 0)}`}
+              {completed.paymentMethod === "cash" &&
+                ` · Cash ${money(completed.receiptTendered ?? 0)} · Change ${money(completed.receiptChange ?? 0)}`}
+            </p>
+            <p className="payment-popup__reference">
+              Reference {completed.receiptGroup ?? completed.reference}
+            </p>
+            <div className="modal-actions">
+              <Button type="button" variant="secondary" onClick={() => setCompleted(null)}>
+                Done
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  const reference = completed.reference;
+                  setCompleted(null);
+                  openDetails(reference, true);
+                }}
+              >
+                Print receipt
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+      <Modal
+        open={Boolean(partial)}
+        title="Partial payment recorded"
+        onClose={() => setPartial(null)}
+      >
+        {partial && (
+          <div className="payment-popup payment-popup--partial" role="status">
+            <p className="payment-popup__amount">{money(partial.balance)} still due</p>
+            <p>
+              <strong>{partial.customerName}</strong> · {partial.serviceName}
+            </p>
+            <p>
+              Received now {money(partial.received)} · Paid so far {money(partial.paid)} of{" "}
+              {money(partial.total)}
+            </p>
+            <p>
+              This visit is <strong>not marked as paid</strong>. It stays under Completed unpaid
+              visits until the balance is collected or a manager voids it.
+            </p>
+            <div className="modal-actions">
+              <Button type="button" onClick={() => setPartial(null)}>
+                OK
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
       <TransactionDetailDrawer
         detail={detail}
         canManageFinancialActions={canManageFinancialActions}

@@ -3,6 +3,7 @@
 import type { ApiBooking, ApiBarberAvailability } from "@/app/lib/api";
 import type { ShopHours, WeeklySchedule, Unavailability } from "@/server/services/schedule.service";
 import { formatTime, formatTimeRange } from "@/app/utils/format";
+import { minutesLate } from "@/app/constants/booking";
 
 export type DayContext = {
   date: string;
@@ -283,10 +284,13 @@ export function DaySchedule({
                 {placed.map(({ booking, lane, lanes }) => {
                   const finish = endMinute(booking)!;
                   const { style } = block(minutes(booking.time), finish);
+                  // Confirmed but not yet checked in more than 10 minutes after the start.
+                  const late =
+                    booking.status === "confirmed" ? minutesLate(booking.date, booking.time) : 0;
                   return (
                     <button
                       type="button"
-                      className={`day-schedule__booking is-${booking.status}`}
+                      className={`day-schedule__booking is-${booking.status}${late ? " is-late" : ""}`}
                       key={booking.id}
                       style={{
                         ...style,
@@ -296,7 +300,10 @@ export function DaySchedule({
                       onClick={() => onOpen(booking)}
                       aria-label={`${booking.customerName}, ${booking.serviceName}, ${booking.time}, ${statusLabel(booking.status)}, ${column.name}`}
                     >
-                      <span>{formatTimeRange(booking.time, clock(finish))}</span>
+                      <span>
+                        {formatTimeRange(booking.time, clock(finish))}
+                        {late > 0 && <em className="day-schedule__late"> · Late {late} min</em>}
+                      </span>
                       <strong>{booking.customerName}</strong>
                       <small>{booking.serviceName}</small>
                     </button>

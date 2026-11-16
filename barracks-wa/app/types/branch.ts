@@ -4,6 +4,8 @@ export type Branch = {
   code: string;
   address: string;
   phone: string;
+  // Tax identification number printed on receipts.
+  tin: string;
   status: "active" | "inactive";
   createdAt: string;
   updatedAt: string;

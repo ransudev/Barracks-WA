@@ -60,6 +60,20 @@ const historyLabel: Record<string, string> = {
   pending: "Not confirmed",
   confirmed: "Not attended",
 };
+const statusText = (booking: ApiBooking) =>
+  booking.status === "cancelled"
+    ? booking.closedBy === "shop"
+      ? "Cancelled by shop"
+      : "Cancelled by you"
+    : (historyLabel[booking.status] ?? booking.status);
+const paymentText: Record<string, string> = {
+  paid: "Paid",
+  partial: "Balance due",
+  unpaid: "Unpaid",
+  voided: "Voided",
+};
+// How long a confirmation or rejection stays pinned at the top of the dashboard.
+const UPDATE_NOTICE_MS = 7 * 86_400_000;
 
 function formatMemberSince(date: string) {
   return new Date(date).toLocaleDateString(undefined, {
@@ -365,6 +379,17 @@ export function CustomerDashboard({
     (currentHistoryPage - 1) * HISTORY_PAGE_SIZE,
     currentHistoryPage * HISTORY_PAGE_SIZE,
   );
+  // Recent decisions by the shop, newest first, so a status change is impossible to miss.
+  const updates = bookings
+    .filter(
+      (booking) =>
+        now - Date.parse(booking.updatedAt) < UPDATE_NOTICE_MS &&
+        ((booking.status === "confirmed" && !isOver(booking)) ||
+          booking.status === "rejected" ||
+          (booking.status === "cancelled" && booking.closedBy === "shop")),
+    )
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 3);
 
   return (
     <div className="customer-page customer-page--dashboard">
@@ -373,7 +398,7 @@ export function CustomerDashboard({
         <div className="customer-dashboard">
           <div className="customer-dashboard__heading">
             <div>
-              <h1>Welcome back, {name.split(" ")[0]}.</h1>
+              <h1>Welcome, {name.split(" ")[0]}.</h1>
             </div>
             <Button icon="calendar" onClick={() => go("customer-booking")}>
               Book appointment
@@ -384,6 +409,42 @@ export function CustomerDashboard({
             <CustomerDashboardSkeleton />
           ) : customer ? (
             <>
+              {updates.length > 0 && (
+                <div className="booking-updates" role="status" aria-label="Booking updates">
+                  {updates.map((booking) => {
+                    const confirmed = booking.status === "confirmed";
+                    return (
+                      <div
+                        key={booking.id}
+                        className={`booking-update ${confirmed ? "is-confirmed" : "is-rejected"}`}
+                      >
+                        <strong>
+                          {confirmed
+                            ? "Booking confirmed"
+                            : booking.status === "rejected"
+                              ? "Booking declined"
+                              : "Booking cancelled by the shop"}
+                        </strong>
+                        <span>
+                          {booking.serviceName} · {formatDate(booking.date)} at{" "}
+                          {formatTime(booking.time)} with {booking.barberName}
+                        </span>
+                        {!confirmed && (
+                          <span className="booking-update__reason">
+                            Reason: {booking.statusReason ?? "No reason was given."}
+                          </span>
+                        )}
+                        {confirmed && booking.depositAmount > 0 && (
+                          <span>
+                            Deposit of ₱{booking.depositAmount.toLocaleString()} received. Balance at
+                            the shop: ₱{(booking.price - booking.depositAmount).toLocaleString()}.
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="metrics-grid metrics-grid--three">
                 <MetricCard
                   label="Loyalty card"
@@ -475,7 +536,10 @@ export function CustomerDashboard({
                     {upcoming.length ? (
                       <div className="customer-booking-list">
                         {upcoming.map((booking) => (
-                          <div className="customer-booking-card" key={booking.id}>
+                          <div
+                            className={`customer-booking-card is-${booking.status}`}
+                            key={booking.id}
+                          >
                             <div className="customer-booking-card__content">
                               <strong>{formatDate(booking.date)}</strong>
                               <span>
@@ -485,6 +549,14 @@ export function CustomerDashboard({
                               <small>
                                 with {booking.barberName} · {booking.branchName ?? "Main Branch"}
                               </small>
+                              {booking.depositAmount > 0 && (
+                                <small>
+                                  Deposit ₱{booking.depositAmount.toLocaleString()} ·{" "}
+                                  {booking.depositStatus === "received"
+                                    ? "received"
+                                    : "awaiting verification"}
+                                </small>
+                              )}
                             </div>
                             <div className="customer-booking-card__actions">
                               <Badge
@@ -535,7 +607,7 @@ export function CustomerDashboard({
                     <div className="customer-booking-list">
                       {historyRows.map((booking) => (
                         <div
-                          className="customer-booking-card customer-booking-card--history"
+                          className={`customer-booking-card customer-booking-card--history is-${booking.status}`}
                           key={booking.id}
                         >
                           <strong>{formatDate(booking.date)}</strong>
@@ -551,8 +623,35 @@ export function CustomerDashboard({
                                   : "danger"
                             }
                           >
-                            {historyLabel[booking.status] ?? booking.status}
+                            {statusText(booking)}
                           </Badge>
+                          {(booking.statusReason || booking.remarks || booking.paymentStatus) && (
+                            <div className="customer-booking-card__notes">
+                              {booking.paymentStatus && (
+                                <Badge
+                                  tone={
+                                    booking.paymentStatus === "paid"
+                                      ? "success"
+                                      : booking.paymentStatus === "voided"
+                                        ? "neutral"
+                                        : "warning"
+                                  }
+                                >
+                                  {paymentText[booking.paymentStatus]}
+                                </Badge>
+                              )}
+                              {booking.statusReason && (
+                                <span>
+                                  <b>Reason:</b> {booking.statusReason}
+                                </span>
+                              )}
+                              {booking.remarks && (
+                                <span>
+                                  <b>Remarks:</b> {booking.remarks}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

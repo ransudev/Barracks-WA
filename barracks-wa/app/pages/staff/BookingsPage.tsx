@@ -120,7 +120,16 @@ function BookingsPageContent({
   const [draft, setDraft] = useState<BookingFormValue>(freshForm());
   const [busy, setBusy] = useState(false);
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
-  const [pendingCancellation, setPendingCancellation] = useState<ApiBooking | null>(null);
+  // Rejecting or cancelling asks for the reason the customer will see.
+  const [pendingClose, setPendingClose] = useState<{
+    booking: ApiBooking;
+    status: "rejected" | "cancelled";
+  } | null>(null);
+  const [closeReason, setCloseReason] = useState("");
+  const requestClose = (booking: ApiBooking, status: "rejected" | "cancelled") => {
+    setCloseReason("");
+    setPendingClose({ booking, status });
+  };
   const [pendingDeletion, setPendingDeletion] = useState<ApiBooking | null>(null);
 
   const visible = useMemo(
@@ -167,6 +176,7 @@ function BookingsPageContent({
       services={services}
       barbers={barbers}
       excludeBookingId={editing ? selected?.id : undefined}
+      depositMode={editing ? undefined : "staff"}
       availabilityVersion={availabilityVersion}
       submitLabel={editing ? "Save booking" : "Create booking"}
       submitting={busy}
@@ -215,12 +225,12 @@ function BookingsPageContent({
     }
   }
 
-  async function updateStatus(booking: ApiBooking, status: ApiBookingStatus) {
+  async function updateStatus(booking: ApiBooking, status: ApiBookingStatus, reason?: string) {
     setBusy(true);
     try {
       const response = await apiRequest(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(reason ? { status, reason } : { status }),
       });
       const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(
         response,
@@ -229,10 +239,32 @@ function BookingsPageContent({
         throw new Error(apiErrorMessage(body, "Unable to update booking"));
       setItems((current) => current.map((item) => (item.id === booking.id ? body.booking! : item)));
       setSelected((current) => (current?.id === booking.id ? body.booking! : current));
-      setPendingCancellation(null);
+      setPendingClose(null);
       onToast(statusMessages[status] ?? `Booking marked ${label(status)}`);
     } catch (error) {
       onToast(errorMessage(error, "Unable to update booking"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveRemarks(booking: ApiBooking, remarks: string) {
+    setBusy(true);
+    try {
+      const response = await apiRequest(`/api/bookings/${booking.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ remarks }),
+      });
+      const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(
+        response,
+      );
+      if (!response.ok || !body?.success || !body.booking)
+        throw new Error(apiErrorMessage(body, "Unable to save remarks"));
+      setItems((current) => current.map((item) => (item.id === booking.id ? body.booking! : item)));
+      setSelected((current) => (current?.id === booking.id ? body.booking! : current));
+      onToast("Remarks saved");
+    } catch (error) {
+      onToast(errorMessage(error, "Unable to save remarks"));
     } finally {
       setBusy(false);
     }
@@ -278,7 +310,7 @@ function BookingsPageContent({
           variant="danger"
           icon="x"
           disabled={busy}
-          onClick={() => void updateStatus(booking, "rejected")}
+          onClick={() => requestClose(booking, "rejected")}
         >
           Reject
         </Button>
@@ -466,18 +498,57 @@ function BookingsPageContent({
         }}
         onUpdateStatus={updateStatus}
         onEdit={openEdit}
-        onCancel={setPendingCancellation}
+        onReject={(booking) => requestClose(booking, "rejected")}
+        onSaveRemarks={saveRemarks}
+        onCancel={(booking) => requestClose(booking, "cancelled")}
         onRemove={canRemoveBookings ? setPendingDeletion : undefined}
       />
-      <ConfirmDialog
-        open={Boolean(pendingCancellation)}
-        title="Cancel this booking?"
-        confirmLabel="Cancel booking"
-        danger
-        busy={busy}
-        onClose={() => setPendingCancellation(null)}
-        onConfirm={() => pendingCancellation && void updateStatus(pendingCancellation, "cancelled")}
-      />
+      <Modal
+        open={Boolean(pendingClose)}
+        title={pendingClose?.status === "rejected" ? "Reject this booking?" : "Cancel this booking?"}
+        description="Give the reason. The customer sees it on their appointments page."
+        onClose={() => !busy && setPendingClose(null)}
+      >
+        <form
+          className="modal-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (pendingClose && closeReason.trim())
+              void updateStatus(pendingClose.booking, pendingClose.status, closeReason.trim());
+          }}
+        >
+          {pendingClose && (
+            <p className="modal-copy">
+              {pendingClose.booking.customerName} · {pendingClose.booking.serviceName} ·{" "}
+              {pendingClose.booking.date} {pendingClose.booking.time}
+              {pendingClose.booking.depositAmount > 0 &&
+                pendingClose.booking.depositStatus !== "none" &&
+                ` · Deposit ₱${pendingClose.booking.depositAmount.toLocaleString()} will be marked for return`}
+            </p>
+          )}
+          <TextField
+            label="Reason"
+            required
+            maxLength={500}
+            value={closeReason}
+            placeholder="e.g. Barber unavailable on that day"
+            onChange={(event) => setCloseReason(event.target.value)}
+          />
+          <div className="modal-actions">
+            <Button
+              variant="secondary"
+              type="button"
+              disabled={busy}
+              onClick={() => setPendingClose(null)}
+            >
+              Keep booking
+            </Button>
+            <Button type="submit" variant="danger" disabled={busy || !closeReason.trim()}>
+              {pendingClose?.status === "rejected" ? "Reject booking" : "Cancel booking"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
       <ConfirmDialog
         open={Boolean(pendingDeletion)}
         title="Remove this booking?"

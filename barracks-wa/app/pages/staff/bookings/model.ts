@@ -36,7 +36,7 @@ export const label = (status: string) =>
         .map((word) => word[0].toUpperCase() + word.slice(1))
         .join(" ");
 export const statusMessages: Partial<Record<ApiBookingStatus, string>> = {
-  confirmed: "Booking confirmed",
+  confirmed: "Booking confirmed. Check the customer in when they arrive to send them to the Queue",
   rejected: "Booking rejected",
   cancelled: "Booking cancelled",
   no_show: "Marked as no show",
@@ -67,7 +67,43 @@ export const bookingPayload = (value: BookingFormValue) => ({
   date: value.date,
   time: value.time,
   notes: value.notes,
+  ...(value.depositMethod && {
+    deposit: { method: value.depositMethod, reference: value.depositReference?.trim() || undefined },
+  }),
 });
+
+export const paymentLabel: Record<string, string> = {
+  paid: "Paid",
+  partial: "Partially paid",
+  unpaid: "Unpaid",
+  voided: "Voided",
+};
+export const paymentTone = (status: string) =>
+  status === "paid" ? "success" : status === "voided" ? "neutral" : "warning";
+export const depositLabel: Record<string, string> = {
+  none: "No deposit",
+  submitted: "Reported by customer, not yet verified",
+  received: "Received",
+  released: "To be returned to the customer",
+};
+export const methodName: Record<string, string> = {
+  cash: "Cash",
+  card: "Card",
+  e_wallet: "E-wallet",
+  bank_transfer: "Bank transfer",
+};
+export const eventLabel: Record<string, string> = {
+  created: "Booking created",
+  rescheduled: "Booking updated",
+  confirmed: "Confirmed",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+  checked_in: "Checked in",
+  in_progress: "Service started",
+  completed: "Service completed",
+  no_show: "Marked no show",
+  remarks: "Remarks saved",
+};
 
 export const tone = (status: ApiBookingStatus) =>
   status === "completed"

@@ -38,6 +38,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirm, setSignupConfirm] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -110,6 +111,10 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
       setError("Password must be 128 characters or fewer.");
       return;
     }
+    if (signupPassword !== signupConfirm) {
+      setError("Passwords do not match. Re-enter your password to confirm it.");
+      return;
+    }
 
     const nameParts = name.split(/\s+/);
     const firstName = nameParts.shift() ?? "";
@@ -125,6 +130,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
           lastName,
           email: accountEmail,
           password: signupPassword,
+          confirmPassword: signupConfirm,
           phone: signupPhone,
           preferredBarberId: null,
         }),
@@ -234,7 +240,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
             <h1>
               {authMode === "login" ? (
                 <>
-                  WELCOME <span className="accent-crimson">BACK.</span>
+                  <span className="accent-crimson">WELCOME.</span>
                 </>
               ) : (
                 <>
@@ -346,6 +352,27 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
                 <span className="field__hint" id="signup-password-hint">
                   Use at least 8 characters.
                 </span>
+              </label>
+              <label className="field">
+                <span className="field__label">
+                  Confirm password <span aria-hidden="true">*</span>
+                </span>
+                <span className="input-wrap">
+                  <Icon name="lock" size={16} />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={signupConfirm}
+                    onChange={(event) => setSignupConfirm(event.target.value)}
+                    autoComplete="new-password"
+                    aria-invalid={Boolean(signupConfirm) && signupConfirm !== signupPassword}
+                    required
+                  />
+                </span>
+                {signupConfirm && signupConfirm !== signupPassword && (
+                  <span className="field__hint field__hint--error" role="alert">
+                    Passwords do not match.
+                  </span>
+                )}
               </label>
               <Button
                 type="submit"

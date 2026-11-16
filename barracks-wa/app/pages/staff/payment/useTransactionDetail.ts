@@ -62,7 +62,7 @@ export function useTransactionDetail({
     }
   }
 
-  async function applyAction(action: "refund" | "void") {
+  async function applyAction(action: "void" = "void") {
     if (!canManageFinancialActions || !receipt || actionProcessing || !actionReason.trim()) return;
     setActionProcessing(true);
     setActionError("");

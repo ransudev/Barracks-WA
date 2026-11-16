@@ -34,8 +34,8 @@ type BranchBody = {
   staff?: BranchStaff[];
   assignments?: BranchAssignment[];
 };
-type Draft = Pick<Branch, "name" | "code" | "address" | "phone" | "status">;
-const blank: Draft = { name: "", code: "", address: "", phone: "", status: "active" };
+type Draft = Pick<Branch, "name" | "code" | "address" | "phone" | "tin" | "status">;
+const blank: Draft = { name: "", code: "", address: "", phone: "", tin: "", status: "active" };
 async function branchRequest(path: string, init?: RequestInit): Promise<BranchBody> {
   const response = await apiRequest(path, { cache: "no-store", ...init });
   const body = await readApiBody<BranchBody>(response);
@@ -187,6 +187,10 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
                   <dt>Phone</dt>
                   <dd>{branch.phone || "No phone provided"}</dd>
                 </div>
+                <div>
+                  <dt>TIN</dt>
+                  <dd>{branch.tin || "Not set (printed on receipts)"}</dd>
+                </div>
               </dl>
               <div className="branch-actions branch-card__actions">
                 <Button
@@ -200,6 +204,7 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
                       code: branch.code,
                       address: branch.address,
                       phone: branch.phone,
+                      tin: branch.tin ?? "",
                       status: branch.status,
                     });
                     setFormError("");
@@ -273,6 +278,13 @@ function AdministratorBranches({ onToast }: { onToast: (message: string) => void
             value={draft.phone}
             error={phoneFieldError(draft.phone)}
             onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+          />
+          <TextField
+            label="TIN (printed on receipts)"
+            maxLength={40}
+            value={draft.tin}
+            placeholder="000-000-000-000"
+            onChange={(event) => setDraft({ ...draft, tin: event.target.value })}
           />
           <SelectField
             label="Status"

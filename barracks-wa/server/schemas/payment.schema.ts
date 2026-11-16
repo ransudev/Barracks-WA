@@ -12,17 +12,29 @@ const visitSchema = z.union([
 const cashReceivedSchema = z.number().finite().nonnegative().max(9_999_999_999.99)
   .refine((value) => /^\d+(?:\.\d{1,2})?$/.test(String(value)), "Use at most two decimal places");
 
-export const createTransactionSchema = z.discriminatedUnion("paymentMethod", [
-  z.object({ visit: visitSchema, paymentMethod: z.literal("cash"), amountReceived: cashReceivedSchema }).strict(),
-  z.object({ visit: visitSchema, paymentMethod: z.enum(["card", "e_wallet", "bank_transfer", "other"]) }).strict(),
+// One visit, or several of the same customer paid together on one receipt.
+// amountReceived below the balance records a partial payment (one visit only).
+const visitsSchema = z.array(visitSchema).min(1).max(10);
+const targetRefine = (value: { visit?: unknown; visits?: unknown }) => (value.visit === undefined) !== (value.visits === undefined);
+const targetMessage = { message: "Choose the visit or visits to pay", path: ["visit"] };
+export const createTransactionSchema = z.union([
+  z.object({ visit: visitSchema.optional(), visits: visitsSchema.optional(), paymentMethod: z.literal("cash"), amountReceived: cashReceivedSchema }).strict().refine(targetRefine, targetMessage),
+  z.object({ visit: visitSchema.optional(), visits: visitsSchema.optional(), paymentMethod: z.enum(["card", "e_wallet", "bank_transfer", "other"]), amountReceived: cashReceivedSchema.optional() }).strict().refine(targetRefine, targetMessage),
 ]);
+
+// Manager void of an unpaid or underpaid visit; the reason is always logged.
+export const voidVisitSchema = z.object({
+  visit: visitSchema,
+  reason: textSchema("Reason", 500, { required: true, multiline: true }),
+}).strict();
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
 export const financialActionSchema = z.object({
-  action: z.enum(["refund", "void"]),
+  // Refund was retired in favour of Void.
+  action: z.literal("void"),
   reason: textSchema("Reason", 500, { required: true, multiline: true }),
   amount: z.number().finite().positive().max(9_999_999_999.99)
     .refine((value) => /^\d+(?:\.\d{1,2})?$/.test(String(value)), "Use at most two decimal places"),

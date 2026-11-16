@@ -3,6 +3,7 @@ import { pool } from "@/server/db/pool";
 import { serviceIdSchema, serviceUpdateSchema } from "@/server/schemas/service.schema";
 import { formatValidationErrors } from "@/server/schemas/user.schema";
 import { deleteService, findServiceById, updateService } from "@/server/services/service.service";
+import { RecordLockedError } from "@/server/services/record-locks";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -42,6 +43,7 @@ export async function PATCH(request: Request, { params }: Context) {
     const service = await updateService(pool, id.data, parsed.data);
     return service ? Response.json({ success: true, service }) : Response.json({ success: false, message: "Service not found" }, { status: 404 });
   } catch (error) {
+    if (error instanceof RecordLockedError) return Response.json({ success: false, code: error.code, message: error.message }, { status: 409 });
     if (error instanceof Error && error.message === "Set a positive duration before enabling this service") return Response.json({ success: false, message: error.message }, { status: 400 });
     console.error("Unable to update service", error); return Response.json({ success: false, message: "Unable to update service" }, { status: 500 });
   }

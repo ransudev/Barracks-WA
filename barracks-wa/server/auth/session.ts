@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { pool } from "@/server/db/pool";
 import {
@@ -6,6 +6,7 @@ import {
   deleteSession,
   findUserBySessionToken,
   SESSION_COOKIE_NAME,
+  touchSession,
 } from "@/server/services/session.service";
 import type { PublicUser } from "@/server/services/user.service";
 
@@ -28,21 +29,28 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
     return null;
   }
 
-  return findUserBySessionToken(pool, token);
+  const user = await findUserBySessionToken(pool, token);
+  if (user) {
+    // The browser reports how long the user has been idle; without it the
+    // request itself counts as activity.
+    const reported = Number((await headers()).get("x-idle-seconds"));
+    await touchSession(pool, token, Number.isFinite(reported) ? reported : 0);
+  }
+  return user;
 }
 
 export async function startSession(
   response: NextResponse,
   userId: number,
 ): Promise<void> {
-  const { token, expiresAt } = await createSession(pool, userId);
+  const { token } = await createSession(pool, userId);
 
+  // A browser-session cookie: the server ends the session after 30 idle
+  // minutes, and closing the browser drops the cookie.
   response.cookies.set({
     ...sessionCookieOptions,
     name: SESSION_COOKIE_NAME,
     value: token,
-    expires: expiresAt,
-    maxAge: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
   });
 }
 
