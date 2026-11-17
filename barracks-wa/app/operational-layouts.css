@@ -412,3 +412,17 @@ a.button { text-decoration: none; }
   .receipt-print-root .receipt-lines { font-size: 9px; }
   .receipt-print-root .receipt-paper .receipt-total { font-size: 11px; }
 }
+
+/* A8: email verification prompt on the customer dashboard. */
+.email-verification { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--amber, #c79a3c); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--surface); }
+.email-verification > div { display: grid; gap: 3px; flex: 1; min-width: 220px; }
+.email-verification strong { font-size: 13px; }
+.email-verification span { color: var(--text-soft); font-size: 12px; }
+.email-verification .field { width: 120px; }
+.email-verification .form-error { flex-basis: 100%; margin: 0; }
+
+/* A12 as specified by the panel: rejected bookings in dark mode use RGBA(99, 0, 0) at full opacity. */
+:root[data-theme="dark"] .booking-update.is-rejected,
+:root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-rejected,
+:root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-cancelled { border-color: rgba(99, 0, 0, 1); }
+.services-table__row > span:first-child { display: grid; gap: 3px; align-content: center; justify-items: start; }

@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/server/auth/session";
+import { issueVerificationCode, resetEmailVerification } from "@/server/services/email-verification.service";
 import { verifyPassword } from "@/server/services/password.service";
 import { pool } from "@/server/db/pool";
 import {
@@ -75,6 +76,12 @@ export async function PUT(request: Request) {
     }
     const customer = await updateCustomer(pool, current.id, profile);
     if (!customer) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
+    // A new address has to be verified again.
+    if (customer.email.toLowerCase() !== current.email.toLowerCase()) {
+      await resetEmailVerification(pool, result.user.id);
+      await issueVerificationCode(pool, result.user.id, { force: true })
+        .catch((error) => console.error("Unable to send verification code", error));
+    }
     return Response.json({ success: true, customer: customerForViewer(customer, "customer") });
   } catch (error) {
     if (error instanceof CustomerEmailTakenError)

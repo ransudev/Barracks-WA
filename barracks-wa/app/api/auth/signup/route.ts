@@ -7,6 +7,7 @@ import {
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
 import { createCustomer } from "@/server/services/customer.service";
+import { issueVerificationCode } from "@/server/services/email-verification.service";
 
 export const runtime = "nodejs";
 
@@ -65,6 +66,10 @@ export async function POST(request: Request) {
       { status: 201 },
     );
     await startSession(response, result.customer.userId);
+    // Send the email verification code. A delivery problem must not undo the sign-up;
+    // the customer can request another code from their dashboard.
+    await issueVerificationCode(pool, result.customer.userId, { force: true })
+      .catch((error) => console.error("Unable to send verification code", error));
     return response;
   } catch (error) {
     console.error("Unable to create customer account", error);

@@ -77,3 +77,31 @@ test("Administrator status and assignment controls reload persisted API state", 
     assert.equal(mutations.at(-1)?.method, "DELETE");
   } finally { await cleanup(); globalThis.fetch = previous; }
 });
+
+test("Administrator sees and edits the receipt TIN on the Branches screen", async () => {
+  const previous = globalThis.fetch;
+  let current: Branch = { ...branch, tin: "123-456-789-000" };
+  const bodies: Array<Record<string, unknown>> = [];
+  globalThis.fetch = async (input, init) => {
+    const path = String(input);
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    if (path === "/api/branches") return Response.json({ success: true, branches: [current], staff: [staff] });
+    if (path === "/api/branches/1") { bodies.push(body); current = { ...current, ...body }; return Response.json({ success: true, branch: current }); }
+    return Response.json({ success: true, assignments: [] });
+  };
+  const cleanup = await render("administrator");
+  try {
+    assert.match(document.body.textContent ?? "", /TIN123-456-789-000/);
+    await click("Edit");
+    const field = [...document.querySelectorAll("label")].find((label) => label.textContent?.includes("TIN (printed on receipts)"))?.querySelector("input");
+    assert.ok(field, "The branch form has a TIN field");
+    assert.equal(field.value, "123-456-789-000");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!.call(field, "987-654-321-000");
+      field.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+    await act(async () => document.querySelector("form")!.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true })));
+    assert.equal(bodies.at(-1)?.tin, "987-654-321-000");
+    assert.match(document.body.textContent ?? "", /TIN987-654-321-000/);
+  } finally { await cleanup(); globalThis.fetch = previous; }
+});

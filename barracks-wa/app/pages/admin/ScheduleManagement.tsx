@@ -30,8 +30,8 @@ const timeInput = (value: string, onChange: (value: string) => void, disabled = 
 // A day that upcoming bookings depend on cannot be edited until they are moved or cancelled.
 const lockNote = (count: number) => (
   <small className="lock-note schedule-management__lock" role="note">
-    <Icon name="lock" size={12} /> Locked · {count} upcoming booking{count === 1 ? "" : "s"} depend
-    on this day
+    <Icon name="lock" size={12} /> Locked · {count} upcoming{" "}
+    {count === 1 ? "booking depends" : "bookings depend"} on this day
   </small>
 );
 
