@@ -341,11 +341,11 @@ a.button { text-decoration: none; }
 .booking-update.is-rejected { border-color: var(--red); }
 .booking-update.is-rejected strong { color: var(--red); }
 .booking-update__reason { color: var(--text) !important; }
-/* Dark mode: a rejected booking carries the panel-specified dark red border, rgb(99, 0, 0). */
+/* Dark mode: a rejected booking uses the border colour specified by the panel, RGBA(99, 0, 0, 0). */
 :root[data-theme="dark"] .booking-update.is-rejected,
 :root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-rejected,
-:root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-cancelled { border-color: rgb(99, 0, 0); }
-:root[data-theme="dark"] .booking-update.is-rejected { border: 1px solid rgb(99, 0, 0); border-left-width: 4px; }
+:root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-cancelled { border-color: rgba(99, 0, 0, 0); }
+:root[data-theme="dark"] .booking-update.is-rejected { border: 1px solid rgba(99, 0, 0, 0); border-left-width: 4px; }
 :root[data-theme="dark"] .booking-update.is-rejected strong { color: #e06c6c; }
 
 /* A16: appointments more than 10 minutes past their start. */
@@ -421,8 +421,8 @@ a.button { text-decoration: none; }
 .email-verification .field { width: 120px; }
 .email-verification .form-error { flex-basis: 100%; margin: 0; }
 
-/* A12 as specified by the panel: rejected bookings in dark mode use RGBA(99, 0, 0) at full opacity. */
+/* A12 exactly as specified by the panel: rejected bookings in dark mode use RGBA(99, 0, 0, 0). */
 :root[data-theme="dark"] .booking-update.is-rejected,
 :root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-rejected,
-:root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-cancelled { border-color: rgba(99, 0, 0, 1); }
+:root[data-theme="dark"] .customer-dashboard .customer-booking-card.is-cancelled { border-color: rgba(99, 0, 0, 0); }
 .services-table__row > span:first-child { display: grid; gap: 3px; align-content: center; justify-items: start; }

@@ -828,7 +828,7 @@ Migrations `036_panel_revisions.sql` and `037_email_verification.sql` are additi
 - Rejecting a booking, or cancelling it as staff, requires a reason (`PATCH /api/bookings/:id` with `status` and `reason`). The customer sees the reason instead of a generic label.
 - Staff can save remarks on any appointment (`PATCH /api/bookings/:id` with `remarks`); customers see them in their appointment history.
 - A confirmed appointment more than 10 minutes past its start and not yet checked in is flagged **Late** on the schedule, booking cards, the booking drawer, and the Queue's Expected today list.
-- The customer dashboard pins recent confirmations and rejections at the top and marks each appointment with a status-colored edge. In dark mode a rejected booking uses a dark red border, `rgb(99, 0, 0)`.
+- The customer dashboard pins recent confirmations and rejections at the top and marks each appointment with a status-colored edge. In dark mode a rejected booking uses the border colour the panel specified, `rgba(99, 0, 0, 0)`.
 - Services have `inclusions`, edited under Services and shown as package cards on the customer booking page.
 
 **Accounts**
