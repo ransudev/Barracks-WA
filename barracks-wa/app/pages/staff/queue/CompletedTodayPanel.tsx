@@ -54,7 +54,7 @@ export function CompletedTodayPanel({
         <div>
           <span className="inventory-kicker">Today in Manila</span>
           <h2>Completed Today</h2>
-          <p>Finished services are read-only.</p>
+          <p>Finished services are read-only. Payment shows whether the customer has paid.</p>
         </div>
       </div>
       <FilterToolbar
@@ -75,7 +75,7 @@ export function CompletedTodayPanel({
         />
       ) : (
         <ResponsiveTable
-          headers={["Customer", "Service", "Barber", "Type", "Started", "Completed"]}
+          headers={["Customer", "Service", "Barber", "Type", "Started", "Completed", "Payment"]}
         >
           {visible.map((entry) => (
             <tr key={entry.id}>
@@ -89,6 +89,25 @@ export function CompletedTodayPanel({
               </td>
               <td>{manilaTime(entry.startedAt)}</td>
               <td>{manilaTime(entry.completedAt)}</td>
+              <td>
+                <Badge
+                  tone={
+                    entry.paymentStatus === "paid"
+                      ? "success"
+                      : entry.paymentStatus === "voided"
+                        ? "neutral"
+                        : "warning"
+                  }
+                >
+                  {entry.paymentStatus === "paid"
+                    ? "Paid"
+                    : entry.paymentStatus === "partial"
+                      ? "Partially paid"
+                      : entry.paymentStatus === "voided"
+                        ? "Voided"
+                        : "Unpaid"}
+                </Badge>
+              </td>
             </tr>
           ))}
         </ResponsiveTable>

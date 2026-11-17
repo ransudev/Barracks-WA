@@ -4,7 +4,10 @@ import type { Db } from "@/server/db/transaction";
 import type { PublicUser } from "@/server/services/user.service";
 
 export const SESSION_COOKIE_NAME = "barracks_session";
-export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+// A session ends after 30 minutes without user activity. Each authenticated
+// request moves the expiry to 30 minutes after the user's last input.
+export const SESSION_IDLE_SECONDS = 60 * 30;
+export const SESSION_TTL_SECONDS = SESSION_IDLE_SECONDS;
 
 function hashSessionToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -27,6 +30,16 @@ export async function createSession(
   );
 
   return { token, expiresAt };
+}
+
+// Slide the expiry forward. idleSeconds is how long ago the user last touched
+// the app, so background polling alone cannot keep a session alive.
+export async function touchSession(db: Pool, token: string, idleSeconds = 0): Promise<void> {
+  const idle = Math.min(Math.max(0, Math.floor(idleSeconds)), SESSION_IDLE_SECONDS);
+  await db.query(
+    "UPDATE sessions SET expires_at = NOW() + ($2::integer * INTERVAL '1 second') WHERE token_hash = $1 AND expires_at > NOW()",
+    [hashSessionToken(token), SESSION_IDLE_SECONDS - idle],
+  );
 }
 
 export async function findUserBySessionToken(

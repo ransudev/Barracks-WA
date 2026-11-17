@@ -11,6 +11,8 @@ import {
   listBookings,
 } from "@/server/services/booking.service";
 import { findCustomerByUserId } from "@/server/services/customer.service";
+import { findServiceById } from "@/server/services/service.service";
+import { bookingDeposit } from "@/app/constants/booking";
 
 export const runtime = "nodejs";
 
@@ -64,9 +66,22 @@ export async function POST(request: Request) {
       return Response.json({ success: false, message: "Choose a customer" }, { status: 400 });
     }
 
+    // Every booking is held with a deposit. Customers pay ahead and give the
+    // reference staff will verify; staff record how they collected it.
+    const service = await findServiceById(pool, parsed.data.serviceId);
+    if (service && bookingDeposit(service.price) > 0) {
+      const deposit = parsed.data.deposit;
+      if (!deposit) return Response.json({ success: false, message: "A deposit is required to book. Choose how it was paid" }, { status: 400 });
+      if (user.role === "customer" && !["e_wallet", "bank_transfer"].includes(deposit.method))
+        return Response.json({ success: false, message: "Pay the deposit by e-wallet or bank transfer" }, { status: 400 });
+      if (user.role === "customer" && !deposit.reference?.trim())
+        return Response.json({ success: false, message: "Enter the reference number of your deposit payment" }, { status: 400 });
+    }
+
     const branchId = await visitBranch(pool, user, request);
     // Customer requests wait for staff approval; staff-entered bookings are confirmed on entry.
-    const booking = await createBooking(pool, { ...parsed.data, customerId, branchId, status: user.role === "customer" ? "pending" : "confirmed" });
+    const booking = await createBooking(pool, { ...parsed.data, customerId, branchId, status: user.role === "customer" ? "pending" : "confirmed",
+      actor: { id: user.id, name: `${user.firstName} ${user.lastName}` } });
     return Response.json({ success: true, booking }, { status: 201 });
   } catch (error) {
     const branchResponse = visitBranchError(error);

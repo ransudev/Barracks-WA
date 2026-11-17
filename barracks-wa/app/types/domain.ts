@@ -39,6 +39,9 @@ export type Service = {
   price: number;
   active: boolean;
   hasHistory?: boolean;
+  // What the package includes, and how many live bookings lock it from editing.
+  inclusions?: string[];
+  activeUses?: number;
   createdAt?: string;
   updatedAt?: string;
 };

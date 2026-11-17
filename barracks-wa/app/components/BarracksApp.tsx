@@ -22,7 +22,16 @@ import {
   workspaceAreaForView,
 } from "@/app/utils/view";
 import { isKnownAppPath, pathForView, viewForPath } from "@/app/utils/routes";
-import { apiRequest, clearApiCache, readApiBody, type ApiUser, errorMessage } from "@/app/lib/api";
+import {
+  apiRequest,
+  clearApiCache,
+  errorMessage,
+  idleMilliseconds,
+  markUserActivity,
+  readApiBody,
+  SESSION_IDLE_MS,
+  type ApiUser,
+} from "@/app/lib/api";
 
 const LoginPage = dynamic(
   () => import("@/app/pages/auth/LoginPage").then((module) => module.LoginPage),
@@ -163,6 +172,34 @@ export function BarracksApp() {
       router.replace(pathForView(canonicalView(requestedView)));
     }
   }, [currentUser, pathname, router, sessionLoading]);
+
+  // Sign out after 30 minutes without user input, even while the app polls.
+  const signedIn = Boolean(currentUser);
+  useEffect(() => {
+    if (!signedIn) return;
+    markUserActivity();
+    const events = ["pointerdown", "keydown", "wheel", "touchstart", "mousemove"] as const;
+    events.forEach((name) => window.addEventListener(name, markUserActivity, { passive: true }));
+    const timer = window.setInterval(() => {
+      if (idleMilliseconds() < SESSION_IDLE_MS) return;
+      window.clearInterval(timer);
+      sessionVersion.current++;
+      sessionUser.current = null;
+      clearApiCache();
+      void apiRequest("/api/auth/logout", { method: "POST" })
+        .catch(() => undefined)
+        .finally(() => {
+          setCurrentUser(null);
+          setPendingView(null);
+          router.replace(pathForView("login"));
+          onToast("Signed out after 30 minutes of inactivity");
+        });
+    }, 15_000);
+    return () => {
+      events.forEach((name) => window.removeEventListener(name, markUserActivity));
+      window.clearInterval(timer);
+    };
+  }, [signedIn, router, onToast]);
 
   if (!isKnownAppPath(pathname)) return null;
 

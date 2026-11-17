@@ -428,7 +428,7 @@ All routes use server-side role guards: unauthenticated calls return `401`; disa
 - `GET /api/transactions?reference=TX-...` — staff lookup by exact reference.
 - `GET /api/transactions?view=eligible` — front desk, manager, or administrator can view completed unpaid bookings and walk-ins with stored service prices; the same staff roles can perform checkout.
 - `GET /api/transactions?view=history` — administrator, manager, or front desk can read paginated persisted history with `page` (default 1), `pageSize` (default 20, maximum 100), optional reference/customer `search`, `paymentMethod`, and inclusive Manila-local `dateFrom`/`dateTo` filters. The response includes `total`, `totalPages`, and each sale's current refund/void status.
-- `POST /api/transactions/actions` — administrator or manager only; accepts an exact reference, `refund` or `void`, the full paid amount, and a nonblank reason. A row lock serializes competing requests. The audit action and matching sale/tender status changes commit together. Completed sales can receive one full refund or void; repeat actions, partial amounts, and over-refunds return `409`. Receipt lookup includes the dated action, amount, reason, and staff snapshot alongside unchanged original payment details. It also returns `voidable`, which is `false` once the visit has a payroll snapshot: earned-commission sales can only be refunded, so the Payments drawer then hides Void and explains why.
+- `POST /api/transactions/actions` — administrator or manager only. `{ reference, action: "void", amount, reason }` voids a completed transaction in full; `{ visit, reason }` voids the unpaid balance of a completed visit. A reason is always required and logged. Refund was retired (see Panel revisions).
 
 Accepted methods are `cash`, `card`, `e_wallet`, `bank_transfer`, and `other`. The API creates a single completed tender for the full amount. It accepts only cash received from the client, never a client-supplied charge amount or status. Database checks constrain the method/status columns, and deferred integrity checks require the sole tender to match the transaction header. Phase 5 supports full refunds and voids with immutable action history. Split and partial payments require a later schema/service change.
 
@@ -484,7 +484,7 @@ Session behavior:
 
 - The raw random session token is sent only in the HTTP-only `barracks_session` cookie.
 - Only the token's SHA-256 hash is stored in `sessions`.
-- Sessions expire after seven days.
+- Sessions end after 30 minutes without user activity. Each authenticated request slides the expiry to 30 minutes after the user's last input (the browser reports idle time in `x-idle-seconds`, so background polling cannot keep a session alive), the app signs the user out itself after 30 idle minutes, and the cookie is a browser-session cookie.
 - Production cookies are `secure`, use `sameSite: lax`, and are scoped to `/`.
 - Logout deletes the database session and expires the cookie.
 - A supplier changing their password signs out their other devices and keeps the current session.
@@ -814,6 +814,46 @@ Restock search, status filter, and reset controls share a 42px height and bottom
 
 The layout redesign preserves the existing multi-branch permissions and selectors. Management sales and stock summaries use the selected accessible scope, and exception links select the authorized request or inventory branch. Weekly attendance includes historical records for barbers who have since moved. The day schedule and calendar queries remain branch-scoped; duplicate weekday shop hours are rejected within the selected branch.
 
+
+## Panel revisions (November 2026)
+
+Migration `036_panel_revisions.sql` is additive. `038_remove_email_verification.sql` removes the withdrawn email verification objects if `037` was applied. Apply them with `npm run db:migrate` in the intended environment.
+
+**Booking**
+
+- A booking starts at the selected time. Each 15-minute start is listed up to closing and, when it cannot be booked, says why. `Booked` means the start itself is taken; `Not enough time` means the start is free but the service would run into the next booking, a break, time away, or the end of the shift. The server refuses such a booking with the same "Not enough time" message.
+- A confirmed booking enters the Queue when the customer is checked in. The Queue tab lists today's confirmed appointments under **Expected today** with a Check in button, so the step is available there as well as on Bookings.
+- `booking_events` records one event per booking action (created, rescheduled, confirmed, rejected, cancelled, checked in, started, completed, no show, remarks). A partial unique index guarantees a booking has exactly one `created` event. `GET /api/bookings/:id` returns the booking with its events to branch staff and to the owning customer.
+- Every booking carries a deposit of 50% of the service price in whole pesos (`BOOKING_DEPOSIT_RATE` in `app/constants/booking.ts`). `POST /api/bookings` requires `deposit: { method, reference? }`. Customers pay by e-wallet or bank transfer and must give the payment reference, which staff verify when confirming; staff bookings record how the deposit was taken. A deposit is `submitted`, `received`, or `released` (the shop rejected or cancelled the booking and owes it back). There is no online payment gateway.
+- Rejecting a booking, or cancelling it as staff, requires a reason (`PATCH /api/bookings/:id` with `status` and `reason`). The customer sees the reason instead of a generic label.
+- Staff can save remarks on any appointment (`PATCH /api/bookings/:id` with `remarks`); customers see them in their appointment history.
+- A confirmed appointment more than 10 minutes past its start and not yet checked in is flagged **Late** on the schedule, booking cards, the booking drawer, and the Queue's Expected today list.
+- The customer dashboard pins recent confirmations and rejections at the top and marks each appointment with a status-colored edge. In dark mode a rejected booking uses the border colour the panel specified, `rgba(99, 0, 0, 0)`.
+- Services have `inclusions`, edited under Services and shown as package cards on the customer booking page.
+
+**Accounts**
+
+- The sign-in heading reads "Welcome". Self-registration requires a matching Confirm password (`confirmPassword` on `POST /api/auth/signup`).
+- Staff accounts are created only through `POST /api/users`, which requires an administrator or manager session. Public sign-up can only create customers. Email verification is not implemented.
+
+**Locks (data integrity)**
+
+A record that live records depend on cannot be edited or removed until they finish. `server/services/record-locks.ts` holds the shared checks, and a locked request answers 409.
+
+- Service: locked from editing or archiving while an upcoming or in-progress booking, or a live queue visit, uses it.
+- Barber shift (per weekday) and shop hours (per weekday): locked while upcoming bookings fall on that weekday. Time away cannot be added over an existing booking. The schedule screen shows the lock and disables the row.
+- Barber: cannot be made unavailable or moved to another branch while they hold live bookings or queue visits.
+- Branch: cannot be deactivated while it has live bookings or queue visits.
+- Existing guards still apply: services, barbers, customers and inventory items with history or active references cannot be deleted.
+
+**Payments and receipts**
+
+- Completed bookings and queue visits carry a payment status (`paid`, `partial`, `unpaid`, `voided`), shown on the booking drawer, the Queue's Completed Today table, and the customer's appointment history.
+- Checkout applies the verified deposit and earlier partial payments to the balance. An amount below the balance is recorded in `visit_partial_payments` and the visit stays unpaid with its remaining balance shown. When the balance is settled the transaction stores what was paid earlier in `prior_paid`.
+- A pop-up confirms a completed payment, and a separate one states the remaining balance after a partial payment.
+- Void replaces Refund. Management can void a completed transaction in full, or void the unpaid balance of a completed visit for an underpayment or special price (`visit_voids`). Both require a reason. Money already collected on a voided balance becomes a sale for exactly that amount. A voided sale keeps the barber's commission for the service rendered, and the earlier database block on post-payment voids was removed. Historical refunds remain in reports.
+- Several completed visits of one customer at one branch can be paid together (`visits: [...]` on `POST /api/transactions`). Each visit keeps its own transaction and they share a `receipt_group`, so one receipt lists every service with one total.
+- The receipt prints the branch name, address, contact number and TIN (`branches.tin`, edited under Branches) and is laid out for 58 mm thermal paper.
 
 ## Release and database safeguards
 

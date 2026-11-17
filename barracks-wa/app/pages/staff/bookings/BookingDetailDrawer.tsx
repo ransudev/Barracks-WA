@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Avatar, Badge, Button } from "@/app/components/ui";
+import { Avatar, Badge, Button, TextField } from "@/app/components/ui";
+import { apiRequest, readApiBody } from "@/app/lib/api";
+import type { BookingEvent } from "@/server/services/booking.service";
 import { DetailDrawer, DrawerSection } from "@/app/components/operations/OperationalPrimitives";
 import {
   BOOKING_GRACE_MINUTES,
   bookingHasStarted,
   isBookingDay,
+  lateLabel,
   mayMarkNoShow,
+  minutesLate,
 } from "@/app/constants/booking";
 import type { ApiBooking, ApiBookingStatus } from "@/app/lib/api";
 import {
@@ -17,7 +21,18 @@ import {
   formatTime,
   formatTimeRange,
 } from "@/app/utils/format";
-import { closedStatuses, deletableStatuses, label, noShowFrom, tone } from "./model";
+import {
+  closedStatuses,
+  deletableStatuses,
+  depositLabel,
+  eventLabel,
+  label,
+  methodName,
+  noShowFrom,
+  paymentLabel,
+  paymentTone,
+  tone,
+} from "./model";
 
 export function BookingDetailDrawer({
   selected,
@@ -27,6 +42,8 @@ export function BookingDetailDrawer({
   onClose,
   onUpdateStatus,
   onEdit,
+  onReject,
+  onSaveRemarks,
   onCancel,
   onRemove,
 }: {
@@ -37,6 +54,9 @@ export function BookingDetailDrawer({
   onClose: () => void;
   onUpdateStatus: (booking: ApiBooking, status: ApiBookingStatus) => Promise<void>;
   onEdit: (booking: ApiBooking) => void;
+  // Rejecting and cancelling open a dialog that requires a reason.
+  onReject: (booking: ApiBooking) => void;
+  onSaveRemarks: (booking: ApiBooking, remarks: string) => Promise<void>;
   onCancel: (booking: ApiBooking) => void;
   // Omitted for Front Desk: only Management may permanently remove bookings.
   onRemove?: (booking: ApiBooking) => void;
@@ -47,6 +67,34 @@ export function BookingDetailDrawer({
     const timer = window.setInterval(() => setNow(Date.now()), 10_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Remarks draft and the event log follow the open booking and refresh after each change.
+  const [remarks, setRemarks] = useState("");
+  const [events, setEvents] = useState<BookingEvent[]>([]);
+  const selectedId = selected?.id;
+  const selectedVersion = selected?.updatedAt;
+  const selectedRemarks = selected?.remarks ?? "";
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRemarks(selectedRemarks);
+  }, [selectedId, selectedRemarks]);
+  useEffect(() => {
+    if (!selectedId) return;
+    let active = true;
+    void apiRequest(`/api/bookings/${selectedId}`, { cache: "no-store" })
+      .then((response) => readApiBody<{ success: boolean; events?: BookingEvent[] }>(response))
+      .then((body) => {
+        if (active) setEvents(body?.success ? (body.events ?? []) : []);
+      })
+      .catch(() => {
+        if (active) setEvents([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedId, selectedVersion, selectedRemarks]);
+  const late =
+    selected?.status === "confirmed" ? minutesLate(selected.date, selected.time, new Date(now)) : 0;
 
   return (
     <DetailDrawer
@@ -72,6 +120,20 @@ export function BookingDetailDrawer({
                 </div>
                 <Badge tone={tone(selected.status)}>{label(selected.status)}</Badge>
               </div>
+              {late > 0 && (
+                <p className="late-flag" role="status">
+                  {lateLabel(late)}: past the scheduled time and not yet checked in.
+                </p>
+              )}
+              {selected.statusReason && (
+                <p className="status-reason">
+                  <strong>
+                    {selected.status === "rejected" ? "Rejection reason" : "Cancellation reason"}
+                    {selected.closedBy === "customer" ? " (customer)" : ""}:
+                  </strong>{" "}
+                  {selected.statusReason}
+                </p>
+              )}
             </DrawerSection>
             <DrawerSection eyebrow="Appointment facts" title="Schedule snapshot">
               <div className="operational-drawer__facts">
@@ -99,7 +161,59 @@ export function BookingDetailDrawer({
                   <span>Notes</span>
                   <strong>{selected.notes || "None"}</strong>
                 </div>
+                <div>
+                  <span>Deposit</span>
+                  <strong>
+                    {selected.depositAmount > 0
+                      ? `${formatCurrency(selected.depositAmount)} · ${methodName[selected.depositMethod ?? ""] ?? "—"}${selected.depositReference ? ` · Ref. ${selected.depositReference}` : ""}`
+                      : "None"}
+                  </strong>
+                  {selected.depositAmount > 0 && (
+                    <small>{depositLabel[selected.depositStatus]}</small>
+                  )}
+                </div>
+                {selected.status === "completed" && selected.paymentStatus && (
+                  <div>
+                    <span>Payment</span>
+                    <strong>
+                      <Badge tone={paymentTone(selected.paymentStatus)}>
+                        {paymentLabel[selected.paymentStatus]}
+                      </Badge>
+                    </strong>
+                    {selected.paymentStatus !== "paid" && selected.paymentStatus !== "voided" && (
+                      <small>
+                        Balance {formatCurrency(Math.max(0, selected.price - selected.paidAmount))}{" "}
+                        of {formatCurrency(selected.price)}. Collect it in Payments.
+                      </small>
+                    )}
+                  </div>
+                )}
               </div>
+            </DrawerSection>
+            <DrawerSection eyebrow="Appointment history" title="Remarks">
+              <form
+                className="remarks-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void onSaveRemarks(selected, remarks);
+                }}
+              >
+                <TextField
+                  aria-label="Remarks"
+                  maxLength={500}
+                  value={remarks}
+                  placeholder="e.g. Customer asked for a skin fade next visit"
+                  onChange={(event) => setRemarks(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={busy || remarks.trim() === (selected.remarks ?? "")}
+                >
+                  Save remarks
+                </Button>
+              </form>
+              <p className="form-hint">Shown to the customer in their appointment history.</p>
             </DrawerSection>
             {selected.status !== "completed" && (
               <DrawerSection eyebrow="Actions" title="Manage appointment">
@@ -112,14 +226,16 @@ export function BookingDetailDrawer({
                           disabled={busy}
                           onClick={() => void onUpdateStatus(selected, "confirmed")}
                         >
-                          Confirm
+                          {selected.depositStatus === "submitted"
+                            ? "Deposit verified · Confirm"
+                            : "Confirm"}
                         </Button>
                       )}
                       <Button
                         variant="danger"
                         icon="x"
                         disabled={busy}
-                        onClick={() => void onUpdateStatus(selected, "rejected")}
+                        onClick={() => onReject(selected)}
                       >
                         Reject
                       </Button>
@@ -217,6 +333,26 @@ export function BookingDetailDrawer({
                     {onRemove ? " Remove it to clear it from the list." : ""}
                   </p>
                 )}
+              </DrawerSection>
+            )}
+            {events.length > 0 && (
+              <DrawerSection eyebrow="Event log" title="History">
+                <ol className="booking-events">
+                  {events.map((event) => (
+                    <li key={event.id}>
+                      <strong>{eventLabel[event.type] ?? event.type}</strong>
+                      <span>
+                        {new Date(event.createdAt).toLocaleString("en-PH", {
+                          timeZone: "Asia/Manila",
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                        {event.actorName ? ` · ${event.actorName}` : ""}
+                      </span>
+                      {event.detail && <small>{event.detail}</small>}
+                    </li>
+                  ))}
+                </ol>
               </DrawerSection>
             )}
           </>

@@ -9,6 +9,7 @@ import { apiErrorMessage, apiRequest, errorMessage, readApiBody } from "@/app/li
 import type { Service, ViewId } from "@/app/types/domain";
 import { CustomerTopbar } from "@/app/pages/customer/CustomerTopbar";
 import { formatDate, formatTime, formatTimeRange } from "@/app/utils/format";
+import { bookingDeposit } from "@/app/constants/booking";
 import type { CustomerBranch } from "@/app/types/branch";
 
 type CustomerHours = { dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean };
@@ -218,6 +219,11 @@ function CustomerBookingWorkspace({
       onToast("Choose a service, barber, date, and available time");
       return;
     }
+    const depositDue = bookingDeposit(selectedService?.price ?? 0);
+    if (depositDue > 0 && (!value.depositMethod || !value.depositReference?.trim())) {
+      onToast("Pay the deposit and enter its reference number to request this appointment");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -229,6 +235,9 @@ function CustomerBookingWorkspace({
           date: value.date,
           time: value.time,
           notes: value.notes,
+          ...(depositDue > 0 && {
+            deposit: { method: value.depositMethod, reference: value.depositReference?.trim() },
+          }),
         }),
       });
       const body = await readApiBody<{ success: boolean; booking?: ApiBooking; message?: string }>(
@@ -252,6 +261,7 @@ function CustomerBookingWorkspace({
   const barberName = selectedBarber
     ? `${selectedBarber.firstName} ${selectedBarber.lastName}`
     : "Choose a barber";
+  const summaryDeposit = bookingDeposit(selectedService?.price ?? 0);
 
   return (
     <div className="customer-page customer-page--dashboard customer-booking-view">
@@ -323,6 +333,27 @@ function CustomerBookingWorkspace({
                       <dd>{confirmation.notes}</dd>
                     </div>
                   )}
+                  {confirmation.depositAmount > 0 && (
+                    <>
+                      <div>
+                        <dt>Deposit</dt>
+                        <dd>
+                          ₱{confirmation.depositAmount.toLocaleString()}
+                          <small>
+                            {confirmation.depositStatus === "received"
+                              ? "Received"
+                              : `Ref. ${confirmation.depositReference ?? "—"} · awaiting verification`}
+                          </small>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Balance at the shop</dt>
+                        <dd>
+                          ₱{(confirmation.price - confirmation.depositAmount).toLocaleString()}
+                        </dd>
+                      </div>
+                    </>
+                  )}
                   <div className="booking-facts__total">
                     <dt>Total</dt>
                     <dd>₱{confirmation.price.toLocaleString()}</dd>
@@ -342,6 +373,8 @@ function CustomerBookingWorkspace({
                 barbers={barbers}
                 hideCustomer
                 requireBarber
+                showPackages
+                depositMode="customer"
                 submitLabel="Request appointment"
                 submitting={submitting}
                 availabilityVersion={availabilityVersion}
@@ -400,6 +433,28 @@ function CustomerBookingWorkspace({
                     )}
                   </dd>
                 </div>
+                {(selectedService?.inclusions?.length ?? 0) > 0 && (
+                  <div>
+                    <dt>Includes</dt>
+                    <dd>
+                      {selectedService!.inclusions!.map((item) => (
+                        <small key={item}>{item}</small>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+                {summaryDeposit > 0 && (
+                  <>
+                    <div>
+                      <dt>Deposit now</dt>
+                      <dd>₱{summaryDeposit.toLocaleString()}</dd>
+                    </div>
+                    <div>
+                      <dt>Balance at the shop</dt>
+                      <dd>₱{((selectedService?.price ?? 0) - summaryDeposit).toLocaleString()}</dd>
+                    </div>
+                  </>
+                )}
                 <div className="booking-facts__total">
                   <dt>Total</dt>
                   <dd>₱{selectedService?.price.toLocaleString() ?? "0"}</dd>

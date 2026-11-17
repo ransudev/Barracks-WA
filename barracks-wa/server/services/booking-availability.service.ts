@@ -7,7 +7,9 @@ import { isWithinBookingWindow, manilaToday } from "@/app/constants/booking";
 
 export type AvailabilitySlot = { startTime: string; endTime: string };
 // Why a listed time cannot be booked, so forms can grey it out with a reason.
-export type TimeReason = "past" | "booked" | "break" | "away" | "outside_shift";
+// "not_enough_time": the start itself is free, but the service would run into the
+// next booking, break, time away or the end of the shift.
+export type TimeReason = "past" | "booked" | "break" | "away" | "outside_shift" | "not_enough_time";
 export type TimeOption = AvailabilitySlot & { available: boolean; reason?: TimeReason };
 // Why a whole day has nothing to offer.
 export type DayReason = "schedule_not_configured" | "closed" | "not_working" | "barber_unavailable" | "fully_booked" | "past" | "too_far";
@@ -52,15 +54,18 @@ export function describeTimes(input: { date: string; durationMinutes: number; ho
   if (!hours || hours.isClosed || durationMinutes <= 0) return [];
   const bookable = new Set(calculateSlots({ date, durationMinutes, hours, schedule, blocks: [...booked, ...away], now }).map((slot) => slot.startTime));
   const options: TimeOption[] = [];
-  for (let start = Math.ceil(minuteOfDay(hours.openTime) / 15) * 15; start + durationMinutes <= minuteOfDay(hours.closeTime); start += 15) {
+  const inside = (minute: number, item: BlockedInterval) => minute >= item.start && minute < item.end;
+  // List every start up to closing, so a late start that cannot fit is explained instead of hidden.
+  for (let start = Math.ceil(minuteOfDay(hours.openTime) / 15) * 15; start < minuteOfDay(hours.closeTime); start += 15) {
     const end = start + durationMinutes;
-    const candidate = { start, end };
     const slot = { startTime: clock(start), endTime: clock(end) };
     if (bookable.has(slot.startTime)) { options.push({ ...slot, available: true }); continue; }
+    // Name what occupies the chosen start. When the start is free, the service simply does not fit.
     const reason: TimeReason = Date.parse(`${date}T00:00:00+08:00`) + start * 60_000 <= now.getTime() ? "past"
-      : !schedule?.isWorking || start < minuteOfDay(schedule.startTime) || end > minuteOfDay(schedule.endTime) ? "outside_shift"
-      : schedule.breaks.some((item) => overlaps(candidate, { start: minuteOfDay(item.startTime), end: minuteOfDay(item.endTime) })) ? "break"
-      : away.some((item) => overlaps(candidate, item)) ? "away" : "booked";
+      : !schedule?.isWorking || start < minuteOfDay(schedule.startTime) || start >= minuteOfDay(schedule.endTime) ? "outside_shift"
+      : schedule.breaks.some((item) => inside(start, { start: minuteOfDay(item.startTime), end: minuteOfDay(item.endTime) })) ? "break"
+      : away.some((item) => inside(start, item)) ? "away"
+      : booked.some((item) => inside(start, item)) ? "booked" : "not_enough_time";
     options.push({ ...slot, available: false, reason });
   }
   return options;
@@ -144,6 +149,12 @@ export async function getBookingAvailability(db: Pool, input: { serviceId: strin
   const [context, barber] = await Promise.all([loadContext(db, input.serviceId, input.date), findBarberById(db, input.barberId)]);
   if (!barber || (input.branchId !== undefined && barber.branchId !== input.branchId)) throw new AvailabilityError("barber_not_found", "Barber not found");
   return availabilityForBarber(db, input, barber, context, options);
+}
+
+// Why one requested start cannot be booked, for the message shown when a booking is refused.
+export async function bookingSlotReason(db: Pool, input: { serviceId: string; barberId: number; date: string; time: string; branchId?: number }, options: { now?: Date; excludeBookingId?: number } = {}): Promise<TimeReason | undefined> {
+  const result = await getBookingAvailability(db, input, options);
+  return result.times.find((slot) => slot.startTime === input.time && !slot.available)?.reason;
 }
 
 export async function isBookingSlotAvailable(db: Pool, input: { serviceId: string; barberId: number; date: string; time: string; branchId?: number }, options: { now?: Date; excludeBookingId?: number } = {}): Promise<boolean> {

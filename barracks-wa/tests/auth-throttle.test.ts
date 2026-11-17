@@ -28,7 +28,7 @@ const statuses = async (count: number, attempt: (index: number) => Promise<Respo
   return result;
 };
 const customer = (email: string) => ({
-  firstName: "Throttle", lastName: "Check", email, password: "correct-horse-battery", phone: "09123456789",
+  firstName: "Throttle", lastName: "Check", email, password: "correct-horse-battery", confirmPassword: "correct-horse-battery", phone: "09123456789",
 });
 
 test("login and signup limits apply per account and address, and success resets the account", { skip: !databaseConfigured }, async () => {
@@ -129,8 +129,8 @@ test("account and payment writes finish on a pool of one connection", { skip: !d
        VALUES($1,$2,'barracks-basic','Original service',300,'2026-09-20','10:00','completed') RETURNING id`,
       [created.customer.id, barber])).rows[0].id);
     const sale = await createTransaction(small, { visit: { bookingId: booking }, paymentMethod: "cash", amountReceived: 500 }, admin);
-    const refunded = await applyFinancialAction(small, sale.reference, { action: "refund", amount: 300, reason: "Desk error" }, admin);
-    assert.equal(refunded.status, "refunded");
+    const refunded = await applyFinancialAction(small, sale.reference, { action: "void", amount: 300, reason: "Desk error" }, admin);
+    assert.equal(refunded.status, "voided");
     assert.equal(refunded.actions?.length, 1);
   } finally {
     await small.end();

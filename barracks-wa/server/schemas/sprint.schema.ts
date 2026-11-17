@@ -76,8 +76,18 @@ export const barberCommissionSchema = z
   })
   .strict();
 
+// How the booking deposit was paid. Customers pay ahead by e-wallet or bank
+// transfer and must give the reference staff will verify.
+export const bookingDepositSchema = z
+  .object({
+    method: z.enum(["cash", "card", "e_wallet", "bank_transfer"]),
+    reference: textSchema("Deposit reference", 80).optional(),
+  })
+  .strict();
+
 export const bookingCreateSchema = z
   .object({
+    deposit: bookingDepositSchema.optional(),
     customerId: z.number().int().positive().optional(),
     barberId: z.number().int().positive().nullable().optional(),
     serviceId: z.string().trim().min(1).max(80),
@@ -90,7 +100,14 @@ export const bookingCreateSchema = z
 export const bookingUpdateSchema = z
   .object({
     status: z.enum(["confirmed", "rejected", "checked_in", "in_progress", "completed", "cancelled", "no_show"]),
+    // Required when the shop rejects or cancels; shown to the customer.
+    reason: textSchema("Reason", 500, { multiline: true }).optional(),
   })
+  .strict();
+
+// Staff remarks shown in the customer's appointment history.
+export const bookingRemarksSchema = z
+  .object({ remarks: textSchema("Remarks", 500, { multiline: true }) })
   .strict();
 
 export const bookingEditSchema = z
@@ -120,6 +137,12 @@ export const customerSignupSchema = z
   })
   .strict();
 
+// Self-registration repeats the password so a typo cannot lock the customer out.
+export const customerSelfSignupSchema = customerSignupSchema
+  .extend({ confirmPassword: z.string().max(128) })
+  .strict()
+  .refine((value) => value.password === value.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] });
+
 export const customerProfileSchema = z
   .object({
     firstName: personNameSchema("First name"),
@@ -148,6 +171,7 @@ export type BarberStaffInput = z.infer<typeof barberStaffSchema>;
 export type InventoryItemInput = z.infer<typeof inventoryItemSchema>;
 export type BookingCreateInput = z.infer<typeof bookingCreateSchema>;
 export type BookingUpdateInput = z.infer<typeof bookingUpdateSchema>;
+export type BookingDepositInput = z.infer<typeof bookingDepositSchema>;
 export type BookingEditInput = z.infer<typeof bookingEditSchema>;
 export type CustomerBookingEditInput = z.infer<typeof customerBookingEditSchema>;
 export type CustomerSignupInput = z.infer<typeof customerSignupSchema>;

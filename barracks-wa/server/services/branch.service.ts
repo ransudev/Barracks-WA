@@ -1,17 +1,21 @@
 import type { Pool, PoolClient } from "pg";
 import type { Branch, BranchAssignment, BranchStaff } from "@/app/types/branch";
 import type { BranchInput, BranchUpdateInput } from "@/server/schemas/branch.schema";
+import { countBranchActiveBookings } from "@/server/services/record-locks";
 
 type Db = Pool | PoolClient;
 type BranchRow = Omit<Branch, "createdAt" | "updatedAt"> & { created_at: Date; updated_at: Date };
+// Access checks read only the long-standing columns; the receipt TIN is added
+// for the Branches management screen and for writes.
 const columns = "id, name, code, address, phone, status, created_at, updated_at";
-const mapBranch = (row: BranchRow): Branch => ({ id: row.id, name: row.name, code: row.code, address: row.address, phone: row.phone, status: row.status, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString() });
+const detailColumns = `${columns}, tin`;
+const mapBranch = (row: BranchRow): Branch => ({ id: row.id, name: row.name, code: row.code, address: row.address, phone: row.phone, ...(row.tin === undefined ? {} : { tin: row.tin }), status: row.status, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString() });
 
 export class BranchError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
-export async function listBranches(db: Db, activeOnly = false): Promise<Branch[]> {
-  return (await db.query<BranchRow>(`SELECT ${columns} FROM branches ${activeOnly ? "WHERE status='active'" : ""} ORDER BY name, id`)).rows.map(mapBranch);
+export async function listBranches(db: Db, activeOnly = false, details = false): Promise<Branch[]> {
+  return (await db.query<BranchRow>(`SELECT ${details ? detailColumns : columns} FROM branches ${activeOnly ? "WHERE status='active'" : ""} ORDER BY name, id`)).rows.map(mapBranch);
 }
 export async function listAssignedBranches(db: Db, userId: number): Promise<Branch[]> {
   return (await db.query<BranchRow>(`SELECT ${columns} FROM branches
@@ -23,16 +27,21 @@ export async function findBranch(db: Db, id: number): Promise<Branch | null> {
   return row ? mapBranch(row) : null;
 }
 export async function createBranch(db: Db, input: BranchInput): Promise<Branch> {
-  const result = await db.query<BranchRow>(`INSERT INTO branches (name,code,address,phone,status) VALUES ($1,$2,$3,$4,$5) RETURNING ${columns}`, [input.name, input.code, input.address, input.phone, input.status]);
+  const result = await db.query<BranchRow>(`INSERT INTO branches (name,code,address,phone,status,tin) VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${detailColumns}`, [input.name, input.code, input.address, input.phone, input.status, input.tin ?? ""]);
   return mapBranch(result.rows[0]);
 }
 export async function updateBranch(db: Db, id: number, input: BranchUpdateInput): Promise<Branch | null> {
-  const existing = (await db.query<{ code: string }>("SELECT code FROM branches WHERE id=$1", [id])).rows[0];
+  const existing = (await db.query<{ code: string; status: string }>("SELECT code,status FROM branches WHERE id=$1", [id])).rows[0];
   if (!existing) return null;
+  // A branch with live bookings or queue visits is locked from being deactivated.
+  if (input.status === "inactive" && existing.status !== "inactive") {
+    const dependents = await countBranchActiveBookings(db, id);
+    if (dependents) throw new BranchError(`This branch is locked: ${dependents} active ${dependents === 1 ? "booking or queue visit depends" : "bookings or queue visits depend"} on it. Complete or cancel ${dependents === 1 ? "it" : "them"} before deactivating it.`, 409);
+  }
   if (existing.code === "MAIN" && input.code !== undefined && input.code !== "MAIN") {
     throw new BranchError("The MAIN branch code is reserved and cannot be changed", 409);
   }
-  const result = await db.query<BranchRow>(`UPDATE branches SET name=COALESCE($2,name), code=COALESCE($3,code), address=COALESCE($4,address), phone=COALESCE($5,phone), status=COALESCE($6,status), updated_at=NOW() WHERE id=$1 RETURNING ${columns}`, [id, input.name, input.code, input.address, input.phone, input.status]);
+  const result = await db.query<BranchRow>(`UPDATE branches SET name=COALESCE($2,name), code=COALESCE($3,code), address=COALESCE($4,address), phone=COALESCE($5,phone), status=COALESCE($6,status), tin=COALESCE($7,tin), updated_at=NOW() WHERE id=$1 RETURNING ${detailColumns}`, [id, input.name, input.code, input.address, input.phone, input.status, input.tin]);
   return result.rows[0] ? mapBranch(result.rows[0]) : null;
 }
 export async function listBranchStaff(db: Db): Promise<BranchStaff[]> {

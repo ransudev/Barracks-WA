@@ -2,8 +2,8 @@ import { requireBranchAccess, visitBranchError } from "@/server/auth/branch-acce
 import { canManageBooking, type BookingAction } from "@/app/constants/roles";
 import { requireRolesUser } from "@/server/auth/require-role";
 import { pool } from "@/server/db/pool";
-import { bookingEditSchema, bookingUpdateSchema, customerBookingEditSchema, formatValidationErrors } from "@/server/schemas/sprint.schema";
-import { BookingServiceError, deleteBooking, findBookingById, updateBooking, updateBookingDetails, type BookingRecord } from "@/server/services/booking.service";
+import { bookingEditSchema, bookingRemarksSchema, bookingUpdateSchema, customerBookingEditSchema, formatValidationErrors } from "@/server/schemas/sprint.schema";
+import { BookingServiceError, deleteBooking, findBookingById, listBookingEvents, updateBooking, updateBookingDetails, updateBookingRemarks, type BookingRecord } from "@/server/services/booking.service";
 import { findCustomerByUserId } from "@/server/services/customer.service";
 import type { PublicUser } from "@/server/services/user.service";
 
@@ -40,6 +40,35 @@ async function authorizeBookingAction(
   return { booking, customerId };
 }
 
+const eventActor = (actor: PublicUser) => ({ id: actor.id, name: `${actor.firstName} ${actor.lastName}` });
+
+// The booking with its event log: staff of the branch, or the customer who owns it.
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const actor = await requireRolesUser(["administrator", "manager", "front_desk", "customer"]);
+  if (actor instanceof Response) return actor;
+  const id = Number((await params).id);
+  if (!Number.isInteger(id) || id < 1) return Response.json({ success: false, message: "Booking not found" }, { status: 404 });
+  try {
+    const booking = await findBookingById(pool, id);
+    if (!booking) return Response.json({ success: false, message: "Booking not found" }, { status: 404 });
+    if (actor.role === "customer") {
+      const customer = await findCustomerByUserId(pool, actor.id);
+      if (customer?.id !== booking.customerId) return Response.json({ success: false, message: "Booking not found" }, { status: 404 });
+    } else {
+      await requireBranchAccess(pool, actor, booking.branchId);
+    }
+    return Response.json({ success: true, booking, events: await listBookingEvents(pool, id) });
+  } catch (error) {
+    const branchResponse = visitBranchError(error);
+    if (branchResponse) return branchResponse;
+    console.error("Unable to load booking", error);
+    return Response.json({ success: false, message: "Unable to load booking" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -57,6 +86,22 @@ export async function PATCH(
     body = await request.json();
   } catch {
     return Response.json({ success: false, message: "Invalid booking update" }, { status: 400 });
+  }
+  // A body holding only remarks records staff remarks without changing status.
+  if (body && typeof body === "object" && "remarks" in body) {
+    if (actor.role === "customer") return Response.json({ success: false, message: "You do not have permission to manage this booking" }, { status: 403 });
+    const remarks = bookingRemarksSchema.safeParse(body);
+    if (!remarks.success) return Response.json({ success: false, message: "Invalid remarks", errors: formatValidationErrors(remarks.error) }, { status: 400 });
+    try {
+      const authorization = await authorizeBookingAction(id, actor, "edit");
+      if (authorization instanceof Response) return authorization;
+      const booking = await updateBookingRemarks(pool, id, remarks.data.remarks, eventActor(actor));
+      if (!booking) return Response.json({ success: false, message: "Booking not found" }, { status: 404 });
+      return Response.json({ success: true, booking });
+    } catch (error) {
+      console.error("Unable to save booking remarks", error);
+      return Response.json({ success: false, message: "Unable to save remarks" }, { status: 500 });
+    }
   }
   const parsed = bookingUpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -81,7 +126,9 @@ export async function PATCH(
       pool,
       id,
       parsed.data,
-      authorization.customerId ? { customerId: authorization.customerId } : { actor },
+      authorization.customerId
+        ? { customerId: authorization.customerId, eventActor: eventActor(actor) }
+        : { actor, eventActor: eventActor(actor) },
     );
     if (!booking) return Response.json({ success: false, message: "Booking not found" }, { status: 404 });
     return Response.json({ success: true, booking });
@@ -148,7 +195,9 @@ export async function PUT(
       pool,
       id,
       input,
-      authorization.customerId ? { customerId: authorization.customerId } : undefined,
+      authorization.customerId
+        ? { customerId: authorization.customerId, eventActor: eventActor(actor) }
+        : { eventActor: eventActor(actor) },
     );
     if (!booking) return Response.json({ success: false, message: "Booking not found" }, { status: 404 });
     return Response.json({ success: true, booking });

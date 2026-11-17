@@ -32,7 +32,7 @@ test("Next Customer skips conflicts, keeps appointment priority, and rechecks as
 
     assert.equal((await updateBooking(db, bookingId, { status: "checked_in" }))?.status, "checked_in");
     assert.equal((await queue.getNextCustomer(db, barberId))?.bookingId, bookingId, "checked-in appointment has priority");
-    assert.equal((await updateBooking(db, bookingId, { status: "cancelled" }))?.status, "cancelled");
+    assert.equal((await updateBooking(db, bookingId, { status: "cancelled", reason: "Customer left" }))?.status, "cancelled");
     await queue.updateWalkInStatus(db, fitting.id, "removed");
     assert.equal((await queue.getNextCustomer(db, barberId))?.id, long.id);
 

@@ -8,6 +8,8 @@ export const branchSchema = z.object({
     .regex(/^[A-Z0-9][A-Z0-9_-]*$/, "Branch code can only use letters, numbers, hyphens (-), and underscores (_), and must start with a letter or number"),
   address: textSchema("Address", 500).default(""),
   phone: optionalPhoneSchema.default(""),
+  // Tax identification number printed on receipts.
+  tin: textSchema("TIN", 40).default(""),
   status: z.enum(["active", "inactive"]).default("active"),
 }).strict();
 export const branchUpdateSchema = z.object({
@@ -15,6 +17,7 @@ export const branchUpdateSchema = z.object({
   code: branchSchema.shape.code.optional(),
   address: textSchema("Address", 500).optional(),
   phone: optionalPhoneSchema.optional(),
+  tin: textSchema("TIN", 40).optional(),
   status: z.enum(["active", "inactive"]).optional(),
 }).strict().refine((input) => Object.keys(input).length > 0, "Provide a branch field");
 export const branchAssignmentSchema = z.object({ userId: z.number().int().positive().max(2147483647), isPrimary: z.boolean().default(false) }).strict();

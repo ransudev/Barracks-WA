@@ -25,7 +25,7 @@ export function TransactionDetailDrawer({
   detail: ReturnType<typeof useTransactionDetail>;
   canManageFinancialActions: boolean;
 }) {
-  const [pendingAction, setPendingAction] = useState<"refund" | "void" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"void" | null>(null);
   return (
     <>
       <DetailDrawer
@@ -41,18 +41,12 @@ export function TransactionDetailDrawer({
             <Receipt transaction={receipt} onClose={close} />
             {canManageFinancialActions && receipt.status === "completed" && (
               <section className="financial-action-panel">
-                <SectionHeading
-                  title={receipt.voidable ? "Refund or void transaction" : "Refund transaction"}
-                />
+                <SectionHeading title="Void transaction" />
                 <p>
-                  Full amount: {money(receipt.total)}. A reason is required and the original receipt
+                  Manager only. Voids the full amount of {money(receipt.total)} for{" "}
+                  {receipt.serviceName}. A reason is required and logged, and the original receipt
                   is retained.
                 </p>
-                {!receipt.voidable && (
-                  <p>
-                    This sale has earned barber commission, so it can be refunded but not voided.
-                  </p>
-                )}
                 <TextField
                   label="Reason"
                   value={actionReason}
@@ -64,28 +58,19 @@ export function TransactionDetailDrawer({
                 <div className="financial-action-buttons">
                   <Button
                     type="button"
+                    variant="danger"
                     disabled={actionProcessing || !actionReason.trim()}
-                    onClick={() => setPendingAction("refund")}
+                    onClick={() => setPendingAction("void")}
                   >
-                    Refund full amount
+                    Void transaction
                   </Button>
-                  {receipt.voidable && (
-                    <Button
-                      type="button"
-                      variant="danger"
-                      disabled={actionProcessing || !actionReason.trim()}
-                      onClick={() => setPendingAction("void")}
-                    >
-                      Void transaction
-                    </Button>
-                  )}
                 </div>
               </section>
             )}
             {canManageFinancialActions && (
               <section className="financial-audit-panel">
                 <SectionHeading title="Financial audit history" />
-                {!receipt.actions?.length && <p>No refund or void actions recorded.</p>}
+                {!receipt.actions?.length && <p>No void actions recorded.</p>}
                 {receipt.actions?.map((action) => (
                   <p key={action.id}>
                     {action.action} · {money(action.amount)} · {action.reason} · {action.staffName}{" "}
@@ -102,7 +87,7 @@ export function TransactionDetailDrawer({
       </DetailDrawer>
       <ConfirmDialog
         open={Boolean(pendingAction)}
-        title={pendingAction === "refund" ? "Refund this transaction?" : "Void this transaction?"}
+        title="Void this transaction?"
         description={
           receipt ? `${receipt.reference} · ${money(receipt.total)} · ${actionReason}` : undefined
         }

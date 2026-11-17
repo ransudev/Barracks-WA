@@ -4,13 +4,13 @@ import { financialActionSchema } from "@/server/schemas/payment.schema";
 import { createDisposableSchema, databaseConfigured } from "./helpers/database";
 
 test("financial action requests require a reason and valid full-cent amount", () => {
-  assert.equal(financialActionSchema.safeParse({ action: "refund", amount: 300, reason: "  customer request  " }).success, true);
+  assert.equal(financialActionSchema.safeParse({ action: "void", amount: 300, reason: "  customer request  " }).success, true);
   for (const amount of [0, -1, 300.001, 10_000_000_000])
-    assert.equal(financialActionSchema.safeParse({ action: "refund", amount, reason: "Requested" }).success, false);
+    assert.equal(financialActionSchema.safeParse({ action: "void", amount, reason: "Requested" }).success, false);
   assert.equal(financialActionSchema.safeParse({ action: "void", amount: 300, reason: " " }).success, false);
 });
 
-test("refund preserves sales and audit history while post-payment void remains denied", { skip: !databaseConfigured }, async () => {
+test("void preserves sales and audit history and is limited to management", { skip: !databaseConfigured }, async () => {
   const { db, cleanup } = await createDisposableSchema();
   const { createTransaction, applyFinancialAction, findTransactionByReference, listTransactionHistory, PaymentServiceError } = await import("@/server/services/payment.service");
   try {
@@ -31,29 +31,27 @@ test("refund preserves sales and audit history while post-payment void remains d
       return createTransaction(db, { visit: { bookingId: booking }, paymentMethod: "cash", amountReceived: 500 }, ids.manager);
     };
     const refunded = await pay("10:00");
-    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "refund", amount: 300, reason: "Desk error" }, ids.front_desk),
+    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "void", amount: 300, reason: "Desk error" }, ids.front_desk),
       (error: unknown) => error instanceof PaymentServiceError && error.kind === "forbidden");
-    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "refund", amount: 300, reason: "Desk error" }, ids.supplier),
+    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "void", amount: 300, reason: "Desk error" }, ids.supplier),
       (error: unknown) => error instanceof PaymentServiceError && error.kind === "forbidden");
-    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "refund", amount: 301, reason: "Too much" }, ids.manager),
+    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "void", amount: 301, reason: "Too much" }, ids.manager),
       (error: unknown) => error instanceof PaymentServiceError && error.kind === "invalid_state");
-    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "refund", amount: 299, reason: "Partial" }, ids.manager),
+    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "void", amount: 299, reason: "Partial" }, ids.manager),
       (error: unknown) => error instanceof PaymentServiceError && error.kind === "invalid_state");
-    const afterRefund = await applyFinancialAction(db, refunded.reference, { action: "refund", amount: 300, reason: "Customer request" }, ids.manager);
-    assert.equal(afterRefund.status, "refunded");
+    const afterRefund = await applyFinancialAction(db, refunded.reference, { action: "void", amount: 300, reason: "Customer request" }, ids.manager);
+    assert.equal(afterRefund.status, "voided");
     assert.deepEqual(afterRefund.actions?.map((action) => [action.transactionId, action.action, action.amount, action.reason, action.staffId, action.staffName]),
-      [[refunded.id, "refund", 300, "Customer request", ids.manager, "manager Operator"]]);
+      [[refunded.id, "void", 300, "Customer request", ids.manager, "manager Operator"]]);
     assert.ok(afterRefund.actions?.[0].createdAt);
     assert.equal(afterRefund.amountReceived, 500);
     assert.equal(afterRefund.change, 200);
     assert.equal(afterRefund.serviceName, "Original service");
-    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "refund", amount: 300, reason: "Again" }, ids.manager),
+    await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "void", amount: 300, reason: "Again" }, ids.manager),
       (error: unknown) => error instanceof PaymentServiceError && error.kind === "invalid_state");
     await assert.rejects(applyFinancialAction(db, refunded.reference, { action: "void", amount: 300, reason: "Again" }, ids.manager),
       (error: unknown) => error instanceof PaymentServiceError && error.kind === "invalid_state");
     const retained = await pay("11:00");
-    await assert.rejects(applyFinancialAction(db, retained.reference, { action: "void", amount: 300, reason: "Duplicate charge" }, ids.administrator),
-      (error: unknown) => error instanceof PaymentServiceError && error.kind === "invalid_state" && /Post-payment void policy is unconfirmed/.test(error.message));
     const unchanged = await findTransactionByReference(db, retained.reference);
     assert.equal(unchanged?.status, "completed");
     assert.equal(unchanged?.paymentStatus, "completed");
@@ -61,9 +59,9 @@ test("refund preserves sales and audit history while post-payment void remains d
     assert.equal(unchanged?.change, 200);
     assert.equal(unchanged?.actions, undefined);
     assert.equal(Number((await db.query("SELECT count(*) FROM transaction_financial_actions WHERE transaction_id=$1", [retained.id])).rows[0].count), 0);
-    assert.equal((await findTransactionByReference(db, refunded.reference))?.status, "refunded");
+    assert.equal((await findTransactionByReference(db, refunded.reference))?.status, "voided");
     const history = await listTransactionHistory(db, { page: 1, pageSize: 20, search: "" });
-    assert.deepEqual(new Set(history.transactions.map((row) => row.status)), new Set(["refunded", "completed"]));
+    assert.deepEqual(new Set(history.transactions.map((row) => row.status)), new Set(["voided", "completed"]));
     assert.equal(Number((await db.query("SELECT count(*) FROM transaction_financial_actions")).rows[0].count), 1);
     await assert.rejects(db.query("UPDATE transactions SET amount=1 WHERE id=$1", [refunded.id]), { constraint: "finalized_financial_record_immutable" });
     await assert.rejects(db.query("UPDATE transaction_payments SET amount_received=501 WHERE transaction_id=$1", [refunded.id]), { constraint: "finalized_financial_record_immutable" });
@@ -72,7 +70,7 @@ test("refund preserves sales and audit history while post-payment void remains d
   } finally { await cleanup(); }
 });
 
-test("concurrent refunds serialize and a failed status write rolls back the audit action", { skip: !databaseConfigured }, async () => {
+test("concurrent voids serialize and a failed status write rolls back the audit action", { skip: !databaseConfigured }, async () => {
   const { db, cleanup } = await createDisposableSchema();
   const { createTransaction, applyFinancialAction, findTransactionByReference } = await import("@/server/services/payment.service");
   try {
@@ -89,7 +87,7 @@ test("concurrent refunds serialize and a failed status write rolls back the audi
       return createTransaction(db, { visit: { bookingId: booking }, paymentMethod: "card" }, staff);
     };
     const sale = await pay("10:00");
-    const attempts = await Promise.allSettled([1, 2].map(() => applyFinancialAction(db, sale.reference, { action: "refund", amount: 300, reason: "Concurrent" }, staff)));
+    const attempts = await Promise.allSettled([1, 2].map(() => applyFinancialAction(db, sale.reference, { action: "void", amount: 300, reason: "Concurrent" }, staff)));
     assert.equal(attempts.filter((result) => result.status === "fulfilled").length, 1);
     assert.equal(attempts.filter((result) => result.status === "rejected").length, 1);
     assert.equal(Number((await db.query("SELECT count(*) FROM transaction_financial_actions WHERE transaction_id=$1", [sale.id])).rows[0].count), 1);
@@ -98,7 +96,7 @@ test("concurrent refunds serialize and a failed status write rolls back the audi
       RAISE EXCEPTION 'forced failure'; END; $$`);
     await db.query(`CREATE TRIGGER fail_tender_action BEFORE UPDATE ON transaction_payments
       FOR EACH ROW EXECUTE FUNCTION fail_tender_action()`);
-    await assert.rejects(applyFinancialAction(db, second.reference, { action: "refund", amount: 300, reason: "Rollback" }, staff), /forced failure/);
+    await assert.rejects(applyFinancialAction(db, second.reference, { action: "void", amount: 300, reason: "Rollback" }, staff), /forced failure/);
     assert.equal((await findTransactionByReference(db, second.reference))?.status, "completed");
     assert.equal(Number((await db.query("SELECT count(*) FROM transaction_financial_actions WHERE transaction_id=$1", [second.id])).rows[0].count), 0);
   } finally { await cleanup(); }

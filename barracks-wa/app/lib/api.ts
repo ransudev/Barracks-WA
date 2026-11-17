@@ -94,8 +94,38 @@ function rememberRead(path: string, response: Response, version: number) {
     .catch(() => undefined);
 }
 
+// Sign-in lasts 30 minutes without user input. Activity is shared across tabs.
+export const SESSION_IDLE_MS = 30 * 60_000;
+const ACTIVITY_KEY = "barracks:last-activity";
+let lastActivity = Date.now();
+let lastActivityStored = 0;
+
+export function markUserActivity(): void {
+  lastActivity = Date.now();
+  if (lastActivity - lastActivityStored < 5_000) return;
+  lastActivityStored = lastActivity;
+  try {
+    localStorage.setItem(ACTIVITY_KEY, String(lastActivity));
+  } catch {
+    /* Storage is optional. */
+  }
+}
+
+export function idleMilliseconds(): number {
+  let latest = lastActivity;
+  try {
+    latest = Math.max(latest, Number(localStorage.getItem(ACTIVITY_KEY)) || 0);
+  } catch {
+    /* Storage is optional. */
+  }
+  return Math.max(0, Date.now() - latest);
+}
+
 export async function apiRequest(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
+  if (typeof window !== "undefined") {
+    headers.set("x-idle-seconds", String(Math.floor(idleMilliseconds() / 1000)));
+  }
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }

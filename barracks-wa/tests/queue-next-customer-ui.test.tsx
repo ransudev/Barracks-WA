@@ -14,7 +14,7 @@ const { QueuePage } = await import("@/app/pages/staff/QueuePage");
 
 const waiting: ApiQueueEntry = { branchId: 1, id: 7, bookingId: null, visitType: "walk_in", scheduledDate: null, scheduledTime: null, bookingStatus: null, customerId: 3, customerName: "Next Customer", serviceId: "cut",
   serviceName: "Basic Cut", barberId: null, barberName: null, status: "waiting", joinedAt: "2026-09-27T02:00:00Z",
-  startedAt: null, completedAt: null, createdAt: "2026-09-27T02:00:00Z", updatedAt: "2026-09-27T02:00:00Z" };
+  startedAt: null, completedAt: null, createdAt: "2026-09-27T02:00:00Z", updatedAt: "2026-09-27T02:00:00Z", paymentStatus: null };
 
 async function renderQueue(candidate: ApiQueueEntry | null, holdQueuePost = false, completed: ApiQueueEntry[] = [], operationalAvailability?: ApiOperationalAvailability) {
   const previousFetch = globalThis.fetch;
@@ -92,7 +92,9 @@ test("completed-today entries show service details without active actions", asyn
     const panel = view.container.querySelector('[role="tabpanel"]')!;
     for (const detail of ["Finished Customer", "Basic Cut", "Test Barber", "Walk-in", "Sep", "10:00", "10:30"])
       assert.ok(panel.textContent?.includes(detail), detail);
-    assert.equal(panel.querySelectorAll(".badge").length, 2);
+    // Each row carries a visit-type badge and a payment badge.
+    assert.equal(panel.querySelectorAll(".badge").length, 4);
+    assert.match(panel.textContent ?? "", /Payment[\s\S]*Unpaid/);
     assert.match(panel.textContent ?? "", /Booked Customer.*Appointment/);
     assert.equal(view.container.querySelector(".queue-next-panel"), null);
     assert.equal(view.container.querySelector(".operational-drawer__actions"), null);

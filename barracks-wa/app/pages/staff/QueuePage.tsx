@@ -24,6 +24,7 @@ import {
 } from "@/app/components/operations/OperationalPrimitives";
 import { AddToQueueDialog } from "./queue/AddToQueueDialog";
 import { CompletedTodayPanel } from "./queue/CompletedTodayPanel";
+import { ExpectedTodayPanel } from "./queue/ExpectedTodayPanel";
 import { matchesSearch, statusLabel, waitMinutes } from "./queue/model";
 import { NextCustomerPanel } from "./queue/NextCustomerPanel";
 import { QueueEntries } from "./queue/QueueEntries";
@@ -85,6 +86,8 @@ function QueuePageContent({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Bumped to reload the queue after an appointment is checked in from this tab.
+  const [queueVersion, setQueueVersion] = useState(0);
   const next = useNextCustomer(branchId, (entry) => {
     setQueue((current) => current.map((item) => (item.id === entry.id ? entry : item)));
     setSelected(entry);
@@ -150,7 +153,7 @@ function QueuePageContent({
     return () => {
       active = false;
     };
-  }, [branchId]);
+  }, [branchId, queueVersion]);
 
   const visible = useMemo(
     () =>
@@ -295,6 +298,11 @@ function QueuePageContent({
               accent="green"
             />
           </div>
+          <ExpectedTodayPanel
+            branchId={branchId}
+            onToast={onToast}
+            onCheckedIn={() => setQueueVersion((current) => current + 1)}
+          />
           <NextCustomerPanel
             next={next}
             availableBarbers={availableBarbers}

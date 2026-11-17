@@ -3,7 +3,7 @@ import { clientIp, consumeAuthAttempts, signupRules, tooManyAttempts } from "@/s
 import { startSession } from "@/server/auth/session";
 import { pool } from "@/server/db/pool";
 import {
-  customerSignupSchema,
+  customerSelfSignupSchema,
   formatValidationErrors,
 } from "@/server/schemas/sprint.schema";
 import { createCustomer } from "@/server/services/customer.service";
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsed = customerSignupSchema.safeParse(body);
+  const parsed = customerSelfSignupSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -38,7 +38,9 @@ export async function POST(request: Request) {
     const throttle = await consumeAuthAttempts(pool, signupRules(clientIp(request)));
     if (!throttle.allowed) return tooManyAttempts(throttle.retryAfterSeconds);
 
-    const result = await createCustomer(pool, parsed.data);
+    const { confirmPassword: _confirmPassword, ...signup } = parsed.data;
+    void _confirmPassword;
+    const result = await createCustomer(pool, signup);
     if (result.kind === "duplicate") {
       return NextResponse.json(
         { success: false, message: "A customer with this email already exists" },

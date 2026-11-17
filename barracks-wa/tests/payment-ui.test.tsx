@@ -12,12 +12,12 @@ const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { PaymentPage } = await import("@/app/pages/staff/PaymentPage");
 
-const booking: EligibleVisit = { branchId: 1, visitType: "booking", visitRecordId: 11, customerName: "Ava Client", serviceName: "Original cut", barberName: "Bea Barber", servicePrice: 425, total: 425 };
-const walkIn: EligibleVisit = { branchId: 1, visitType: "queue", visitRecordId: 12, customerName: "Will Walkin", serviceName: "Basic cut", barberName: "Bea Barber", servicePrice: 300, total: 300 };
+const booking: EligibleVisit = { branchId: 1, visitType: "booking", visitRecordId: 11, customerId: 2, customerName: "Ava Client", serviceName: "Original cut", barberName: "Bea Barber", servicePrice: 425, total: 425, deposit: 0, paid: 0, balance: 425 };
+const walkIn: EligibleVisit = { branchId: 1, visitType: "queue", visitRecordId: 12, customerId: 5, customerName: "Will Walkin", serviceName: "Basic cut", barberName: "Bea Barber", servicePrice: 300, total: 300, deposit: 0, paid: 0, balance: 300 };
 const paid: TransactionRecord = { branchId: 1, id: 1, reference: "TX-TEST", visitType: "booking", visitRecordId: 11, bookingId: 11, queueEntryId: null,
   customerId: 2, barberId: 3, serviceId: "cut", processedBy: 4, customerName: "Ava Client", barberName: "Bea Barber", cashierName: "Pat Cashier",
   serviceName: "Original cut", amount: 425, subtotal: 425, total: 425, paymentMethod: "cash", amountReceived: 500, change: 75,
-  status: "completed", paymentStatus: "completed", createdAt: new Date().toISOString() };
+  status: "completed", paymentStatus: "completed", createdAt: new Date().toISOString(), priorPaid: 0, tendered: 500, receiptGroup: null };
 
 async function renderPayment({ canCheckout = true, canManageFinancialActions = false }: { canCheckout?: boolean; canManageFinancialActions?: boolean } = {}) {
   const previousFetch = globalThis.fetch;
@@ -102,9 +102,10 @@ test("Front Desk checkout has no refund or void controls", async () => {
     assert.ok(dom.window.document.querySelector(".payment-form-panel"));
     assert.equal(dom.window.document.querySelector(".financial-action-panel"), null);
     assert.equal(dom.window.document.querySelector(".financial-audit-panel"), null);
-    assert.match(dom.window.document.querySelector(".receipt-paper")?.textContent ?? "", /refunded/);
+    assert.match(dom.window.document.querySelector(".receipt-paper")?.textContent ?? "", /REFUNDED/);
     assert.equal(dom.window.document.body.textContent?.includes("Refund full amount"), false);
     assert.equal(dom.window.document.body.textContent?.includes("Void transaction"), false);
+    assert.equal(dom.window.document.body.textContent?.includes("Void balance"), false);
   } finally { await page.cleanup(); }
 });
 
@@ -120,23 +121,25 @@ test("Management sees transaction history and financial controls without checkou
     await openDay(page.container);
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "View details")!.click(); });
     await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
-    assert.match(dom.window.document.querySelector(".financial-action-panel")?.textContent ?? "", /Refund full amount[\s\S]*Void transaction/);
+    const panel = dom.window.document.querySelector(".financial-action-panel")?.textContent ?? "";
+    assert.match(panel, /Void transaction[\s\S]*reason is required and logged/);
+    assert.equal(panel.includes("Refund"), false);
   } finally { await page.cleanup(); }
 });
 
-test("Management cannot void a sale that has earned commission, only refund it", async () => {
+test("Refund is retired: a reversed sale offers no further action and Void needs a reason", async () => {
   const page = await renderPayment({ canCheckout: false, canManageFinancialActions: true });
   try {
     page.setHistory([paid]);
-    page.setReceipt({ ...paid, voidable: false });
+    page.setReceipt({ ...paid, voidable: true });
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "Refresh")!.click(); });
     await openDay(page.container);
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "View details")!.click(); });
     await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
-    const panel = dom.window.document.querySelector(".financial-action-panel")?.textContent ?? "";
-    assert.match(panel, /Refund full amount/);
-    assert.match(panel, /can be refunded but not voided/);
-    assert.equal(panel.includes("Void transaction"), false);
+    const voidButton = [...dom.window.document.querySelectorAll<HTMLButtonElement>(".financial-action-panel button")].find((button) => button.textContent === "Void transaction");
+    assert.ok(voidButton);
+    assert.equal(voidButton.disabled, true, "Void stays disabled until a reason is typed");
+    assert.equal(dom.window.document.body.textContent?.includes("Refund full amount"), false);
   } finally { await page.cleanup(); }
 });
 
@@ -150,8 +153,11 @@ test("cash checkout requires sufficient received amount, submits once, and refre
     assert.match(dom.window.document.body.textContent ?? "", /Ava Client.*Original cut.*Bea Barber[\s\S]*₱425/);
     assert.equal(submit(page.container).disabled, true);
     const input = dom.window.document.querySelector('input[type="number"]') as HTMLInputElement;
+    // Below the balance is an underpayment: it can be recorded but is never marked paid.
     await act(async () => { setInputValue(input, "400"); });
-    assert.equal(submit(page.container).disabled, true);
+    assert.equal(submit(page.container), undefined);
+    assert.match(dom.window.document.body.textContent ?? "", /Underpayment\.\s*₱25 will remain as balance and the visit will not be marked as paid/);
+    assert.ok([...dom.window.document.querySelectorAll("button")].some((button) => button.textContent === "Record partial payment"));
     await act(async () => { setInputValue(input, "500"); });
     assert.match(dom.window.document.body.textContent ?? "", /Change: ₱75/);
     await act(async () => { submit(page.container).click(); });
@@ -162,21 +168,23 @@ test("cash checkout requires sufficient received amount, submits once, and refre
     assert.equal(dom.window.document.body.textContent?.includes("Processing…"), true);
     page.setVisits([walkIn]); page.setHistory([paid]);
     await act(async () => { page.releasePost(Response.json({ success: true, transaction: paid }, { status: 201 })); });
-    assert.match(dom.window.document.body.textContent ?? "", /Payment completed.*TX-TEST[\s\S]*Received: ₱500[\s\S]*Change: ₱75/);
+    assert.match(dom.window.document.body.textContent ?? "", /Payment complete[\s\S]*Ava Client has paid in full[\s\S]*Cash ₱500 · Change ₱75[\s\S]*TX-TEST/);
     assert.match(dom.window.document.body.textContent ?? "", /1 transactions this month/);
     assert.equal(page.requests.filter((request) => request === "GET /api/transactions?view=eligible").length, 2);
-    await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "Print Receipt")!.click(); });
+    await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "Print receipt")!.click(); });
     assert.ok(page.requests.includes("GET /api/transactions?reference=TX-TEST"));
     assert.equal(printCount, 1);
   } finally { dom.window.print = previousPrint; await page.cleanup(); }
 });
 
-test("non-cash checkout omits cash fields and shows duplicate conflict", async () => {
+test("non-cash checkout settles the full balance and shows duplicate conflict", async () => {
   const page = await renderPayment();
   try {
     await choose(page.container, "queue:12");
     await setMethod(page.container, "e_wallet");
-    assert.equal(dom.window.document.querySelector('input[type="number"]'), null);
+    // The amount is optional for non-cash: left blank it settles the full balance.
+    assert.equal((dom.window.document.querySelector('input[type="number"]') as HTMLInputElement).required, false);
+    assert.equal(dom.window.document.body.textContent?.includes("Change:"), false);
     page.setPostResponse(Response.json({ success: false, message: "A transaction already exists for this visit" }, { status: 409 }));
     await act(async () => { submit(page.container).click(); });
     await confirmPayment(page.container);
@@ -201,7 +209,7 @@ test("receipt reopens from the server and prints persisted snapshots", async () 
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "View details")!.click(); });
     await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
     const receipt = dom.window.document.querySelector(".receipt-paper")!;
-    assert.match(receipt.textContent ?? "", /TX-TEST[\s\S]*Saved Customer[\s\S]*Saved Service[\s\S]*Saved Barber[\s\S]*Saved Cashier[\s\S]*Subtotal₱425[\s\S]*Total₱425[\s\S]*Amount received₱500[\s\S]*Change₱75[\s\S]*completed/);
+    assert.match(receipt.textContent ?? "", /Tel: [\s\S]*TIN: [\s\S]*TX-TEST[\s\S]*Saved Customer[\s\S]*Saved Cashier[\s\S]*Saved Service[\s\S]*Saved Barber[\s\S]*TOTAL₱425[\s\S]*Cash₱500[\s\S]*Change₱75[\s\S]*PAID/);
     assert.ok(page.requests.includes("GET /api/transactions?reference=TX-TEST"));
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "Print Receipt")!.click(); });
     assert.equal(printCount, 1);
@@ -237,7 +245,7 @@ test("history sends search, method and month filters and paginates a selected da
   } finally { await page.cleanup(); }
 });
 
-test("refunded receipt and history display the status and saved audit details", async () => {
+test("a historical refunded receipt still displays its status and saved audit details", async () => {
   const page = await renderPayment({ canCheckout: false, canManageFinancialActions: true });
   try {
     const refunded: TransactionRecord = { ...paid, status: "refunded", paymentStatus: "refunded", actions: [{
@@ -251,7 +259,7 @@ test("refunded receipt and history display the status and saved audit details", 
     await openDay(page.container);
     await act(async () => { Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent === "View details")!.click(); });
     await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
-    assert.match(dom.window.document.querySelector(".receipt-paper")?.textContent ?? "", /refunded[\s\S]*Refund₱425 · Customer request · Morgan Manager/);
+    assert.match(dom.window.document.querySelector(".receipt-paper")?.textContent ?? "", /REFUNDED[\s\S]*Refund ₱425 · Customer request · Morgan Manager/);
     assert.match(dom.window.document.querySelector(".financial-audit-panel")?.textContent ?? "", /refund · ₱425 · Customer request · Morgan Manager/);
   } finally { await page.cleanup(); }
 });

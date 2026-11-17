@@ -10,7 +10,14 @@ import {
   dayReasonLabel,
   type MonthAvailabilityDay,
 } from "@/app/components/bookings/BookingCalendar";
-import { BOOKING_WINDOW_DAYS, lastBookableDate, manilaToday } from "@/app/constants/booking";
+import {
+  BOOKING_DEPOSIT_RATE,
+  BOOKING_WINDOW_DAYS,
+  bookingDeposit,
+  lastBookableDate,
+  manilaToday,
+} from "@/app/constants/booking";
+import { Icon } from "@/app/components/ui/icons";
 
 export type BookingFormValue = {
   customerId: string;
@@ -19,6 +26,23 @@ export type BookingFormValue = {
   date: string;
   time: string;
   notes: string;
+  // How the booking deposit was paid (new bookings only).
+  depositMethod?: string;
+  depositReference?: string;
+};
+
+// Customers pay the deposit ahead; staff may also take it at the counter.
+const depositMethods = {
+  customer: [
+    { id: "e_wallet", label: "E-wallet" },
+    { id: "bank_transfer", label: "Bank transfer" },
+  ],
+  staff: [
+    { id: "cash", label: "Cash" },
+    { id: "e_wallet", label: "E-wallet" },
+    { id: "card", label: "Card" },
+    { id: "bank_transfer", label: "Bank transfer" },
+  ],
 };
 
 const timeReasonLabel: Record<string, string> = {
@@ -27,6 +51,7 @@ const timeReasonLabel: Record<string, string> = {
   break: "Barber on break",
   away: "Barber away",
   outside_shift: "Outside barber's shift",
+  not_enough_time: "Not enough time",
 };
 
 // Availability changes as other people book; refresh quietly while the form is open.
@@ -40,6 +65,8 @@ export function BookingForm({
   barbers,
   hideCustomer = false,
   requireBarber = false,
+  showPackages = false,
+  depositMode,
   excludeBookingId,
   availabilityVersion = 0,
   submitLabel = "Save booking",
@@ -55,6 +82,10 @@ export function BookingForm({
   barbers: ApiBarberAvailability[];
   hideCustomer?: boolean;
   requireBarber?: boolean;
+  // Show each service as a card listing what the package includes.
+  showPackages?: boolean;
+  // Collect the booking deposit: customers give a payment reference, staff record how it was taken.
+  depositMode?: "customer" | "staff";
   excludeBookingId?: number;
   availabilityVersion?: number;
   submitLabel?: string;
@@ -166,6 +197,12 @@ export function BookingForm({
 
   const selectedService = services.find((service) => service.id === value.serviceId);
   const selectedBarber = barbers.find((barber) => String(barber.id) === value.barberId);
+  const deposit = depositMode && selectedService ? bookingDeposit(selectedService.price) : 0;
+  const depositReady =
+    !deposit ||
+    (Boolean(value.depositMethod) &&
+      (depositMode === "staff" || Boolean(value.depositReference?.trim())));
+  const activeServices = services.filter((service) => service.active);
   return (
     <form
       className="modal-form booking-form"
@@ -198,22 +235,59 @@ export function BookingForm({
           Queue.
         </p>
       )}
-      <div className="form-grid form-grid--two">
-        <SelectField
-          label="Service"
-          required
-          value={value.serviceId}
-          onChange={(event) => onChange({ ...value, serviceId: event.target.value, time: "" })}
-        >
-          <option value="">Choose a service</option>
-          {services
-            .filter((service) => service.active)
-            .map((service) => (
+      {showPackages && (
+        <fieldset className="package-picker">
+          <legend>Choose a package</legend>
+          <div className="package-picker__grid">
+            {activeServices.map((service) => (
+              <button
+                key={service.id}
+                type="button"
+                className="package-card"
+                aria-pressed={value.serviceId === service.id}
+                onClick={() => onChange({ ...value, serviceId: service.id, time: "" })}
+              >
+                <span className="package-card__head">
+                  <strong>{service.name}</strong>
+                  <span className="package-card__price">₱{service.price.toLocaleString()}</span>
+                </span>
+                <span className="package-card__meta">
+                  <Icon name="clock" size={13} /> {service.durationMinutes} mins
+                </span>
+                {service.description && (
+                  <span className="package-card__description">{service.description}</span>
+                )}
+                {(service.inclusions?.length ?? 0) > 0 && (
+                  <span className="package-card__includes">
+                    <span className="package-card__label">Includes</span>
+                    {service.inclusions!.map((item) => (
+                      <span key={item} className="package-card__item">
+                        <Icon name="check" size={13} /> {item}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      <div className={showPackages ? "form-grid" : "form-grid form-grid--two"}>
+        {!showPackages && (
+          <SelectField
+            label="Service"
+            required
+            value={value.serviceId}
+            onChange={(event) => onChange({ ...value, serviceId: event.target.value, time: "" })}
+          >
+            <option value="">Choose a service</option>
+            {activeServices.map((service) => (
               <option key={service.id} value={service.id}>
                 {service.name} · {service.durationMinutes} mins · ₱{service.price}
               </option>
             ))}
-        </SelectField>
+          </SelectField>
+        )}
         <SelectField
           label="Barber"
           required={requireBarber}
@@ -230,6 +304,12 @@ export function BookingForm({
             ))}
         </SelectField>
       </div>
+      {!showPackages && selectedService && (selectedService.inclusions?.length ?? 0) > 0 && (
+        <p className="form-hint package-inline">
+          <strong>{selectedService.name} includes:</strong>{" "}
+          {selectedService.inclusions!.join(" · ")}
+        </p>
+      )}
 
       <fieldset className="booking-picker" disabled={!readyForAvailability}>
         <legend>Date and time</legend>
@@ -317,6 +397,49 @@ export function BookingForm({
         maxLength={500}
         onChange={(event) => onChange({ ...value, notes: event.target.value })}
       />
+      {deposit > 0 && selectedService && (
+        <fieldset className="deposit-box">
+          <legend>Deposit required</legend>
+          <p className="deposit-box__amount">
+            <strong>₱{deposit.toLocaleString()}</strong>
+            <span>
+              {Math.round(BOOKING_DEPOSIT_RATE * 100)}% of ₱{selectedService.price.toLocaleString()}{" "}
+              holds this appointment. The remaining ₱
+              {(selectedService.price - deposit).toLocaleString()} is paid at the shop.
+            </span>
+          </p>
+          <div className="form-grid form-grid--two">
+            <SelectField
+              label={depositMode === "customer" ? "Paid through" : "Deposit received by"}
+              required
+              value={value.depositMethod ?? ""}
+              onChange={(event) => onChange({ ...value, depositMethod: event.target.value })}
+            >
+              <option value="">Choose a method</option>
+              {depositMethods[depositMode!].map((method) => (
+                <option key={method.id} value={method.id}>
+                  {method.label}
+                </option>
+              ))}
+            </SelectField>
+            <TextField
+              label={
+                depositMode === "customer" ? "Payment reference no." : "Reference no. (optional)"
+              }
+              required={depositMode === "customer"}
+              maxLength={80}
+              value={value.depositReference ?? ""}
+              onChange={(event) => onChange({ ...value, depositReference: event.target.value })}
+            />
+          </div>
+          {depositMode === "customer" && (
+            <p className="form-hint">
+              Send the deposit to the shop, then enter the reference number of your payment. Staff
+              verify it before confirming your appointment.
+            </p>
+          )}
+        </fieldset>
+      )}
       {selectedSlot && selectedService && (
         <div className="booking-form-review" aria-label="Review booking">
           <h3>Review appointment</h3>
@@ -332,6 +455,12 @@ export function BookingForm({
             {formatTimeRange(selectedSlot.startTime, selectedSlot.endTime)}
           </p>
           <p>Notes: {value.notes.trim() || "None"}</p>
+          {deposit > 0 && (
+            <p>
+              Deposit ₱{deposit.toLocaleString()} · Balance at the shop ₱
+              {(selectedService.price - deposit).toLocaleString()}
+            </p>
+          )}
         </div>
       )}
       <div className="modal-actions">
@@ -341,7 +470,7 @@ export function BookingForm({
         <Button
           type="submit"
           icon="calendar"
-          disabled={!customerEligible || submitting || !selectedSlot}
+          disabled={!customerEligible || submitting || !selectedSlot || !depositReady}
         >
           {submitting ? "Saving…" : submitLabel}
         </Button>

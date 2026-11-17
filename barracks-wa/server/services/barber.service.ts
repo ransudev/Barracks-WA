@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { countBarberActiveBookings, RecordLockedError } from "@/server/services/record-locks";
 import { inTransaction, type Db } from "@/server/db/transaction";
 import type { BarberInput, BarberStaffInput } from "@/server/schemas/sprint.schema";
 
@@ -141,6 +142,13 @@ export async function updateBarber(
   try {
   const current = await client.query<{ branch_id: number }>("SELECT branch_id FROM barbers WHERE id=$1 FOR UPDATE", [id]);
   if (!current.rows[0]) { if (ownsClient) await client.query("COMMIT"); return null; }
+  // A barber with live bookings or queue visits is locked from being made unavailable.
+  // Moving branches is already refused by the database while bookings are active.
+  const previous = await findBarberById(client, id);
+  if (previous && input.status === "unavailable" && previous.status !== "unavailable") {
+    const dependents = await countBarberActiveBookings(client, id);
+    if (dependents) throw new BarberMoveConflict(`This barber is locked: ${dependents} active ${dependents === 1 ? "booking or queue visit depends" : "bookings or queue visits depend"} on them. Move or cancel ${dependents === 1 ? "it" : "them"} first.`);
+  }
   if (Number(current.rows[0].branch_id) !== input.branchId) {
     const attendance = await client.query("SELECT 1 FROM barber_attendance WHERE barber_id=$1 AND attendance_date=(clock_timestamp() AT TIME ZONE 'Asia/Manila')::date AND clock_in IS NOT NULL AND clock_out IS NULL LIMIT 1", [id]);
     if (attendance.rowCount) throw new BarberMoveConflict("This barber cannot move branches while today's attendance clock-in is open");
@@ -183,6 +191,10 @@ export async function updateBarberStatus(
   id: number,
   status: BarberAvailabilityRecord["status"],
 ): Promise<BarberAvailabilityRecord | null> {
+  if (status === "unavailable") {
+    const dependents = await countBarberActiveBookings(db, id);
+    if (dependents) throw new RecordLockedError(`This barber is locked: ${dependents} active ${dependents === 1 ? "booking or queue visit depends" : "bookings or queue visits depend"} on them. Move or cancel ${dependents === 1 ? "it" : "them"} first.`);
+  }
   const result = await db.query<BarberAvailabilityRow>(
     `UPDATE barbers SET status = $1, updated_at = NOW() WHERE id = $2
      RETURNING id, branch_id, first_name, last_name, status`,

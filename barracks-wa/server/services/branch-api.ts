@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { branchErrorResponse } from "@/server/auth/branch-access";
 import { formatValidationErrors } from "@/server/schemas/user.schema";
+import { RecordLockedError } from "@/server/services/record-locks";
 
 export async function readBranchInput<T>(
   request: Request,
@@ -30,6 +31,8 @@ export async function readBranchInput<T>(
 export function branchApiError(error: unknown): Response {
   const branchResponse = branchErrorResponse(error);
   if (branchResponse) return branchResponse;
+  if (error instanceof RecordLockedError)
+    return Response.json({ success: false, code: error.code, message: error.message }, { status: 409 });
   if (error && typeof error === "object" && "code" in error) {
     if (error.code === "23505")
       return Response.json(

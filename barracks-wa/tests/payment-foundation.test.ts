@@ -15,8 +15,14 @@ test("payment request accepts one visit and a supported method only", () => {
     { visit: { bookingId: 1 }, paymentMethod: "cash", amount: 0 },
     { visit: { bookingId: 1 }, paymentMethod: "cash", amountReceived: -1 },
     { visit: { bookingId: 1 }, paymentMethod: "cash", amountReceived: 1.001 },
-    { visit: { bookingId: 1 }, paymentMethod: "card", amountReceived: 425 },
+    { visit: { bookingId: 1 }, visits: [{ bookingId: 1 }], paymentMethod: "card" },
+    { visits: [], paymentMethod: "card" },
+    { paymentMethod: "card" },
   ]) assert.equal(createTransactionSchema.safeParse(input).success, false);
+  // Several visits of one customer can share a receipt, and a non-cash amount
+  // below the balance records a partial payment.
+  assert.equal(createTransactionSchema.safeParse({ visits: [{ queueEntryId: 2 }, { queueEntryId: 3 }], paymentMethod: "cash", amountReceived: 600 }).success, true);
+  assert.equal(createTransactionSchema.safeParse({ visit: { bookingId: 1 }, paymentMethod: "card", amountReceived: 100 }).success, true);
 });
 
 test("transaction history filters validate paging, method and Manila date range", () => {
@@ -238,11 +244,12 @@ test("exact cash checkout uses the booking snapshot and persists a balanced tend
     assert.equal(paid.cashierName, "Cash Desk");
     assert.equal(paid.paymentStatus, "completed");
     const saved = await findTransactionByReference(db, paid.reference);
-    // A single-transaction read also says whether it can be voided; a paid
-    // visit has a payroll snapshot, so it can only be refunded.
-    const { voidable, ...savedTransaction } = saved!;
-    assert.deepEqual(savedTransaction, paid);
-    assert.equal(voidable, false);
+    // Checkout returns the saved receipt, and a completed sale can be voided.
+    assert.deepEqual(saved, paid);
+    assert.equal(saved?.voidable, true);
+    assert.equal(saved?.priorPaid, 0);
+    assert.equal(saved?.tendered, 425.25);
+    assert.deepEqual(saved?.lines?.map((line) => [line.serviceName, line.amount]), [["Snapshot cut", 425.25]]);
     const tender = (await db.query<{ amount: string; amount_received: string; change_amount: string }>(
       "SELECT amount,amount_received,change_amount FROM transaction_payments WHERE transaction_id=$1", [paid.id],
     )).rows[0];
@@ -371,6 +378,11 @@ test("Phase 4 Main Branch backfill preserves finalized sale, tender and refund a
     const after = (await db.query("SELECT * FROM transactions WHERE id=$1", [id])).rows[0];
     assert.equal(after.branch_id, Number((await db.query("SELECT id FROM branches WHERE code='MAIN'")).rows[0].id));
     delete after.branch_id;
+    // Migration 036 adds these with neutral defaults and leaves the sale untouched.
+    assert.equal(after.prior_paid, "0.00");
+    assert.equal(after.receipt_group, null);
+    delete after.prior_paid;
+    delete after.receipt_group;
     assert.deepEqual(after, before);
     assert.deepEqual((await db.query("SELECT * FROM transaction_payments WHERE transaction_id=$1", [id])).rows, tenders);
     assert.deepEqual((await db.query("SELECT * FROM transaction_financial_actions WHERE transaction_id=$1", [id])).rows, actions);

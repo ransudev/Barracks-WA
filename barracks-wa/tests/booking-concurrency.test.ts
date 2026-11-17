@@ -67,7 +67,7 @@ test("PostgreSQL rejects overlapping barber and customer bookings under concurre
     assert.equal((await updateBooking(pool, adjacent.id, { status: "completed" }))?.status, "completed");
     assert.equal((await queue.listQueue(pool)).some((entry) => entry.bookingId === adjacent.id), false);
     assert.equal((await queue.listQueue(pool, "completed-today")).find((entry) => entry.bookingId === adjacent.id)?.status, "completed");
-    await assert.rejects(updateBooking(pool, adjacent.id, { status: "cancelled" }), { kind: "not_updatable" });
+    await assert.rejects(updateBooking(pool, adjacent.id, { status: "cancelled", reason: "Shop closed" }), { kind: "not_updatable" });
     const walkIn = await queue.addWalkIn(pool, { customerId: loser, serviceId });
     assert.equal(walkIn.bookingId, null);
     assert.equal(walkIn.status, "waiting");
@@ -81,7 +81,7 @@ test("PostgreSQL rejects overlapping barber and customer bookings under concurre
     assert.equal((await queue.listQueue(pool)).some((entry) => entry.id === removable.id), false);
     const cancelled = await request(loser, barbers[1], "14:00");
     assert.equal((await updateBooking(pool, cancelled.id, { status: "checked_in" }))?.status, "checked_in");
-    assert.equal((await updateBooking(pool, cancelled.id, { status: "cancelled" }))?.status, "cancelled");
+    assert.equal((await updateBooking(pool, cancelled.id, { status: "cancelled", reason: "Shop closed" }))?.status, "cancelled");
     assert.equal((await queue.findQueueEntry(pool, (await pool.query<{ id: number }>("SELECT id FROM queue_entries WHERE booking_id=$1", [cancelled.id])).rows[0].id))?.status, "removed");
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const late = await pool.query<{ id: number }>(

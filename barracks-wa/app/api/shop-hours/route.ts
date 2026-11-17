@@ -4,6 +4,7 @@ import { requireRolesUser, requireManagementUser } from "@/server/auth/require-r
 import { pool } from "@/server/db/pool";
 import { hoursSchema } from "@/server/schemas/schedule.schema";
 import { listShopHours, saveShopHours, ShopHoursConfigurationError } from "@/server/services/schedule.service";
+import { branchHoursLocks } from "@/server/services/record-locks";
 
 export const runtime = "nodejs";
 export async function GET(request: Request) {
@@ -11,7 +12,8 @@ export async function GET(request: Request) {
   if (actor instanceof Response) return actor;
   try {
     const branchId = await visitBranch(pool, actor, request);
-    return Response.json({ success: true, hours: await listShopHours(pool, branchId), timezone: "Asia/Manila" });
+    return Response.json({ success: true, hours: await listShopHours(pool, branchId), timezone: "Asia/Manila",
+      ...(actor.role === "customer" ? {} : { lockedDays: await branchHoursLocks(pool, branchId) }) });
   }
   catch (error) { if (error instanceof ShopHoursConfigurationError) return Response.json({ success: false, message: error.message }, { status: 409 }); return branchApiError(error); }
 }

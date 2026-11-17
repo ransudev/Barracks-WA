@@ -1,15 +1,24 @@
 import { resolveCustomerBranch, lockOperationalActor, requireBranchAccess, type BranchActor } from "@/server/auth/branch-access";
 import type { Pool, PoolClient } from "pg";
 import { findServiceById } from "@/server/services/service.service";
-import { findAvailableBarbers, isBookingSlotAvailable } from "@/server/services/booking-availability.service";
-import { BOOKING_GRACE_MINUTES, BOOKING_WINDOW_DAYS, bookingHasStarted, isWithinBookingWindow, MAX_PENDING_BOOKING_REQUESTS, mayMarkNoShow } from "@/app/constants/booking";
+import { bookingSlotReason, findAvailableBarbers, isBookingSlotAvailable } from "@/server/services/booking-availability.service";
+import { BOOKING_GRACE_MINUTES, BOOKING_WINDOW_DAYS, bookingDeposit, bookingHasStarted, isWithinBookingWindow, MAX_PENDING_BOOKING_REQUESTS, mayMarkNoShow } from "@/app/constants/booking";
 import { isActiveBarberConflict, QueueServiceError, syncAppointmentQueue } from "@/server/services/queue.service";
 import { BarberOperationalAvailabilityError, getBarberOperationalAvailability, requireBarberOperationalAvailability } from "@/server/services/barber-operational-availability.service";
 import type {
   BookingEditInput,
   BookingCreateInput,
+  BookingDepositInput,
   BookingUpdateInput,
 } from "@/server/schemas/sprint.schema";
+
+// Who performed a booking action, recorded on its event.
+export type BookingActor = { id: number; name: string };
+export type BookingEventType = "created" | "rescheduled" | "confirmed" | "rejected" | "cancelled"
+  | "checked_in" | "in_progress" | "completed" | "no_show" | "remarks";
+export type BookingEvent = { id: number; type: BookingEventType; detail: string | null; actorName: string; createdAt: string };
+export type BookingPaymentStatus = "paid" | "partial" | "unpaid" | "voided";
+export type DepositStatus = "none" | "submitted" | "received" | "released";
 
 type BookingRow = {
   branch_id: number;
@@ -31,6 +40,15 @@ type BookingRow = {
   status: "pending" | "confirmed" | "rejected" | "checked_in" | "in_progress" | "completed" | "cancelled" | "no_show";
   created_at: string | Date;
   updated_at: string | Date;
+  status_reason: string | null;
+  closed_by: "shop" | "customer" | null;
+  remarks: string | null;
+  deposit_amount: number | string;
+  deposit_method: string | null;
+  deposit_reference: string | null;
+  deposit_status: DepositStatus;
+  paid_amount: number | string;
+  payment_status: BookingPaymentStatus | null;
 };
 
 export type BookingRecord = {
@@ -53,6 +71,18 @@ export type BookingRecord = {
   status: BookingRow["status"];
   createdAt: string;
   updatedAt: string;
+  // Why the shop rejected or cancelled it (or the customer's own reason), and who closed it.
+  statusReason: string | null;
+  closedBy: "shop" | "customer" | null;
+  remarks: string | null;
+  depositAmount: number;
+  depositMethod: string | null;
+  depositReference: string | null;
+  depositStatus: DepositStatus;
+  // Verified deposit plus partial payments collected so far.
+  paidAmount: number;
+  // Set once the service is completed.
+  paymentStatus: BookingPaymentStatus | null;
 };
 
 export class BookingServiceError extends Error {
@@ -87,7 +117,24 @@ const bookingSelect = `
     b.notes,
     b.status,
     b.created_at,
-    b.updated_at
+    b.updated_at,
+    b.status_reason,
+    b.closed_by,
+    b.remarks,
+    b.deposit_amount,
+    b.deposit_method,
+    b.deposit_reference,
+    b.deposit_status,
+    (CASE WHEN b.deposit_status='received' THEN b.deposit_amount ELSE 0 END
+      + COALESCE((SELECT sum(pp.amount) FROM visit_partial_payments pp
+          WHERE pp.visit_type='booking' AND pp.visit_record_id=b.id), 0)) AS paid_amount,
+    CASE WHEN b.status<>'completed' THEN NULL
+      WHEN EXISTS (SELECT 1 FROM visit_voids vv WHERE vv.visit_type='booking' AND vv.visit_record_id=b.id) THEN 'voided'
+      WHEN EXISTS (SELECT 1 FROM transactions t WHERE t.visit_type='booking' AND t.visit_record_id=b.id AND t.status='completed') THEN 'paid'
+      WHEN EXISTS (SELECT 1 FROM transactions t WHERE t.visit_type='booking' AND t.visit_record_id=b.id) THEN 'voided'
+      WHEN (b.deposit_status='received' AND b.deposit_amount>0)
+        OR EXISTS (SELECT 1 FROM visit_partial_payments pp WHERE pp.visit_type='booking' AND pp.visit_record_id=b.id) THEN 'partial'
+      ELSE 'unpaid' END AS payment_status
   FROM bookings b
   INNER JOIN branches branch ON branch.id = b.branch_id
   INNER JOIN customers c ON c.id = b.customer_id
@@ -134,8 +181,39 @@ function toBooking(row: BookingRow): BookingRecord {
     status: row.status,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
+    statusReason: row.status_reason,
+    closedBy: row.closed_by,
+    remarks: row.remarks,
+    depositAmount: Number(row.deposit_amount),
+    depositMethod: row.deposit_method,
+    depositReference: row.deposit_reference,
+    depositStatus: row.deposit_status,
+    paidAmount: Number(row.paid_amount),
+    paymentStatus: row.payment_status,
   };
 }
+
+// Exactly one event per action. For "created" the database also enforces it.
+async function logBookingEvent(db: Pool | PoolClient, bookingId: number, type: BookingEventType, detail: string | null, actor?: BookingActor): Promise<void> {
+  await db.query(
+    "INSERT INTO booking_events(booking_id,event_type,detail,actor_user_id,actor_name) VALUES($1,$2,$3,$4,$5)",
+    [bookingId, type, detail, actor?.id ?? null, actor?.name ?? ""],
+  );
+}
+
+export async function listBookingEvents(db: Pool, bookingId: number): Promise<BookingEvent[]> {
+  const result = await db.query<{ id: string; event_type: BookingEventType; detail: string | null; actor_name: string; created_at: Date }>(
+    "SELECT id,event_type,detail,actor_name,created_at FROM booking_events WHERE booking_id=$1 ORDER BY created_at,id", [bookingId]);
+  return result.rows.map((row) => ({ id: Number(row.id), type: row.event_type, detail: row.detail, actorName: row.actor_name, createdAt: toIso(row.created_at) }));
+}
+
+const slotReasonMessage: Record<string, string> = {
+  not_enough_time: "Not enough time: this service does not fit before the barber's next booking, break or end of shift. Choose another time",
+  booked: "That time is already booked with this barber. Please choose another time",
+  break: "The barber is on break at that time. Please choose another time",
+  away: "The barber is away at that time. Please choose another time",
+  outside_shift: "That time is outside the barber's shift. Please choose another time",
+};
 
 export async function listBookings(
   db: Pool,
@@ -153,7 +231,7 @@ export async function listBookings(
 
 export async function createBooking(
   db: Pool,
-  input: BookingCreateInput & { customerId: number; branchId?: number; status?: "pending" | "confirmed" },
+  input: BookingCreateInput & { customerId: number; branchId?: number; status?: "pending" | "confirmed"; deposit?: BookingDepositInput; actor?: BookingActor },
 ): Promise<BookingRecord> {
   const branchId = await resolveCustomerBranch(db, input.branchId === undefined ? null : String(input.branchId));
   input = { ...input, branchId };
@@ -205,12 +283,18 @@ export async function createBooking(
             `You already have ${MAX_PENDING_BOOKING_REQUESTS} booking requests awaiting approval. Wait for a reply or cancel one before requesting another`);
         }
       }
+      // A staff-entered booking is confirmed with its deposit in hand; a customer
+      // request reports the deposit, which staff verify when confirming.
+      const depositAmount = input.deposit ? bookingDeposit(service.price) : 0;
+      const depositStatus = !depositAmount ? "none" : (input.status ?? "confirmed") === "confirmed" ? "received" : "submitted";
       const inserted = await client.query<{ id: number }>(
       `
         INSERT INTO bookings
-          (customer_id, barber_id, service_id, service_name, service_price, service_duration_minutes, booking_date, booking_time, end_time, notes, branch_id, status)
+          (customer_id, barber_id, service_id, service_name, service_price, service_duration_minutes, booking_date, booking_time, end_time, notes, branch_id, status,
+           deposit_amount, deposit_method, deposit_reference, deposit_status)
         SELECT $1, $2, $3, $4, $5, $6::integer, $7, $8,
-          ($8::time + $6::integer * INTERVAL '1 minute')::time, $9, selected_branch.id, $11
+          ($8::time + $6::integer * INTERVAL '1 minute')::time, $9, selected_branch.id, $11,
+          $12, $13, $14, $15
         FROM customers c
         INNER JOIN users u ON u.id = c.user_id
         INNER JOIN branches selected_branch ON selected_branch.id=$10 AND selected_branch.status='active'
@@ -230,12 +314,18 @@ export async function createBooking(
         input.notes?.trim() || null,
         input.branchId ?? null,
         input.status ?? "confirmed",
+        depositAmount,
+        depositAmount ? input.deposit!.method : null,
+        depositAmount ? input.deposit!.reference?.trim() || null : null,
+        depositStatus,
       ],
     );
       if (!inserted.rows[0]) {
         await resolveCustomerBranch(client, String(branchId));
         throw new BookingServiceError("not_found", "Customer not found");
       }
+      await logBookingEvent(client, inserted.rows[0].id, "created",
+        (input.status ?? "confirmed") === "pending" ? "Requested online" : "Booked by staff", input.actor);
       const booking = (await findBookingById(client, inserted.rows[0].id)) as BookingRecord;
       await client.query("COMMIT");
       return booking;
@@ -253,9 +343,14 @@ export async function createBooking(
       client.release();
     }
   }
-  throw new BookingServiceError("conflict", input.barberId
-    ? "That time is no longer open with this barber. Please choose another time"
-    : "No barber is available at that time. Please choose another slot");
+  throw new BookingServiceError("conflict", await unavailableMessage(db, input));
+}
+
+// Explain a refused slot, naming "Not enough time" when the service will not fit the gap.
+async function unavailableMessage(db: Pool, input: { serviceId: string; barberId?: number | null; date: string; time: string; branchId?: number }, excludeBookingId?: number): Promise<string> {
+  if (!input.barberId) return "No barber is available at that time. Please choose another slot";
+  const reason = await bookingSlotReason(db, { ...input, barberId: input.barberId }, { excludeBookingId }).catch(() => undefined);
+  return slotReasonMessage[reason ?? ""] ?? "That time is no longer open with this barber. Please choose another time";
 }
 
 async function bookingCandidates(db: Pool, input: { serviceId: string; barberId?: number | null; date: string; time: string; branchId?: number }, excludeBookingId?: number): Promise<number[]> {
@@ -281,8 +376,15 @@ export async function updateBooking(
   db: Pool,
   id: number,
   input: BookingUpdateInput,
-  scope?: { customerId?: number; actor?: BranchActor },
+  scope?: { customerId?: number; actor?: BranchActor; eventActor?: BookingActor },
 ): Promise<BookingRecord | null> {
+  const reason = input.reason?.trim() || null;
+  // The shop must tell the customer why a booking was rejected or cancelled.
+  if (!scope?.customerId && (input.status === "rejected" || input.status === "cancelled") && !reason) {
+    throw new BookingServiceError("not_updatable", input.status === "rejected"
+      ? "Give a reason for rejecting this booking. The customer will see it"
+      : "Give a reason for cancelling this booking. The customer will see it");
+  }
   const client = await db.connect();
   try {
     await client.query("BEGIN");
@@ -324,10 +426,21 @@ export async function updateBooking(
       requireBarberOperationalAvailability(eligibility);
       serviceStartedAt = eligibility.interval?.startsAt;
     }
-    const customerScope = scope?.customerId ? " AND customer_id = $4" : "";
-    const values = scope?.customerId ? [input.status, id, expected[input.status], scope.customerId] : [input.status, id, expected[input.status]];
+    const closing = input.status === "rejected" || input.status === "cancelled";
+    const closedBy = closing ? (scope?.customerId ? "customer" : "shop") : null;
+    const customerScope = scope?.customerId ? " AND customer_id = $6" : "";
+    const values = scope?.customerId
+      ? [input.status, id, expected[input.status], closing ? reason : null, closedBy, scope.customerId]
+      : [input.status, id, expected[input.status], closing ? reason : null, closedBy];
     const result = await client.query<{ id: number }>(
-      `UPDATE bookings SET status=$1, updated_at=NOW() WHERE id=$2 AND status=$3${customerScope}
+      `UPDATE bookings SET status=$1::varchar, updated_at=NOW(),
+         status_reason=CASE WHEN $5::text IS NULL THEN status_reason ELSE $4::text END,
+         closed_by=COALESCE($5::text, closed_by),
+         deposit_status=CASE
+           WHEN $1::varchar='confirmed' AND deposit_status='submitted' THEN 'received'
+           WHEN $5::text='shop' AND deposit_status IN ('submitted','received') THEN 'released'
+           ELSE deposit_status END
+       WHERE id=$2 AND status=$3${customerScope}
        ${input.status === "no_show" ? `AND NOW() >= ((booking_date + booking_time) AT TIME ZONE 'Asia/Manila') + INTERVAL '${BOOKING_GRACE_MINUTES} minutes'` : ""}
        RETURNING id`, values,
     );
@@ -335,6 +448,7 @@ export async function updateBooking(
     if (["checked_in", "in_progress", "completed"].includes(input.status) || (input.status === "cancelled" && existing.status === "checked_in")) {
       await syncAppointmentQueue(client, id, input.status as "checked_in" | "in_progress" | "completed" | "cancelled", serviceStartedAt);
     }
+    await logBookingEvent(client, id, input.status, closing ? reason : null, scope?.eventActor);
     const booking = await findBookingById(client, id);
     await client.query("COMMIT");
     return booking;
@@ -351,7 +465,7 @@ export async function updateBookingDetails(
   db: Pool,
   id: number,
   input: BookingEditInput & { branchId?: number },
-  scope?: { customerId?: number },
+  scope?: { customerId?: number; eventActor?: BookingActor },
 ): Promise<BookingRecord | null> {
   const existingBooking = await findBookingById(db, id);
   if (!existingBooking) return null;
@@ -437,7 +551,11 @@ export async function updateBookingDetails(
       }
     }
 
-    return updated.rows[0] ? findBookingById(db, id) : null;
+    if (!updated.rows[0]) return null;
+    const moved = existingBooking.date !== input.date || existingBooking.time !== input.time;
+    await logBookingEvent(db, id, "rescheduled",
+      moved ? `Moved from ${existingBooking.date} ${existingBooking.time} to ${input.date} ${input.time}` : "Details updated", scope?.eventActor);
+    return findBookingById(db, id);
     } catch (error) {
       if (isOverlapViolation(error, "bookings_active_customer_overlap")) throw new BookingServiceError("conflict", "Customer already has an appointment that overlaps this time");
       if (isOverlapViolation(error, "bookings_active_barber_overlap") || isUniqueViolation(error)) {
@@ -447,9 +565,25 @@ export async function updateBookingDetails(
       throw error;
     }
   }
-  throw new BookingServiceError("conflict", input.barberId
-    ? "That time is no longer open with this barber. Please choose another time"
-    : "No barber is available at that time. Please choose another slot");
+  throw new BookingServiceError("conflict", await unavailableMessage(db, input, id));
+}
+
+// Staff remarks on an appointment, shown in the customer's history.
+export async function updateBookingRemarks(db: Pool, id: number, remarks: string, actor?: BookingActor): Promise<BookingRecord | null> {
+  const text = remarks.trim() || null;
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const updated = await client.query("UPDATE bookings SET remarks=$2 WHERE id=$1 RETURNING id", [id, text]);
+    if (!updated.rowCount) { await client.query("ROLLBACK"); return null; }
+    await logBookingEvent(client, id, "remarks", text ?? "Remarks cleared", actor);
+    const booking = await findBookingById(client, id);
+    await client.query("COMMIT");
+    return booking;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally { client.release(); }
 }
 
 /**

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const denied = await requireAdministrator(); if (denied) return denied;
   try {
-    const [branches, staff] = await Promise.all([listBranches(pool), listBranchStaff(pool)]);
+    const [branches, staff] = await Promise.all([listBranches(pool, false, true), listBranchStaff(pool)]);
     return Response.json({ success: true, branches, staff });
   } catch (error) { return branchApiError(error); }
 }
