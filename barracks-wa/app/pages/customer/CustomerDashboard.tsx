@@ -436,8 +436,9 @@ export function CustomerDashboard({
                         )}
                         {confirmed && booking.depositAmount > 0 && (
                           <span>
-                            Deposit of ₱{booking.depositAmount.toLocaleString()} received. Balance at
-                            the shop: ₱{(booking.price - booking.depositAmount).toLocaleString()}.
+                            Deposit of ₱{booking.depositAmount.toLocaleString()} received. Balance
+                            at the shop: ₱{(booking.price - booking.depositAmount).toLocaleString()}
+                            .
                           </span>
                         )}
                       </div>

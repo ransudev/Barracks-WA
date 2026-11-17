@@ -3,7 +3,7 @@ import test from "node:test";
 import { createDisposableSchema, databaseConfigured } from "./helpers/database";
 import { createService, deleteService, findServiceById, updateService } from "@/server/services/service.service";
 import { updateCustomer } from "@/server/services/customer.service";
-import { addWalkIn } from "@/server/services/queue.service";
+import { addWalkIn, updateWalkInStatus } from "@/server/services/queue.service";
 import { walkinCustomerProfileSchema, walkinCustomerStaffProfileSchema } from "@/server/schemas/sprint.schema";
 
 test("unused services delete; used services archive and restore without losing queue history", { skip: !databaseConfigured }, async () => {
@@ -18,6 +18,9 @@ test("unused services delete; used services archive and restore without losing q
   const visit=await addWalkIn(db,{customer:{firstName:"Sprint",lastName:"Guest",phone:"09123456789"},serviceId:input.id});
   assert.equal((await findServiceById(db,input.id))?.hasHistory,true);
   assert.equal(await deleteService(db,input.id),"has_history");
+  // A live queue visit locks the service; it can be archived once the visit leaves the queue.
+  await assert.rejects(updateService(db,input.id,{active:false}),{code:"RECORD_LOCKED"});
+  await updateWalkInStatus(db,visit.id,"removed");
   assert.equal((await updateService(db,input.id,{active:false}))?.active,false);
   assert.equal(await deleteService(db,input.id),"has_history");
   assert.equal(Number((await db.query("SELECT count(*) FROM queue_entries WHERE id=$1",[visit.id])).rows[0].count),1);

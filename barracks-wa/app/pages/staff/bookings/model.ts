@@ -68,7 +68,10 @@ export const bookingPayload = (value: BookingFormValue) => ({
   time: value.time,
   notes: value.notes,
   ...(value.depositMethod && {
-    deposit: { method: value.depositMethod, reference: value.depositReference?.trim() || undefined },
+    deposit: {
+      method: value.depositMethod,
+      reference: value.depositReference?.trim() || undefined,
+    },
   }),
 });
 

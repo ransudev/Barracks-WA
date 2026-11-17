@@ -306,7 +306,8 @@ export function BookingForm({
       </div>
       {!showPackages && selectedService && (selectedService.inclusions?.length ?? 0) > 0 && (
         <p className="form-hint package-inline">
-          <strong>{selectedService.name} includes:</strong> {selectedService.inclusions!.join(" · ")}
+          <strong>{selectedService.name} includes:</strong>{" "}
+          {selectedService.inclusions!.join(" · ")}
         </p>
       )}
 

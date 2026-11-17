@@ -91,7 +91,7 @@ test("Phase 3 visits persist branch ownership, isolate staff access and inherit 
     const staffId = Number((await db.query("INSERT INTO users(first_name,last_name,email,password_hash,role_id) VALUES('Visit','Staff','visit-staff@test.local','test',(SELECT id FROM roles WHERE name='front_desk')) RETURNING id")).rows[0].id);
     await db.query("INSERT INTO user_branches(user_id,branch_id,is_primary) VALUES($1,$2,true)", [staffId, second]);
     actor = { id: staffId, role: "front_desk" };
-    const input = { customerId, serviceId: "barracks-basic", barberId: b.id, date: "2026-11-05", time: "12:00" };
+    const input = { customerId, serviceId: "barracks-basic", barberId: b.id, date: "2026-11-05", time: "12:00", deposit: { method: "cash" } };
     const created = await bookings.POST(request(input, `?branchId=${second}`));
     assert.equal(created.status, 201);
     const booking = (await created.json()).booking;
@@ -166,7 +166,7 @@ test("Phase 4 payments inherit visit branches and enforce transaction access and
       assert.equal(ownHistory.total, 0);
       assert.equal((await paymentApi.GET(request({}, `?reference=${sale.reference}`))).status, 404);
     }
-    await assert.rejects(payment.applyFinancialAction(db, sale.reference, { action: "refund", amount: 300, reason: "Foreign branch" }, ids.manager), { kind: "forbidden" });
+    await assert.rejects(payment.applyFinancialAction(db, sale.reference, { action: "void", amount: 300, reason: "Foreign branch" }, ids.manager), { kind: "forbidden" });
     const mainBarber = await createBarber(db, { branchId: main, firstName: "Main", lastName: "Payment", status: "available" });
     const mainBook = Number((await db.query("INSERT INTO bookings(branch_id,customer_id,barber_id,service_id,service_name,service_price,booking_date,booking_time,status) VALUES($1,$2,$3,'barracks-basic','Main cut',300,'2026-11-05','13:00','completed') RETURNING id", [main, customer, mainBarber.id])).rows[0].id);
     const mainSale = await payment.createTransaction(db, { visit: { bookingId: mainBook }, paymentMethod: "card" }, ids.administrator);

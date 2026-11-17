@@ -105,7 +105,9 @@ function ReceiptPaper({ transaction }: { transaction: TransactionRecord }) {
                 {line.serviceName}
                 <small>
                   {line.barberName}
-                  {line.status === "completed" ? "" : ` · ${statusText[line.status] ?? line.status}`}
+                  {line.status === "completed"
+                    ? ""
+                    : ` · ${statusText[line.status] ?? line.status}`}
                 </small>
               </td>
               <td>{money(line.amount)}</td>

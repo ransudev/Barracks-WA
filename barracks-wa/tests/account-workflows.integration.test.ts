@@ -65,7 +65,7 @@ test("account routes persist signup, session, ownership, supplier linkage and pa
     const customerPassword = freshPassword();
     const registration = await signup.POST(request({
       firstName: "Synthetic", lastName: "Customer", email: customerEmail,
-      password: customerPassword, phone: "09123456789",
+      password: customerPassword, confirmPassword: customerPassword, phone: "09123456789",
     }));
     assert.equal(registration.status, 201);
     sessionCookie = readCookie(registration);
@@ -83,10 +83,16 @@ test("account routes persist signup, session, ownership, supplier linkage and pa
     assert.notEqual(registeredRows.rows[0].password_hash, customerPassword);
     assert.equal(await verifyPassword(customerPassword, registeredRows.rows[0].password_hash), true);
 
+    const duplicatePassword = freshPassword();
     const duplicate = await signup.POST(request({
       firstName: "Duplicate", lastName: "Customer", email: customerEmail,
-      password: freshPassword(), phone: "09123456789",
+      password: duplicatePassword, confirmPassword: duplicatePassword, phone: "09123456789",
     }));
+    // A mistyped confirmation is refused before any account is created.
+    assert.equal((await signup.POST(request({
+      firstName: "Typo", lastName: "Customer", email: freshEmail("typo"),
+      password: duplicatePassword, confirmPassword: `${duplicatePassword}x`, phone: "09123456789",
+    }))).status, 400);
     assert.equal(duplicate.status, 409);
     const beforePrivilegedSignup = await disposable.db.query("SELECT count(*)::int AS count FROM users");
     const privileged = await signup.POST(request({

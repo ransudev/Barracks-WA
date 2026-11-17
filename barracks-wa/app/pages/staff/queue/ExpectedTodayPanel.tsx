@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Panel } from "@/app/components/ui";
 import { ResponsiveTable } from "@/app/components/operations/OperationalPrimitives";
-import { manilaToday, minutesLate } from "@/app/constants/booking";
+import { lateLabel, manilaToday, minutesLate } from "@/app/constants/booking";
 import {
   apiErrorMessage,
   apiRequest,
@@ -97,7 +97,7 @@ export function ExpectedTodayPanel({
               <td>{booking.barberName}</td>
               <td>
                 {late > 0 ? (
-                  <Badge tone="danger">Late {late} min</Badge>
+                  <Badge tone="danger">{lateLabel(late)}</Badge>
                 ) : (
                   <Badge tone="info">Confirmed</Badge>
                 )}

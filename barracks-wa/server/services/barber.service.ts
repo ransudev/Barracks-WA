@@ -142,11 +142,12 @@ export async function updateBarber(
   try {
   const current = await client.query<{ branch_id: number }>("SELECT branch_id FROM barbers WHERE id=$1 FOR UPDATE", [id]);
   if (!current.rows[0]) { if (ownsClient) await client.query("COMMIT"); return null; }
-  // A barber with live bookings or queue visits is locked from being moved or made unavailable.
+  // A barber with live bookings or queue visits is locked from being made unavailable.
+  // Moving branches is already refused by the database while bookings are active.
   const previous = await findBarberById(client, id);
-  if (previous && (Number(current.rows[0].branch_id) !== input.branchId || (input.status === "unavailable" && previous.status !== "unavailable"))) {
+  if (previous && input.status === "unavailable" && previous.status !== "unavailable") {
     const dependents = await countBarberActiveBookings(client, id);
-    if (dependents) throw new BarberMoveConflict(`This barber is locked: ${dependents} active booking${dependents === 1 ? "" : "s"} or queue visit${dependents === 1 ? "" : "s"} depend on them. Move or cancel those first.`);
+    if (dependents) throw new BarberMoveConflict(`This barber is locked: ${dependents} active ${dependents === 1 ? "booking or queue visit depends" : "bookings or queue visits depend"} on them. Move or cancel ${dependents === 1 ? "it" : "them"} first.`);
   }
   if (Number(current.rows[0].branch_id) !== input.branchId) {
     const attendance = await client.query("SELECT 1 FROM barber_attendance WHERE barber_id=$1 AND attendance_date=(clock_timestamp() AT TIME ZONE 'Asia/Manila')::date AND clock_in IS NOT NULL AND clock_out IS NULL LIMIT 1", [id]);
@@ -192,7 +193,7 @@ export async function updateBarberStatus(
 ): Promise<BarberAvailabilityRecord | null> {
   if (status === "unavailable") {
     const dependents = await countBarberActiveBookings(db, id);
-    if (dependents) throw new RecordLockedError(`This barber is locked: ${dependents} active booking${dependents === 1 ? "" : "s"} or queue visit${dependents === 1 ? "" : "s"} depend on them. Move or cancel those first.`);
+    if (dependents) throw new RecordLockedError(`This barber is locked: ${dependents} active ${dependents === 1 ? "booking or queue visit depends" : "bookings or queue visits depend"} on them. Move or cancel ${dependents === 1 ? "it" : "them"} first.`);
   }
   const result = await db.query<BarberAvailabilityRow>(
     `UPDATE barbers SET status = $1, updated_at = NOW() WHERE id = $2

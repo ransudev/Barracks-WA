@@ -251,13 +251,18 @@ test("PostgreSQL account, inventory, and barber lifecycle persists safely", { sk
     assert.equal(createdBooking.durationMinutes, 50);
     assert.equal(createdBooking.endTime, "11:50");
     assert.equal(createdBooking.notes, "Please be gentle");
-    await services.updateService(pool, serviceId, { name: "Changed cut", price: 500, durationMinutes: 70 });
+    // A service used by a live booking is locked from editing.
+    await assert.rejects(() => services.updateService(pool, serviceId, { name: "Changed cut", price: 500, durationMinutes: 70 }), { code: "RECORD_LOCKED" });
+    assert.equal((await services.findServiceById(pool, serviceId))?.activeUses, 1);
+    // Change the catalog directly to prove the booking keeps its own snapshot.
+    await pool.query("UPDATE services SET name='Changed cut', current_price=500, duration_minutes=70 WHERE id=$1", [serviceId]);
     const historical = await bookings.findBookingById(pool, bookingId);
     assert.equal(historical?.serviceName, "Test cut");
     assert.equal(historical?.price, 425);
     assert.equal(historical?.durationMinutes, 50);
     assert.equal(historical?.endTime, "11:50");
-    assert.equal((await services.updateService(pool, serviceId, { active: false }))?.active, false);
+    await assert.rejects(() => services.updateService(pool, serviceId, { active: false }), { code: "RECORD_LOCKED" });
+    await pool.query("UPDATE services SET active=FALSE WHERE id=$1", [serviceId]);
     await assert.rejects(() => bookings.createBooking(pool, { customerId: createdCustomer.customer.id, barberId: barberId!, serviceId, date: futureDate(17), time: "11:00" }),
       (error: unknown) => error instanceof bookings.BookingServiceError && error.kind === "not_found");
     const editedBooking = await bookings.updateBookingDetails(pool, bookingId, {

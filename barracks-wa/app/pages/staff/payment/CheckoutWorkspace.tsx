@@ -92,7 +92,8 @@ export function CheckoutWorkspace({
   const underpaid = ready && cents(amount!) < cents(balance);
   const overNonCash = ready && method !== "cash" && cents(amount!) > cents(balance);
   const remaining = underpaid ? (cents(balance) - cents(amount!)) / 100 : 0;
-  const change = ready && method === "cash" && !underpaid ? (cents(amount!) - cents(balance)) / 100 : null;
+  const change =
+    ready && method === "cash" && !underpaid ? (cents(amount!) - cents(balance)) / 100 : null;
   const canSubmit =
     selected.length > 0 &&
     ready &&
@@ -104,7 +105,8 @@ export function CheckoutWorkspace({
     setSelectedKeys((current) => {
       if (current.includes(key)) return current.filter((item) => item !== key);
       // One receipt belongs to one customer: picking another customer starts over.
-      const sameCustomer = first && first.customerId === visit.customerId;
+      const chosen = visits.find((item) => current.includes(visitKey(item)));
+      const sameCustomer = chosen && chosen.customerId === visit.customerId;
       return sameCustomer ? [...current, key] : [key];
     });
     setAmountText("");

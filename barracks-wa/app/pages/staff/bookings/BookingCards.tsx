@@ -5,7 +5,7 @@ import { RecordCard } from "@/app/components/operations/OperationalPrimitives";
 import type { ApiBooking } from "@/app/lib/api";
 import { createInitials, formatCurrency, formatDate, formatTime } from "@/app/utils/format";
 import type { ReactNode } from "react";
-import { minutesLate } from "@/app/constants/booking";
+import { lateLabel, minutesLate } from "@/app/constants/booking";
 import { cardDate, label, tone } from "./model";
 
 export function BookingCards({
@@ -36,7 +36,7 @@ export function BookingCards({
             </h3>
             <Badge tone={tone(booking.status)}>{label(booking.status)}</Badge>
             {booking.status === "confirmed" && minutesLate(booking.date, booking.time) > 0 && (
-              <Badge tone="danger">Late {minutesLate(booking.date, booking.time)} min</Badge>
+              <Badge tone="danger">{lateLabel(minutesLate(booking.date, booking.time))}</Badge>
             )}
           </div>
           <div className="operational-card__identity">

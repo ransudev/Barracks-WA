@@ -22,7 +22,7 @@ type QueueRow = {
   scheduled_date: string | null; scheduled_time: string | null; booking_status: string | null;
   status: QueueStatus; joined_at: Date | string; started_at: Date | string | null;
   completed_at: Date | string | null; created_at: Date | string; updated_at: Date | string;
-  payment_status: "paid" | "partial" | "unpaid" | "voided" | null;
+  payment_status?: "paid" | "partial" | "unpaid" | "voided" | null;
 };
 type LockedQueueRow = { id: number; booking_id: number | null; status: QueueStatus; barber_id: number | null; started_at: Date | null; completed_at: Date | null };
 const queueState = (row: LockedQueueRow): QueueState => ({ status: row.status, barberId: row.barber_id, startedAt: row.started_at, completedAt: row.completed_at });
@@ -75,8 +75,12 @@ async function requireBarber(client: PoolClient, barberId: number): Promise<void
 }
 const queueSelect = `SELECT q.*, CONCAT(COALESCE(u.first_name,c.first_name),' ',COALESCE(u.last_name,c.last_name)) AS customer_name,
   q.service_name_snapshot AS service_name, CASE WHEN br.id IS NULL THEN NULL ELSE CONCAT(br.first_name,' ',br.last_name) END AS barber_name,
-  b.booking_date::text AS scheduled_date, b.booking_time::text AS scheduled_time, b.status AS booking_status,
-  CASE WHEN q.status<>'completed' THEN NULL
+  b.booking_date::text AS scheduled_date, b.booking_time::text AS scheduled_time, b.status AS booking_status
+  FROM queue_entries q JOIN customers c ON c.id=q.customer_id LEFT JOIN users u ON u.id=c.user_id
+  JOIN services s ON s.id=q.service_id LEFT JOIN barbers br ON br.id=q.barber_id
+  LEFT JOIN bookings b ON b.id=q.booking_id`;
+// Whether a completed visit has been paid. Only the Completed Today list reads it.
+const paymentStatusSql = `  CASE WHEN q.status<>'completed' THEN NULL
     WHEN EXISTS (SELECT 1 FROM visit_voids vv WHERE (vv.visit_type='queue' AND vv.visit_record_id=q.id)
       OR (vv.visit_type='booking' AND vv.visit_record_id=q.booking_id)) THEN 'voided'
     WHEN EXISTS (SELECT 1 FROM transactions t WHERE t.status='completed' AND ((t.visit_type='queue' AND t.visit_record_id=q.id)
@@ -86,10 +90,7 @@ const queueSelect = `SELECT q.*, CONCAT(COALESCE(u.first_name,c.first_name),' ',
     WHEN (b.deposit_status='received' AND b.deposit_amount>0)
       OR EXISTS (SELECT 1 FROM visit_partial_payments pp WHERE (pp.visit_type='queue' AND pp.visit_record_id=q.id)
         OR (pp.visit_type='booking' AND pp.visit_record_id=q.booking_id)) THEN 'partial'
-    ELSE 'unpaid' END AS payment_status
-  FROM queue_entries q JOIN customers c ON c.id=q.customer_id LEFT JOIN users u ON u.id=c.user_id
-  JOIN services s ON s.id=q.service_id LEFT JOIN barbers br ON br.id=q.barber_id
-  LEFT JOIN bookings b ON b.id=q.booking_id`;
+    ELSE 'unpaid' END`;
 const iso = (value: Date | string | null) => value === null ? null : new Date(value).toISOString();
 function toQueue(row: QueueRow): QueueRecord {
   return { branchId: Number(row.branch_id), id: Number(row.id), bookingId: row.booking_id === null ? null : Number(row.booking_id),
@@ -111,7 +112,8 @@ export async function listQueue(db: Db, view: QueueView = "active", branchId?: n
         OR (q.status='in_progress' AND b.status='in_progress'))`
     : `q.status='completed' AND q.completed_at >= ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date::timestamp AT TIME ZONE 'Asia/Manila')
        AND q.completed_at < (((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date + 1)::timestamp AT TIME ZONE 'Asia/Manila')`;
-  const result = await db.query<QueueRow>(`${queueSelect} WHERE (${where}) AND ($1::integer IS NULL OR q.branch_id=$1) ORDER BY q.joined_at, q.id`, [branchId ?? null]);
+  const select = view === "active" ? queueSelect : queueSelect.replace("b.status AS booking_status", `b.status AS booking_status, ${paymentStatusSql} AS payment_status`);
+  const result = await db.query<QueueRow>(`${select} WHERE (${where}) AND ($1::integer IS NULL OR q.branch_id=$1) ORDER BY q.joined_at, q.id`, [branchId ?? null]);
   return result.rows.map(toQueue);
 }
 export async function findQueueEntry(db: Db, id: number): Promise<QueueRecord | null> {

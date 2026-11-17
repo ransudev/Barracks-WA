@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { pool } from "@/server/db/pool";
 import {
@@ -33,7 +33,13 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
   if (user) {
     // The browser reports how long the user has been idle; without it the
     // request itself counts as activity.
-    const reported = Number((await headers()).get("x-idle-seconds"));
+    let reported = 0;
+    try {
+      const { headers } = await import("next/headers");
+      reported = Number((await headers()).get("x-idle-seconds"));
+    } catch {
+      /* No request headers (scripts, tests): the request counts as activity. */
+    }
     await touchSession(pool, token, Number.isFinite(reported) ? reported : 0);
   }
   return user;

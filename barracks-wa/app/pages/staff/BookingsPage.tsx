@@ -505,7 +505,9 @@ function BookingsPageContent({
       />
       <Modal
         open={Boolean(pendingClose)}
-        title={pendingClose?.status === "rejected" ? "Reject this booking?" : "Cancel this booking?"}
+        title={
+          pendingClose?.status === "rejected" ? "Reject this booking?" : "Cancel this booking?"
+        }
         description="Give the reason. The customer sees it on their appointments page."
         onClose={() => !busy && setPendingClose(null)}
       >

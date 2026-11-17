@@ -57,8 +57,8 @@ test("payroll migration, corrections, accrual, refunds, rates, branch security, 
     await db.query("SELECT accrue_payroll_commission($1)",[txId!]);
     assert.equal((await db.query("SELECT count(*)::int AS n FROM barber_commission_entries")).rows[0].n,1);
     const reference=(await db.query("SELECT reference FROM transactions WHERE id=$1",[txId!])).rows[0].reference;
-    await assert.rejects(applyFinancialAction(db,reference,{action:'void',amount:200,reason:'Void policy not decided'},actors.manager.id),/void policy is unconfirmed/);
-    await applyFinancialAction(db,reference,{action:'refund',amount:200,reason:'Customer refund'},actors.manager.id);
+    // Void replaced Refund: the sale is reversed and the earned commission is kept.
+    await applyFinancialAction(db,reference,{action:'void',amount:200,reason:'Customer complaint'},actors.manager.id);
     assert.equal((await db.query("SELECT amount_centavos FROM barber_commission_entries WHERE source_transaction_id=$1",[txId!])).rows[0].amount_centavos,'10000');
     await assert.rejects(db.query("UPDATE barber_commission_entries SET amount_centavos=0 WHERE id=$1",[entry.id]),/immutable/);
     await assert.rejects(db.query("UPDATE payroll_service_snapshots SET rate_snapshot=99 WHERE id=$1",[snap.id]),/immutable/);
@@ -84,7 +84,7 @@ test("payroll migration, corrections, accrual, refunds, rates, branch security, 
     const details=await readPayroll(db,actors.manager,payrollQuerySchema.parse({branchId,recordId:rid}));
     assert.ok('record' in details); if('record' in details) {
       assert.equal(details.record.status,'paid'); assert.equal(details.payment.amount_centavos,'9500');
-      assert.equal(details.record.approved_by,actors.manager.id); assert.equal(details.entries![0].transaction_status,'refunded');
+      assert.equal(details.record.approved_by,actors.manager.id); assert.equal(details.entries![0].transaction_status,'voided');
       assert.deepEqual(details.events!.map(e=>e.action),['generate','adjust','submit','return','submit','approve','pay']);
     }
     await assert.rejects(readPayroll(db,actors.front_desk,payrollQuerySchema.parse({branchId})),/Management/);

@@ -240,7 +240,7 @@ export function LoginPage({ go, onLogin }: LoginPageProps) {
             <h1>
               {authMode === "login" ? (
                 <>
-                  <span className="accent-crimson">WELCOME.</span>
+                  WELCOME<span className="accent-crimson">.</span>
                 </>
               ) : (
                 <>

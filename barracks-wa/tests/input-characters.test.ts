@@ -113,7 +113,7 @@ test("free text keeps symbols, digits and accents but rejects control characters
   assert.equal(item(`Pomade${NUL}`).success, false);
 
   assert.equal(bookingCreateSchema.safeParse({ serviceId: "cut", date: "2026-11-10", time: "10:00", notes: "Fade #2, ~1\" on top & beard trim" }).success, true);
-  assert.equal(financialActionSchema.safeParse({ action: "refund", reason: ZERO_WIDTH, amount: 1 }).success, false);
+  assert.equal(financialActionSchema.safeParse({ action: "void", reason: ZERO_WIDTH, amount: 1 }).success, false);
   assert.equal(unavailabilitySchema.safeParse({ startsAt: "2026-11-10T09:00:00+08:00", endsAt: "2026-11-10T10:00:00+08:00", reason: "Doctor's appointment (dental)" }).success, true);
 });
 

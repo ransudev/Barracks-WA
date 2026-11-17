@@ -3,7 +3,7 @@
 import type { ApiBooking, ApiBarberAvailability } from "@/app/lib/api";
 import type { ShopHours, WeeklySchedule, Unavailability } from "@/server/services/schedule.service";
 import { formatTime, formatTimeRange } from "@/app/utils/format";
-import { minutesLate } from "@/app/constants/booking";
+import { lateLabel, minutesLate } from "@/app/constants/booking";
 
 export type DayContext = {
   date: string;
@@ -302,7 +302,7 @@ export function DaySchedule({
                     >
                       <span>
                         {formatTimeRange(booking.time, clock(finish))}
-                        {late > 0 && <em className="day-schedule__late"> · Late {late} min</em>}
+                        {late > 0 && <em className="day-schedule__late"> · {lateLabel(late)}</em>}
                       </span>
                       <strong>{booking.customerName}</strong>
                       <small>{booking.serviceName}</small>

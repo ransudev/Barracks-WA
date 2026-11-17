@@ -9,6 +9,7 @@ import {
   BOOKING_GRACE_MINUTES,
   bookingHasStarted,
   isBookingDay,
+  lateLabel,
   mayMarkNoShow,
   minutesLate,
 } from "@/app/constants/booking";
@@ -121,7 +122,7 @@ export function BookingDetailDrawer({
               </div>
               {late > 0 && (
                 <p className="late-flag" role="status">
-                  Late: {late} minutes past the scheduled time and not yet checked in.
+                  {lateLabel(late)}: past the scheduled time and not yet checked in.
                 </p>
               )}
               {selected.statusReason && (
@@ -167,7 +168,9 @@ export function BookingDetailDrawer({
                       ? `${formatCurrency(selected.depositAmount)} · ${methodName[selected.depositMethod ?? ""] ?? "—"}${selected.depositReference ? ` · Ref. ${selected.depositReference}` : ""}`
                       : "None"}
                   </strong>
-                  {selected.depositAmount > 0 && <small>{depositLabel[selected.depositStatus]}</small>}
+                  {selected.depositAmount > 0 && (
+                    <small>{depositLabel[selected.depositStatus]}</small>
+                  )}
                 </div>
                 {selected.status === "completed" && selected.paymentStatus && (
                   <div>

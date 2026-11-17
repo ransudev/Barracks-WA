@@ -278,7 +278,7 @@ function PaymentBranch({
               {(completed.receiptPriorPaid ?? 0) > 0 &&
                 ` · Deposit / paid earlier ${money(completed.receiptPriorPaid ?? 0)}`}
               {completed.paymentMethod === "cash" &&
-                ` · Cash ${money(completed.receiptTendered ?? 0)} · Change ${money(completed.receiptChange ?? 0)}`}
+                ` · Cash ${money(completed.receiptTendered ?? completed.tendered ?? 0)} · Change ${money(completed.receiptChange ?? completed.change ?? 0)}`}
             </p>
             <p className="payment-popup__reference">
               Reference {completed.receiptGroup ?? completed.reference}

@@ -29,6 +29,8 @@ export async function POST(request: Request) {
       return Response.json({ success: false, message: "Unable to void this visit" }, { status: 500 });
     }
   }
+  if (body && typeof body === "object" && "action" in body && body.action === "refund")
+    return Response.json({ success: false, message: "Refunds are no longer available. Void the transaction instead" }, { status: 400 });
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) return Response.json({ success: false, message: "A valid full amount and reason are required" }, { status: 400 });
   const { reference, ...input } = parsed.data;

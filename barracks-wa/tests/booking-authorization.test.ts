@@ -25,7 +25,7 @@ test("customer cancellation is owner-scoped and limited to confirmed bookings", 
     const checkedIn = await book(customers[0], "11:00");
     assert.equal((await updateBooking(db, checkedIn.id, { status: "checked_in" }))?.status, "checked_in");
     await assert.rejects(updateBooking(db, checkedIn.id, { status: "cancelled" }, { customerId: customers[0] }), { kind: "not_updatable" });
-    assert.equal((await updateBooking(db, checkedIn.id, { status: "cancelled" }))?.status, "cancelled", "staff may still cancel checked-in bookings");
+    assert.equal((await updateBooking(db, checkedIn.id, { status: "cancelled", reason: "Barber unavailable" }))?.status, "cancelled", "staff may still cancel checked-in bookings");
 
     const inProgress = await book(customers[0], "12:00");
     await updateBooking(db, inProgress.id, { status: "checked_in" });
@@ -81,7 +81,7 @@ test("customer branch selection scopes bookings and availability while preservin
     const branchList = await (await customerBranches.GET()).json();
     assert.deepEqual(branchList.branches.map((branch: { id: number }) => branch.id).sort(), [main, branchA].sort());
     assert.equal((await staffContext.GET()).status, 403);
-    const input = { serviceId: "barracks-basic", barberId: a.id, date: "2026-11-05", time: "12:00", customerId: 999999 };
+    const input = { serviceId: "barracks-basic", barberId: a.id, date: "2026-11-05", time: "12:00", customerId: 999999, deposit: { method: "e_wallet" as const, reference: "GC-1001" } };
     const created = await customerBookings.POST(request(`bookings?branchId=${branchA}`, input));
     assert.equal(created.status, 201);
     const booking = (await created.json()).booking;

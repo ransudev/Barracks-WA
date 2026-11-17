@@ -445,7 +445,11 @@ export function ScheduleManagement({
                       </label>
                       <label className="schedule-management__time">
                         <span>Ends</span>
-                        {timeInput(shift.endTime, (value) => update({ endTime: value }), locked > 0)}
+                        {timeInput(
+                          shift.endTime,
+                          (value) => update({ endTime: value }),
+                          locked > 0,
+                        )}
                       </label>
                       <Button
                         variant="secondary"

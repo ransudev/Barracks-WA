@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import type { ServiceInput, ServiceUpdateInput } from "@/server/schemas/service.schema";
-import { requireServiceUnlocked } from "@/server/services/record-locks";
+import { ACTIVE_BOOKING, ACTIVE_QUEUE, requireServiceUnlocked } from "@/server/services/record-locks";
 
 type ServiceRow = { id: string; name: string; description: string; current_price: string; duration_minutes: number | null; active: boolean; created_at: Date; updated_at: Date; has_history: boolean; inclusions: string[]; active_uses: number };
 // activeUses: live bookings and queue visits using the service. While above zero the service is locked from editing.
@@ -9,8 +9,8 @@ const historyCheck = `EXISTS (SELECT 1 FROM bookings WHERE service_id = services
   OR EXISTS (SELECT 1 FROM queue_entries WHERE service_id = services.id)
   OR EXISTS (SELECT 1 FROM transactions WHERE service_id = services.id)`;
 const columns = `id, name, description, current_price, duration_minutes, active, created_at, updated_at, inclusions,
-  ((SELECT count(*) FROM bookings WHERE service_id = services.id AND status IN ('pending','confirmed','checked_in','in_progress'))
-   + (SELECT count(*) FROM queue_entries WHERE service_id = services.id AND status IN ('waiting','ready','in_progress')))::int AS active_uses,
+  ((SELECT count(*) FROM bookings WHERE service_id = services.id AND ${ACTIVE_BOOKING})
+   + (SELECT count(*) FROM queue_entries WHERE service_id = services.id AND ${ACTIVE_QUEUE}))::int AS active_uses,
   (${historyCheck}) AS has_history`;
 function map(row: ServiceRow): ServiceRecord {
   return { id: row.id, name: row.name, description: row.description, price: Number(row.current_price), durationMinutes: row.duration_minutes, active: row.active, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(), hasHistory: row.has_history, inclusions: row.inclusions ?? [], activeUses: Number(row.active_uses ?? 0) };
