@@ -413,13 +413,6 @@ a.button { text-decoration: none; }
   .receipt-print-root .receipt-paper .receipt-total { font-size: 11px; }
 }
 
-/* A8: email verification prompt on the customer dashboard. */
-.email-verification { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--amber, #c79a3c); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--surface); }
-.email-verification > div { display: grid; gap: 3px; flex: 1; min-width: 220px; }
-.email-verification strong { font-size: 13px; }
-.email-verification span { color: var(--text-soft); font-size: 12px; }
-.email-verification .field { width: 120px; }
-.email-verification .form-error { flex-basis: 100%; margin: 0; }
 
 /* A12 exactly as specified by the panel: rejected bookings in dark mode use RGBA(99, 0, 0, 0). */
 :root[data-theme="dark"] .booking-update.is-rejected,

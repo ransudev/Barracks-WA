@@ -23,7 +23,6 @@ import {
 } from "@/app/components/ui";
 import { createInitials, formatDate, formatTime, formatTimeRange } from "@/app/utils/format";
 import { CustomerTopbar } from "@/app/pages/customer/CustomerTopbar";
-import { EmailVerificationBanner } from "@/app/pages/customer/EmailVerificationBanner";
 import { personNameFieldError } from "@/app/utils/text-validation";
 
 type ProfileDraft = {
@@ -406,7 +405,6 @@ export function CustomerDashboard({
             </Button>
           </div>
 
-          <EmailVerificationBanner onToast={onToast} />
           {loading ? (
             <CustomerDashboardSkeleton />
           ) : customer ? (

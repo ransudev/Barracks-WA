@@ -217,43 +217,6 @@ test("A6: a session ends after 30 minutes without activity", { skip: !databaseCo
   } finally { await cleanup(); }
 });
 
-test("A8: a customer verifies their email with a 6-digit code", { skip: !databaseConfigured }, async () => {
-  const { issueVerificationCode, verifyEmailCode, getVerificationStatus, resetEmailVerification } = await import("@/server/services/email-verification.service");
-  const { db, cleanup } = await createDisposableSchema();
-  try {
-    const user = Number((await db.query(`INSERT INTO users(first_name,last_name,email,password_hash,role_id)
-      VALUES('New','Customer','new@panel.test','hash',(SELECT id FROM roles WHERE name='customer')) RETURNING id`)).rows[0].id);
-    assert.deepEqual(await getVerificationStatus(db, user), { email: "new@panel.test", verified: false, pending: false });
-    assert.equal(await verifyEmailCode(db, user, "123456"), "no_code");
-    const sent = await issueVerificationCode(db, user);
-    assert.equal(sent.kind, "sent");
-    if (sent.kind !== "sent") return;
-    assert.match(sent.code, /^\d{6}$/);
-    // Only the hash is stored, and a second request must wait.
-    assert.equal(Number((await db.query("SELECT count(*) FROM email_verification_codes WHERE code_hash=$1", [sent.code])).rows[0].count), 0);
-    assert.equal((await issueVerificationCode(db, user)).kind, "wait");
-    const wrong = sent.code === "000000" ? "111111" : "000000";
-    assert.equal(await verifyEmailCode(db, user, wrong), "wrong_code");
-    assert.equal(await verifyEmailCode(db, user, sent.code), "verified");
-    assert.equal((await getVerificationStatus(db, user))?.verified, true);
-    assert.equal(await verifyEmailCode(db, user, sent.code), "already_verified");
-    assert.equal((await issueVerificationCode(db, user)).kind, "already_verified");
-
-    // A changed email must be proven again; expired codes and repeated guesses are refused.
-    await resetEmailVerification(db, user);
-    const again = await issueVerificationCode(db, user, { force: true });
-    if (again.kind !== "sent") return assert.fail("expected a new code");
-    await db.query("UPDATE email_verification_codes SET expires_at=NOW() - INTERVAL '1 minute' WHERE user_id=$1", [user]);
-    assert.equal(await verifyEmailCode(db, user, again.code), "expired");
-    const third = await issueVerificationCode(db, user, { force: true });
-    if (third.kind !== "sent") return assert.fail("expected a new code");
-    const miss = third.code === "000000" ? "111111" : "000000";
-    for (let attempt = 0; attempt < 5; attempt++) assert.equal(await verifyEmailCode(db, user, miss), "wrong_code");
-    assert.equal(await verifyEmailCode(db, user, third.code), "too_many_attempts");
-    assert.equal((await getVerificationStatus(db, user))?.verified, false);
-  } finally { await cleanup(); }
-});
-
 test("A19/A25: a branch keeps its receipt TIN and cannot be deactivated while bookings depend on it", { skip: !databaseConfigured }, async () => {
   const { createBranch, updateBranch, listBranches } = await import("@/server/services/branch.service");
   const { db, cleanup } = await createDisposableSchema(Infinity, "2026-10-12T02:00:00Z");

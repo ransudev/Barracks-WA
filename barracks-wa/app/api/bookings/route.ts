@@ -13,7 +13,6 @@ import {
 import { findCustomerByUserId } from "@/server/services/customer.service";
 import { findServiceById } from "@/server/services/service.service";
 import { bookingDeposit } from "@/app/constants/booking";
-import { emailVerificationRequired, getVerificationStatus } from "@/server/services/email-verification.service";
 
 export const runtime = "nodejs";
 
@@ -61,8 +60,6 @@ export async function POST(request: Request) {
       if (!parsed.data.barberId) return Response.json({ success: false, message: "Choose a barber" }, { status: 400 });
       const customer = await findCustomerByUserId(pool, user.id);
       if (!customer) return Response.json({ success: false, message: "Customer profile not found" }, { status: 404 });
-      if (emailVerificationRequired() && !(await getVerificationStatus(pool, user.id))?.verified)
-        return Response.json({ success: false, message: "Verify your email address before booking. Enter the code on your dashboard" }, { status: 403 });
       customerId = customer.id;
     }
     if (!customerId) {

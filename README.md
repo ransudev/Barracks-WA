@@ -817,7 +817,7 @@ The layout redesign preserves the existing multi-branch permissions and selector
 
 ## Panel revisions (November 2026)
 
-Migrations `036_panel_revisions.sql` and `037_email_verification.sql` are additive. Apply them with `npm run db:migrate` in the intended environment.
+Migration `036_panel_revisions.sql` is additive. `038_remove_email_verification.sql` removes the withdrawn email verification objects if `037` was applied. Apply them with `npm run db:migrate` in the intended environment.
 
 **Booking**
 
@@ -834,8 +834,7 @@ Migrations `036_panel_revisions.sql` and `037_email_verification.sql` are additi
 **Accounts**
 
 - The sign-in heading reads "Welcome". Self-registration requires a matching Confirm password (`confirmPassword` on `POST /api/auth/signup`).
-- Staff accounts are created only through `POST /api/users`, which requires an administrator or manager session. Public sign-up can only create customers.
-- Email verification (migration `037_email_verification.sql`): sign-up emails the customer a 6-digit code, and the dashboard asks for it until the address is verified. Codes expire after 15 minutes, allow five attempts, can be resent once a minute, and only their hash is stored. Changing the email asks for verification again. `GET /api/auth/verify-email` returns the status; `POST` accepts `{ code }` or `{ resend: true }`. Accounts that existed before the migration are treated as verified. Set `RESEND_API_KEY` and `EMAIL_FROM` to send through Resend; without them the code is written to the server log, which is suitable for local demos only. `EMAIL_VERIFICATION_REQUIRED=true` makes a verified email a condition for online booking.
+- Staff accounts are created only through `POST /api/users`, which requires an administrator or manager session. Public sign-up can only create customers. Email verification is not implemented.
 
 **Locks (data integrity)**
 
