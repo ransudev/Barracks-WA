@@ -39,8 +39,8 @@ function RevenueTable({ title, rows }: { title: string; rows: RevenueGroup[] }) 
               <th scope="col">Date / group</th>
               <th scope="col">Transactions</th>
               <th scope="col">Gross sales</th>
-              <th scope="col">Refunded</th>
               <th scope="col">Voided</th>
+              <th scope="col">Earlier refunds</th>
               <th scope="col">Net revenue</th>
             </tr>
           </thead>
@@ -50,8 +50,8 @@ function RevenueTable({ title, rows }: { title: string; rows: RevenueGroup[] }) 
                 <th scope="row">{row.label}</th>
                 <td>{row.transactionCount}</td>
                 <td>{formatCurrency(row.grossSales)}</td>
-                <td>{formatCurrency(row.refundedAmount)}</td>
                 <td>{formatCurrency(row.voidedAmount)}</td>
+                <td>{formatCurrency(row.refundedAmount)}</td>
                 <td>{formatCurrency(row.netRevenue)}</td>
               </tr>
             ))}
@@ -316,8 +316,9 @@ function DailyActivity({ data, range }: { data: RevenueReport; range: ReportRang
           <span>Net {formatCurrency(selected.netRevenue)}</span>
           <span>{selected.transactionCount} transactions</span>
           <span>
-            Refunded {formatCurrency(selected.refundedAmount)} · Voided{" "}
-            {formatCurrency(selected.voidedAmount)}
+            Voided {formatCurrency(selected.voidedAmount)}
+            {selected.refundedAmount > 0 &&
+              ` · Earlier refunds ${formatCurrency(selected.refundedAmount)}`}
           </span>
         </div>
       )}
@@ -356,7 +357,7 @@ export function RevenueReports({
           accent="blue"
         />
         <MetricCard
-          label="Refunded / voided"
+          label="Voids"
           value={data ? formatCurrency(data.summary.reversedAmount) : "—"}
           icon="info"
           accent="amber"
@@ -434,7 +435,7 @@ export function RevenueReports({
           </div>
           <RankedBars
             title="Payment methods"
-            description="Gross sales before refunds and voids."
+            description="Gross sales before voids."
             rows={data.byPaymentMethod.map((row) => ({
               label: row.label,
               value: row.grossSales,
@@ -445,8 +446,9 @@ export function RevenueReports({
             <RevenueTable title="Payment method breakdown" rows={data.byPaymentMethod} />
           </RankedBars>
           <p className={styles.note}>
-            Sales use checkout dates; refunds and voids use action dates. Legacy reversals use the
-            sale date. Net revenue may be negative.
+            Sales use checkout dates; voids use action dates. Voids include any refund made before
+            refunds were retired, also listed under Earlier refunds. Legacy reversals use the sale
+            date. Net revenue may be negative.
           </p>
         </>
       )}

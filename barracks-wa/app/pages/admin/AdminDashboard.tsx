@@ -94,8 +94,8 @@ function AdminDashboardContent({
         return {
           date,
           gross: record?.grossSales ?? 0,
-          refund: record?.refundedAmount ?? 0,
-          voided: record?.voidedAmount ?? 0,
+          // Refunds are retired; any made earlier are counted with voids.
+          voided: (record?.voidedAmount ?? 0) + (record?.refundedAmount ?? 0),
           net: record?.netRevenue ?? 0,
         };
       })
@@ -128,7 +128,7 @@ function AdminDashboardContent({
           accent="blue"
         />
         <MetricCard
-          label="Refunds + voids · 7 days"
+          label="Voids · 7 days"
           value={amount(sales?.summary.reversedAmount)}
           icon="creditCard"
           accent="amber"
@@ -165,7 +165,7 @@ function AdminDashboardContent({
               <div
                 className="sales-trend"
                 role="img"
-                aria-label="Paid sales over seven days; exact sales, refund and void values are listed below"
+                aria-label="Paid sales over seven days; exact sales and void values are listed below"
               >
                 {days.map((day) => (
                   <div key={day.date}>
@@ -186,7 +186,6 @@ function AdminDashboardContent({
                       <tr>
                         <th scope="col">Date</th>
                         <th scope="col">Paid sales</th>
-                        <th scope="col">Refunds</th>
                         <th scope="col">Voids</th>
                         <th scope="col">Net</th>
                       </tr>
@@ -196,7 +195,6 @@ function AdminDashboardContent({
                         <tr key={day.date}>
                           <th scope="row">{day.date}</th>
                           <td>{formatCurrency(day.gross)}</td>
-                          <td>{formatCurrency(day.refund)}</td>
                           <td>{formatCurrency(day.voided)}</td>
                           <td>{formatCurrency(day.net)}</td>
                         </tr>
@@ -204,7 +202,10 @@ function AdminDashboardContent({
                     </tbody>
                   </table>
                 </div>
-                <p className="task-note">Net = paid sales − refunds − voids.</p>
+                <p className="task-note">
+                  Net = paid sales − voids. Voids include any refund made before refunds were
+                  retired.
+                </p>
               </details>
             </>
           )}
