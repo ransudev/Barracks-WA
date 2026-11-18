@@ -19,8 +19,8 @@ test("payment request accepts one visit and a supported method only", () => {
     { visits: [], paymentMethod: "card" },
     { paymentMethod: "card" },
   ]) assert.equal(createTransactionSchema.safeParse(input).success, false);
-  // Several visits of one customer can share a receipt, and a non-cash amount
-  // below the balance records a partial payment.
+  // Several visits of one customer can share a receipt, and a non-cash amount is
+  // valid input (the service refuses one below the balance).
   assert.equal(createTransactionSchema.safeParse({ visits: [{ queueEntryId: 2 }, { queueEntryId: 3 }], paymentMethod: "cash", amountReceived: 600 }).success, true);
   assert.equal(createTransactionSchema.safeParse({ visit: { bookingId: 1 }, paymentMethod: "card", amountReceived: 100 }).success, true);
 });

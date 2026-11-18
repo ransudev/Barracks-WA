@@ -49,8 +49,6 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ success: false, message: "Invalid payment information", errors: formatValidationErrors(parsed.error) }, { status: 400 });
   try {
     const result = await checkoutVisits(pool, parsed.data, user.id);
-    // An underpayment is recorded but the visit is not marked as paid.
-    if (result.kind === "partial") return Response.json({ success: true, partial: result }, { status: 200 });
     return Response.json({ success: true, transaction: result.transaction }, { status: 201 });
   } catch (error) {
     const branchError = visitBranchError(error); if (branchError) return branchError;

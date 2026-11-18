@@ -26,16 +26,6 @@ const visitRef = (visit: EligibleVisit) =>
     : { queueEntryId: visit.visitRecordId };
 const cents = (amount: number) => Math.round(amount * 100);
 
-// What an underpayment left behind, shown in the pop-up after it is recorded.
-export type PartialPayment = {
-  customerName: string;
-  serviceName: string;
-  received: number;
-  paid: number;
-  total: number;
-  balance: number;
-};
-
 export function CheckoutWorkspace({
   visits,
   loading,
@@ -44,7 +34,6 @@ export function CheckoutWorkspace({
   onToast,
   onVisitSelected,
   onCompleted,
-  onPartial,
   onReload,
 }: {
   visits: EligibleVisit[];
@@ -55,7 +44,6 @@ export function CheckoutWorkspace({
   onToast: (message: string) => void;
   onVisitSelected: () => void;
   onCompleted: (transaction: TransactionRecord) => Promise<void>;
-  onPartial: (partial: PartialPayment) => Promise<void>;
   onReload: () => Promise<void>;
 }) {
   const [visitSearch, setVisitSearch] = useState("");
@@ -86,19 +74,15 @@ export function CheckoutWorkspace({
     entered >= 0 &&
     /^\d+(?:\.\d{1,2})?$/.test(amountText.trim()) &&
     entered <= 9_999_999_999.99;
-  // Cash must be typed in. Other methods settle the full balance unless a smaller amount is given.
+  // Cash must be typed in. Other methods settle the full balance unless an amount is given.
+  // Either way the amount must cover the whole balance.
   const amount = entered ?? (method === "cash" ? null : balance);
   const ready = amount !== null && (entered === null || amountValid);
   const underpaid = ready && cents(amount!) < cents(balance);
   const overNonCash = ready && method !== "cash" && cents(amount!) > cents(balance);
-  const remaining = underpaid ? (cents(balance) - cents(amount!)) / 100 : 0;
   const change =
     ready && method === "cash" && !underpaid ? (cents(amount!) - cents(balance)) / 100 : null;
-  const canSubmit =
-    selected.length > 0 &&
-    ready &&
-    !overNonCash &&
-    !(underpaid && (selected.length > 1 || cents(amount!) <= 0));
+  const canSubmit = selected.length > 0 && ready && !underpaid && !overNonCash;
 
   function toggle(visit: EligibleVisit) {
     const key = visitKey(visit);
@@ -134,10 +118,9 @@ export function CheckoutWorkspace({
       const body = await readApiBody<{
         success: boolean;
         transaction?: TransactionRecord;
-        partial?: PartialPayment;
         message?: string;
       }>(response);
-      if (!response.ok || !body?.success || (!body.transaction && !body.partial)) {
+      if (!response.ok || !body?.success || !body.transaction) {
         throw new Error(
           body?.message ??
             (response.status === 409
@@ -147,8 +130,7 @@ export function CheckoutWorkspace({
       }
       setSelectedKeys([]);
       setAmountText("");
-      if (body.partial) await onPartial(body.partial);
-      else await onCompleted(body.transaction!);
+      await onCompleted(body.transaction);
     } catch (error) {
       setCheckoutError(errorMessage(error, "Unable to complete payment"));
       if (error instanceof Error && /already exists|already been paid/i.test(error.message))
@@ -321,9 +303,7 @@ export function CheckoutWorkspace({
               {overNonCash && <p role="alert">The amount cannot be more than the balance due.</p>}
               {underpaid && (
                 <p role="alert" className="underpayment-note">
-                  <strong>Underpayment.</strong> {money(remaining)} will remain as balance and the
-                  visit will not be marked as paid.
-                  {selected.length > 1 && " Select a single visit to record a partial payment."}
+                  The amount must cover the full balance of {money(balance)}.
                 </p>
               )}
               {method === "cash" && (
@@ -341,11 +321,7 @@ export function CheckoutWorkspace({
                 disabled={processing || loading || Boolean(loadError) || !canSubmit}
                 onClick={() => setConfirming(true)}
               >
-                {processing
-                  ? "Processing…"
-                  : underpaid
-                    ? "Record partial payment"
-                    : "Complete payment"}
+                {processing ? "Processing…" : "Complete payment"}
               </Button>
               {canVoid && selected.length === 1 && (
                 <Button
@@ -366,15 +342,13 @@ export function CheckoutWorkspace({
       </div>
       <ConfirmDialog
         open={confirming}
-        title={underpaid ? "Record this partial payment?" : "Complete this payment?"}
+        title="Complete this payment?"
         description={
           first && amount !== null
-            ? underpaid
-              ? `${first.customerName} · ${first.serviceName} · Received ${money(amount)} by ${methodLabel(method)} · Balance left ${money(remaining)}. The visit stays unpaid.`
-              : `${first.customerName} · ${selected.length} service${selected.length === 1 ? "" : "s"} · Balance ${money(balance)} · ${methodLabel(method)}${method === "cash" ? ` · Received ${money(amount)} · Change ${money(change ?? 0)}` : ""}`
+            ? `${first.customerName} · ${selected.length} service${selected.length === 1 ? "" : "s"} · Balance ${money(balance)} · ${methodLabel(method)}${method === "cash" ? ` · Received ${money(amount)} · Change ${money(change ?? 0)}` : ""}`
             : undefined
         }
-        confirmLabel={underpaid ? "Record partial payment" : "Confirm payment"}
+        confirmLabel="Confirm payment"
         busy={processing}
         onClose={() => setConfirming(false)}
         onConfirm={() => {

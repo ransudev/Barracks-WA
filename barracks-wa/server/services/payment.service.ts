@@ -327,21 +327,15 @@ async function insertSale(client: import("pg").PoolClient, visit: LockedVisit, s
   return { ...transaction, amount_received: received, change_amount: change };
 }
 
-export type CheckoutResult =
-  | { kind: "paid"; transaction: TransactionRecord }
-  // Underpayment: the money is recorded, the visit stays unpaid.
-  | { kind: "partial"; customerName: string; serviceName: string; received: number; paid: number; total: number; balance: number };
+export type CheckoutResult = { kind: "paid"; transaction: TransactionRecord };
 
-// Full payment only, as before: an amount below the balance is refused.
 export async function createTransaction(db: Pool, input: CreateTransactionInput, cashierId: number): Promise<TransactionRecord> {
-  const result = await checkoutVisits(db, input, cashierId, false);
-  if (result.kind !== "paid") throw new Error("Unexpected partial payment");
-  return result.transaction;
+  return (await checkoutVisits(db, input, cashierId)).transaction;
 }
 
-// Checkout used by the Payments screen. With allowPartial, an amount below the
-// balance is kept as a partial payment and the visit stays unpaid.
-export async function checkoutVisits(db: Pool, input: CreateTransactionInput, cashierId: number, allowPartial = true): Promise<CheckoutResult> {
+// Checkout used by the Payments screen. The amount must cover the whole balance
+// (after any verified deposit); an amount below it is refused.
+export async function checkoutVisits(db: Pool, input: CreateTransactionInput, cashierId: number): Promise<CheckoutResult> {
   const refs: VisitRef[] = "visits" in input && input.visits ? input.visits : [input.visit!];
   const client = await db.connect();
   try {
@@ -375,22 +369,8 @@ export async function checkoutVisits(db: Pool, input: CreateTransactionInput, ca
     if (input.paymentMethod !== "cash" && receivedCents > balanceCents)
       throw new PaymentServiceError("invalid_state", "The amount cannot be more than the balance due");
 
-    if (receivedCents < balanceCents) {
-      // Underpayment: keep the money on record and leave the visit unpaid.
-      if (!allowPartial) throw new PaymentServiceError("insufficient_cash", "Cash received is below the amount due");
-      if (lines.length > 1) throw new PaymentServiceError("insufficient_cash", "A partial payment covers one service at a time. Select a single visit");
-      if (receivedCents <= 0) throw new PaymentServiceError("insufficient_cash", "Enter the amount received");
-      const [line] = lines;
-      await client.query(
-        `INSERT INTO visit_partial_payments(visit_type,visit_record_id,branch_id,amount,payment_method,received_by,received_by_name)
-         VALUES($1,$2,$3,$4,$5,$6,$7)`,
-        [line.visit.booking_id !== null ? "booking" : "queue", line.visit.booking_id ?? line.visit.queue_entry_id,
-          line.visit.branch_id, (receivedCents / 100).toFixed(2), input.paymentMethod, cashierId, cashier.rows[0].name]);
-      await client.query("COMMIT");
-      return { kind: "partial", customerName: line.visit.customer_name, serviceName: line.visit.service_name,
-        received: receivedCents / 100, paid: (line.priorCents + receivedCents) / 100,
-        total: line.amountCents / 100, balance: (balanceCents - receivedCents) / 100 };
-    }
+    if (receivedCents < balanceCents)
+      throw new PaymentServiceError("insufficient_cash", "The amount received is below the balance due");
 
     const receiptGroup = lines.length > 1
       ? (await client.query<{ ref: string }>("SELECT 'RC-' || upper(replace(gen_random_uuid()::text,'-','')) AS ref")).rows[0].ref

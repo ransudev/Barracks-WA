@@ -13,7 +13,7 @@ const cashReceivedSchema = z.number().finite().nonnegative().max(9_999_999_999.9
   .refine((value) => /^\d+(?:\.\d{1,2})?$/.test(String(value)), "Use at most two decimal places");
 
 // One visit, or several of the same customer paid together on one receipt.
-// amountReceived below the balance records a partial payment (one visit only).
+// amountReceived must cover the whole balance; non-cash methods default to it.
 const visitsSchema = z.array(visitSchema).min(1).max(10);
 const targetRefine = (value: { visit?: unknown; visits?: unknown }) => (value.visit === undefined) !== (value.visits === undefined);
 const targetMessage = { message: "Choose the visit or visits to pay", path: ["visit"] };

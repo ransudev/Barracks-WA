@@ -153,11 +153,11 @@ test("cash checkout requires sufficient received amount, submits once, and refre
     assert.match(dom.window.document.body.textContent ?? "", /Ava Client.*Original cut.*Bea Barber[\s\S]*₱425/);
     assert.equal(submit(page.container).disabled, true);
     const input = dom.window.document.querySelector('input[type="number"]') as HTMLInputElement;
-    // Below the balance is an underpayment: it can be recorded but is never marked paid.
+    // Below the balance cannot be submitted: checkout takes the full balance only.
     await act(async () => { setInputValue(input, "400"); });
-    assert.equal(submit(page.container), undefined);
-    assert.match(dom.window.document.body.textContent ?? "", /Underpayment\.\s*₱25 will remain as balance and the visit will not be marked as paid/);
-    assert.ok([...dom.window.document.querySelectorAll("button")].some((button) => button.textContent === "Record partial payment"));
+    assert.equal(submit(page.container).disabled, true);
+    assert.match(dom.window.document.body.textContent ?? "", /The amount must cover the full balance of ₱425\./);
+    assert.equal([...dom.window.document.querySelectorAll("button")].some((button) => button.textContent?.includes("partial")), false);
     await act(async () => { setInputValue(input, "500"); });
     assert.match(dom.window.document.body.textContent ?? "", /Change: ₱75/);
     await act(async () => { submit(page.container).click(); });
