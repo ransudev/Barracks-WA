@@ -79,7 +79,7 @@ export type BookingRecord = {
   depositMethod: string | null;
   depositReference: string | null;
   depositStatus: DepositStatus;
-  // Verified deposit plus partial payments collected so far.
+  // Verified deposit collected so far.
   paidAmount: number;
   // Set once the service is completed.
   paymentStatus: BookingPaymentStatus | null;
@@ -125,15 +125,12 @@ const bookingSelect = `
     b.deposit_method,
     b.deposit_reference,
     b.deposit_status,
-    (CASE WHEN b.deposit_status='received' THEN b.deposit_amount ELSE 0 END
-      + COALESCE((SELECT sum(pp.amount) FROM visit_partial_payments pp
-          WHERE pp.visit_type='booking' AND pp.visit_record_id=b.id), 0)) AS paid_amount,
+    CASE WHEN b.deposit_status='received' THEN b.deposit_amount ELSE 0 END AS paid_amount,
     CASE WHEN b.status<>'completed' THEN NULL
       WHEN EXISTS (SELECT 1 FROM visit_voids vv WHERE vv.visit_type='booking' AND vv.visit_record_id=b.id) THEN 'voided'
       WHEN EXISTS (SELECT 1 FROM transactions t WHERE t.visit_type='booking' AND t.visit_record_id=b.id AND t.status='completed') THEN 'paid'
       WHEN EXISTS (SELECT 1 FROM transactions t WHERE t.visit_type='booking' AND t.visit_record_id=b.id) THEN 'voided'
-      WHEN (b.deposit_status='received' AND b.deposit_amount>0)
-        OR EXISTS (SELECT 1 FROM visit_partial_payments pp WHERE pp.visit_type='booking' AND pp.visit_record_id=b.id) THEN 'partial'
+      WHEN b.deposit_status='received' AND b.deposit_amount>0 THEN 'partial'
       ELSE 'unpaid' END AS payment_status
   FROM bookings b
   INNER JOIN branches branch ON branch.id = b.branch_id

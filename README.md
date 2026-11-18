@@ -430,7 +430,7 @@ All routes use server-side role guards: unauthenticated calls return `401`; disa
 - `GET /api/transactions?view=history` — administrator, manager, or front desk can read paginated persisted history with `page` (default 1), `pageSize` (default 20, maximum 100), optional reference/customer `search`, `paymentMethod`, and inclusive Manila-local `dateFrom`/`dateTo` filters. The response includes `total`, `totalPages`, and each sale's current refund/void status.
 - `POST /api/transactions/actions` — administrator or manager only. `{ reference, action: "void", amount, reason }` voids a completed transaction in full; `{ visit, reason }` voids the unpaid balance of a completed visit. A reason is always required and logged. Refund was retired (see Panel revisions).
 
-Accepted methods are `cash`, `card`, `e_wallet`, `bank_transfer`, and `other`. The API creates a single completed tender for the full amount. It accepts only cash received from the client, never a client-supplied charge amount or status. Database checks constrain the method/status columns, and deferred integrity checks require the sole tender to match the transaction header. Voids keep an immutable action history; new refunds can no longer be made, and earlier refunds remain in history and reports. Checkout requires the full balance: a verified booking deposit counts toward it, an amount below the balance is refused, and the final transaction stores the deposit (plus any partial payments recorded before partial checkout was removed) in `prior_paid` (see Panel revisions). Split payments, where one checkout is paid with more than one method, are not supported.
+Accepted methods are `cash`, `card`, `e_wallet`, `bank_transfer`, and `other`. The API creates a single completed tender for the full amount. It accepts only cash received from the client, never a client-supplied charge amount or status. Database checks constrain the method/status columns, and deferred integrity checks require the sole tender to match the transaction header. Voids keep an immutable action history; new refunds can no longer be made, and earlier refunds remain in history and reports. Checkout requires the full balance: a verified booking deposit counts toward it, an amount below the balance is refused, and the final transaction stores the deposit in `prior_paid` (see Panel revisions). Split payments, where one checkout is paid with more than one method, are not supported.
 
 ## Database and server layer
 
@@ -817,7 +817,7 @@ The layout redesign preserves the existing multi-branch permissions and selector
 
 ## Panel revisions (November 2026)
 
-Migration `036_panel_revisions.sql` is additive. `038_remove_email_verification.sql` removes the withdrawn email verification objects if `037` was applied. Apply them with `npm run db:migrate` in the intended environment.
+Migration `036_panel_revisions.sql` is additive. `038_remove_email_verification.sql` removes the withdrawn email verification objects if `037` was applied. `039_drop_visit_partial_payments.sql` drops the partial-payments table that `036` created, now that checkout no longer writes to it. Apply them with `npm run db:migrate` in the intended environment.
 
 **Booking**
 
@@ -848,8 +848,8 @@ A record that live records depend on cannot be edited or removed until they fini
 
 **Payments and receipts**
 
-- Completed bookings and queue visits carry a payment status (`paid`, `partial`, `unpaid`, `voided`; `partial` means a deposit or an earlier partial payment was received), shown on the booking drawer, the Queue's Completed Today table, and the customer's appointment history.
-- Checkout applies the verified deposit to the balance and requires the rest in full; an amount below the balance is refused (`insufficient_cash`, HTTP 422). Partial payments are no longer taken at checkout. Rows already in `visit_partial_payments` are kept and still count toward their visit's balance, so a visit that was part-paid can still be settled or have its balance voided. The transaction stores what was paid earlier in `prior_paid`.
+- Completed bookings and queue visits carry a payment status (`paid`, `partial`, `unpaid`, `voided`; `partial` means a booking deposit was received), shown on the booking drawer, the Queue's Completed Today table, and the customer's appointment history.
+- Checkout applies the verified deposit to the balance and requires the rest in full; an amount below the balance is refused (`insufficient_cash`, HTTP 422). Partial payments are no longer taken at checkout, and migration `039_drop_visit_partial_payments.sql` drops the `visit_partial_payments` table and its trigger. The transaction stores the deposit in `prior_paid`; older sales keep whatever was recorded there.
 - A pop-up confirms a completed payment.
 - Void replaces Refund. Management can void a completed transaction in full, or void the unpaid balance of a completed visit for an underpayment or special price (`visit_voids`). Both require a reason. Money already collected on a voided balance becomes a sale for exactly that amount. A voided sale keeps the barber's commission for the service rendered, and the earlier database block on post-payment voids was removed. Historical refunds remain in reports.
 - Several completed visits of one customer at one branch can be paid together (`visits: [...]` on `POST /api/transactions`). Each visit keeps its own transaction and they share a `receipt_group`, so one receipt lists every service with one total.

@@ -141,9 +141,10 @@ test("A20/A21/A23/A24/A26: balances, refused underpayment, void and one receipt 
     const walkIn = async (customer: number, service: string) => Number((await db.query(
       `INSERT INTO queue_entries(customer_id,service_id,barber_id,service_name_snapshot,service_price_snapshot,status,branch_id,started_at,completed_at)
        VALUES($1,$2,$3,'x',0,'completed',$4,now()-interval '30 minutes',now()) RETURNING id`, [customer, service, barber.id, main])).rows[0].id);
-    const booking = Number((await db.query(
+    const depositBooking = async (customer: number, time: string, method: string) => Number((await db.query(
       `INSERT INTO bookings(branch_id,customer_id,barber_id,service_id,service_name,service_price,service_duration_minutes,booking_date,booking_time,status,deposit_amount,deposit_method,deposit_status)
-       VALUES($1,$2,$3,'barracks-basic','Barracks Basic',300,45,'2026-09-20','10:00','completed',150,'cash','received') RETURNING id`, [main, customers[0], barber.id])).rows[0].id);
+       VALUES($1,$2,$3,'barracks-basic','Barracks Basic',300,45,'2026-09-20',$4,'completed',150,$5,'received') RETURNING id`, [main, customer, barber.id, time, method])).rows[0].id);
+    const booking = await depositBooking(customers[0], "10:00", "cash");
     const balances = async () => Object.fromEntries((await listEligibleVisits(db, [main])).map((visit) => [`${visit.visitType}:${visit.visitRecordId}`, [visit.paid, visit.balance]]));
 
     // The verified deposit already counts toward the booking.
@@ -154,21 +155,13 @@ test("A20/A21/A23/A24/A26: balances, refused underpayment, void and one receipt 
     await assert.rejects(checkoutVisits(db, { visit: { bookingId: booking }, paymentMethod: "card", amountReceived: 100 }, frontDesk), { kind: "insufficient_cash" });
     assert.deepEqual((await balances())[`booking:${booking}`], [150, 150]);
     assert.equal(Number((await db.query("SELECT count(*) FROM transactions")).rows[0].count), 0);
-    assert.equal(Number((await db.query("SELECT count(*) FROM visit_partial_payments")).rows[0].count), 0);
+    assert.equal((await db.query("SELECT to_regclass('visit_partial_payments') AS t")).rows[0].t, null);
 
-    // A partial payment recorded before partial checkout was removed still counts toward the balance.
-    const legacyPartial = (type: "booking" | "queue", id: number, amount: number, method: string) => db.query(
-      `INSERT INTO visit_partial_payments(visit_type,visit_record_id,branch_id,amount,payment_method,received_by_name)
-       VALUES($1,$2,$3,$4,$5,'Earlier cashier')`, [type, id, main, amount, method]);
-    await legacyPartial("booking", booking, 100, "cash");
-    assert.deepEqual((await balances())[`booking:${booking}`], [250, 50]);
-    await assert.rejects(db.query("UPDATE visit_partial_payments SET amount=1"), { constraint: "partial_payment_immutable" });
-
-    // Settling the balance completes the sale for the full price.
-    const settled = await checkoutVisits(db, { visit: { bookingId: booking }, paymentMethod: "cash", amountReceived: 100 }, frontDesk);
+    // Settling the balance completes the sale for the full price, with the deposit as paid earlier.
+    const settled = await checkoutVisits(db, { visit: { bookingId: booking }, paymentMethod: "cash", amountReceived: 200 }, frontDesk);
     assert.equal(settled.kind, "paid");
     if (settled.kind !== "paid") return;
-    assert.deepEqual([settled.transaction.total, settled.transaction.priorPaid, settled.transaction.tendered, settled.transaction.change], [300, 250, 100, 50]);
+    assert.deepEqual([settled.transaction.total, settled.transaction.priorPaid, settled.transaction.tendered, settled.transaction.change], [300, 150, 200, 50]);
     assert.equal((await balances())[`booking:${booking}`], undefined);
 
     // Several services of one customer share one receipt; different customers cannot.
@@ -184,13 +177,17 @@ test("A20/A21/A23/A24/A26: balances, refused underpayment, void and one receipt 
     assert.deepEqual([group.transaction.receiptTotal, group.transaction.receiptTendered, group.transaction.receiptChange], [600, 1000, 400]);
     assert.equal(group.transaction.business?.name, "Main Branch");
 
-    // Manager-only void of an unpaid balance, with a required reason; what was collected becomes the sale.
-    await legacyPartial("queue", stranger, 300, "e_wallet");
-    await assert.rejects(voidVisitBalance(db, { queueEntryId: stranger }, "Special price", frontDesk), { kind: "forbidden" });
-    const voided = await voidVisitBalance(db, { queueEntryId: stranger }, "Special price", manager);
-    assert.deepEqual([voided.amountDue, voided.amountPaid, voided.voidedAmount, voided.reason], [550, 300, 250, "Special price"]);
-    assert.equal(Number((await db.query("SELECT amount FROM transactions WHERE reference=$1", [voided.reference])).rows[0].amount), 300);
-    await assert.rejects(voidVisitBalance(db, { queueEntryId: stranger }, "Again", manager), { kind: "conflict" });
+    // Manager-only void of an unpaid balance, with a required reason; a collected deposit becomes the sale.
+    const held = await depositBooking(customers[2], "11:00", "e_wallet");
+    await assert.rejects(voidVisitBalance(db, { bookingId: held }, "Special price", frontDesk), { kind: "forbidden" });
+    const voided = await voidVisitBalance(db, { bookingId: held }, "Special price", manager);
+    assert.deepEqual([voided.amountDue, voided.amountPaid, voided.voidedAmount, voided.reason], [300, 150, 150, "Special price"]);
+    const voidSale = (await db.query("SELECT amount,payment_method FROM transactions WHERE reference=$1", [voided.reference])).rows[0];
+    assert.deepEqual([Number(voidSale.amount), voidSale.payment_method], [150, "e_wallet"]);
+    await assert.rejects(voidVisitBalance(db, { bookingId: held }, "Again", manager), { kind: "conflict" });
+    // A walk-in with nothing collected is voided in full and creates no sale.
+    const nothingPaid = await voidVisitBalance(db, { queueEntryId: stranger }, "Left without paying", manager);
+    assert.deepEqual([nothingPaid.amountDue, nothingPaid.amountPaid, nothingPaid.voidedAmount, nothingPaid.reference], [550, 0, 550, null]);
     await assert.rejects(db.query("DELETE FROM visit_voids"), { constraint: "visit_void_immutable" });
 
     // A paid sale can be voided by management even though commission was earned.
