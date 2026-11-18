@@ -134,7 +134,7 @@ test("A4/A13/A14/A15/A17/A18/A19: booking events, deposit, reasons, remarks and 
   } finally { await cleanup(); }
 });
 
-test("A20/A21/A23/A24/A26: balances, underpayment, void and one receipt for several services", { skip: !databaseConfigured }, async () => {
+test("A20/A21/A23/A24/A26: balances, refused underpayment, void and one receipt for several services", { skip: !databaseConfigured }, async () => {
   const { db, cleanup } = await createDisposableSchema();
   try {
     const { main, barber, manager, frontDesk, customers } = await fixture(db);
@@ -149,11 +149,19 @@ test("A20/A21/A23/A24/A26: balances, underpayment, void and one receipt for seve
     // The verified deposit already counts toward the booking.
     assert.deepEqual((await balances())[`booking:${booking}`], [150, 150]);
 
-    // Underpayment: recorded, balance shown, and the visit is not marked as paid.
-    const partial = await checkoutVisits(db, { visit: { bookingId: booking }, paymentMethod: "cash", amountReceived: 100 }, frontDesk);
-    assert.deepEqual(partial, { kind: "partial", customerName: "Panel Customer0", serviceName: "Barracks Basic", received: 100, paid: 250, total: 300, balance: 50 });
-    assert.deepEqual((await balances())[`booking:${booking}`], [250, 50]);
+    // Underpayment is refused: nothing is recorded and the balance is unchanged.
+    await assert.rejects(checkoutVisits(db, { visit: { bookingId: booking }, paymentMethod: "cash", amountReceived: 100 }, frontDesk), { kind: "insufficient_cash" });
+    await assert.rejects(checkoutVisits(db, { visit: { bookingId: booking }, paymentMethod: "card", amountReceived: 100 }, frontDesk), { kind: "insufficient_cash" });
+    assert.deepEqual((await balances())[`booking:${booking}`], [150, 150]);
     assert.equal(Number((await db.query("SELECT count(*) FROM transactions")).rows[0].count), 0);
+    assert.equal(Number((await db.query("SELECT count(*) FROM visit_partial_payments")).rows[0].count), 0);
+
+    // A partial payment recorded before partial checkout was removed still counts toward the balance.
+    const legacyPartial = (type: "booking" | "queue", id: number, amount: number, method: string) => db.query(
+      `INSERT INTO visit_partial_payments(visit_type,visit_record_id,branch_id,amount,payment_method,received_by_name)
+       VALUES($1,$2,$3,$4,$5,'Earlier cashier')`, [type, id, main, amount, method]);
+    await legacyPartial("booking", booking, 100, "cash");
+    assert.deepEqual((await balances())[`booking:${booking}`], [250, 50]);
     await assert.rejects(db.query("UPDATE visit_partial_payments SET amount=1"), { constraint: "partial_payment_immutable" });
 
     // Settling the balance completes the sale for the full price.
@@ -177,7 +185,7 @@ test("A20/A21/A23/A24/A26: balances, underpayment, void and one receipt for seve
     assert.equal(group.transaction.business?.name, "Main Branch");
 
     // Manager-only void of an unpaid balance, with a required reason; what was collected becomes the sale.
-    await checkoutVisits(db, { visit: { queueEntryId: stranger }, paymentMethod: "e_wallet", amountReceived: 300 }, frontDesk);
+    await legacyPartial("queue", stranger, 300, "e_wallet");
     await assert.rejects(voidVisitBalance(db, { queueEntryId: stranger }, "Special price", frontDesk), { kind: "forbidden" });
     const voided = await voidVisitBalance(db, { queueEntryId: stranger }, "Special price", manager);
     assert.deepEqual([voided.amountDue, voided.amountPaid, voided.voidedAmount, voided.reason], [550, 300, 250, "Special price"]);
