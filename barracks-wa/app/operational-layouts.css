@@ -378,7 +378,6 @@ a.button { text-decoration: none; }
 .payment-popup p { margin: 0; color: var(--text-soft); font-size: var(--text-sm); }
 .payment-popup__icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--green); color: #fff; }
 .payment-popup__amount { color: var(--text) !important; font-size: 26px !important; font-weight: 700; font-variant-numeric: tabular-nums; }
-.payment-popup--partial .payment-popup__amount { color: var(--amber, #c79a3c) !important; }
 .payment-popup__lines { display: grid; gap: 4px; width: 100%; margin: 4px 0; padding: 10px 0; border-block: 1px dashed var(--line); list-style: none; font-size: var(--text-sm); }
 .payment-popup__lines li { display: flex; justify-content: space-between; gap: 12px; }
 .payment-popup__reference { font-size: var(--text-2xs) !important; overflow-wrap: anywhere; }

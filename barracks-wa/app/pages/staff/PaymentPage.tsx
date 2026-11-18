@@ -9,7 +9,7 @@ import { Icon } from "@/app/components/ui/icons";
 import { BranchSwitcher } from "@/app/components/BranchSwitcher";
 import { FreshnessBar } from "@/app/components/operations/OperationalPrimitives";
 import type { EligibleVisit, TransactionRecord } from "@/server/services/payment.service";
-import { CheckoutWorkspace, type PartialPayment } from "./payment/CheckoutWorkspace";
+import { CheckoutWorkspace } from "./payment/CheckoutWorkspace";
 import { loadMonthHistory } from "./payment/history";
 import { manilaDate, methodLabel, money } from "./payment/labels";
 import { TransactionCalendar } from "./payment/TransactionCalendar";
@@ -94,7 +94,6 @@ function PaymentBranch({
   const monthDayCount = new Date(Date.UTC(monthYear, monthNumber, 0)).getUTCDate();
   const dateTo = `${month}-${String(monthDayCount).padStart(2, "0")}`;
   const [completed, setCompleted] = useState<TransactionRecord | null>(null);
-  const [partial, setPartial] = useState<PartialPayment | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const requestVersion = useRef(0);
@@ -210,10 +209,6 @@ function PaymentBranch({
             setCompleted(transaction);
             await load();
           }}
-          onPartial={async (result) => {
-            setPartial(result);
-            await load();
-          }}
           onReload={load}
         />
       )}
@@ -296,33 +291,6 @@ function PaymentBranch({
                 }}
               >
                 Print receipt
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-      <Modal
-        open={Boolean(partial)}
-        title="Partial payment recorded"
-        onClose={() => setPartial(null)}
-      >
-        {partial && (
-          <div className="payment-popup payment-popup--partial" role="status">
-            <p className="payment-popup__amount">{money(partial.balance)} still due</p>
-            <p>
-              <strong>{partial.customerName}</strong> · {partial.serviceName}
-            </p>
-            <p>
-              Received now {money(partial.received)} · Paid so far {money(partial.paid)} of{" "}
-              {money(partial.total)}
-            </p>
-            <p>
-              This visit is <strong>not marked as paid</strong>. It stays under Completed unpaid
-              visits until the balance is collected or a manager voids it.
-            </p>
-            <div className="modal-actions">
-              <Button type="button" onClick={() => setPartial(null)}>
-                OK
               </Button>
             </div>
           </div>
