@@ -41,7 +41,8 @@ export type TransactionRecord = {
   actions?: FinancialActionRecord[];
   // Present on single-transaction reads.
   voidable?: boolean;
-  // Deposit and partial payments collected before this final tender.
+  // Deposit collected before this final tender (older sales may also include
+  // partial payments from before partial checkout was removed).
   priorPaid: number;
   // Cash handed over at this checkout (cash tenders only).
   tendered: number | null;
@@ -215,10 +216,9 @@ export async function applyFinancialAction(db: Pool, reference: string, input: F
 }
 
 // What has already been collected for a completed visit: a verified booking
-// deposit plus any partial payments. Shared by every balance calculation.
-const bookingPaidSql = `(CASE WHEN b.deposit_status='received' THEN b.deposit_amount ELSE 0 END
-  + COALESCE((SELECT sum(pp.amount) FROM visit_partial_payments pp WHERE pp.visit_type='booking' AND pp.visit_record_id=b.id),0))`;
-const queuePaidSql = `COALESCE((SELECT sum(pp.amount) FROM visit_partial_payments pp WHERE pp.visit_type='queue' AND pp.visit_record_id=q.id),0)`;
+// deposit. Walk-ins pay nothing before checkout.
+const bookingPaidSql = `(CASE WHEN b.deposit_status='received' THEN b.deposit_amount ELSE 0 END)`;
+const queuePaidSql = `0`;
 
 export async function listEligibleVisits(db: Pool, branchIds?: number[]): Promise<EligibleVisit[]> {
   const result = await db.query<{
@@ -270,8 +270,7 @@ async function lockVisit(client: import("pg").PoolClient, ref: VisitRef): Promis
         b.service_id, b.service_name, b.service_price AS amount, b.status AS visit_status,
         concat_ws(' ',COALESCE(cu.first_name,c.first_name),COALESCE(cu.last_name,c.last_name)) AS customer_name,
         concat_ws(' ',br.first_name,br.last_name) AS barber_name, ${bookingPaidSql} AS paid,
-        COALESCE((SELECT pp.payment_method FROM visit_partial_payments pp WHERE pp.visit_type='booking' AND pp.visit_record_id=b.id ORDER BY pp.id DESC LIMIT 1),
-          CASE WHEN b.deposit_status='received' THEN b.deposit_method END) AS last_method
+        CASE WHEN b.deposit_status='received' THEN b.deposit_method END AS last_method
        FROM bookings b JOIN customers c ON c.id=b.customer_id
        LEFT JOIN users cu ON cu.id=c.user_id JOIN barbers br ON br.id=b.barber_id
        WHERE b.id=$1 FOR UPDATE OF b`, [bookingId],
@@ -282,7 +281,7 @@ async function lockVisit(client: import("pg").PoolClient, ref: VisitRef): Promis
         q.service_price_snapshot AS amount, q.status AS visit_status,
         concat_ws(' ',COALESCE(cu.first_name,c.first_name),COALESCE(cu.last_name,c.last_name)) AS customer_name,
         concat_ws(' ',br.first_name,br.last_name) AS barber_name, ${queuePaidSql} AS paid,
-        (SELECT pp.payment_method FROM visit_partial_payments pp WHERE pp.visit_type='queue' AND pp.visit_record_id=q.id ORDER BY pp.id DESC LIMIT 1) AS last_method
+        NULL::varchar AS last_method
        FROM queue_entries q JOIN customers c ON c.id=q.customer_id
        LEFT JOIN users cu ON cu.id=c.user_id LEFT JOIN barbers br ON br.id=q.barber_id
        WHERE q.id=$1 AND q.booking_id IS NULL FOR UPDATE OF q`, [(ref as { queueEntryId: number }).queueEntryId],

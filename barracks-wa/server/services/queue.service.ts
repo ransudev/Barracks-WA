@@ -87,9 +87,7 @@ const paymentStatusSql = `  CASE WHEN q.status<>'completed' THEN NULL
       OR (t.visit_type='booking' AND t.visit_record_id=q.booking_id))) THEN 'paid'
     WHEN EXISTS (SELECT 1 FROM transactions t WHERE (t.visit_type='queue' AND t.visit_record_id=q.id)
       OR (t.visit_type='booking' AND t.visit_record_id=q.booking_id)) THEN 'voided'
-    WHEN (b.deposit_status='received' AND b.deposit_amount>0)
-      OR EXISTS (SELECT 1 FROM visit_partial_payments pp WHERE (pp.visit_type='queue' AND pp.visit_record_id=q.id)
-        OR (pp.visit_type='booking' AND pp.visit_record_id=q.booking_id)) THEN 'partial'
+    WHEN b.deposit_status='received' AND b.deposit_amount>0 THEN 'partial'
     ELSE 'unpaid' END`;
 const iso = (value: Date | string | null) => value === null ? null : new Date(value).toISOString();
 function toQueue(row: QueueRow): QueueRecord {
